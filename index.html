@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Librarium Imperialis</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#07070d;--surface:#0d0d18;--card:#111120;--card-hover:#181828;
+      --gold:#e8c96a;--gold-bright:#f5d980;--gold-dim:rgba(232,201,106,.18);--gold-glow:rgba(232,201,106,.08);
+      --text:#e6dfd4;--text-muted:#8a8290;--border:#1e1c2e;--border-gold:rgba(232,201,106,.38);
+      --owned:#3d8b6e;--read:#c9a84c;--wishlist:#8b5a9a;
+      --owned-bg:rgba(61,139,110,.14);--read-bg:rgba(201,168,76,.11);--wishlist-bg:rgba(139,90,154,.14);
+      --radius:3px;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:'EB Garamond',Georgia,serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+    body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1000;opacity:.022;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+    /* ── AUTH ── */
+    .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;
+      background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(232,201,106,.08) 0%,transparent 65%),
+                 radial-gradient(ellipse 40% 40% at 80% 80%,rgba(139,90,154,.05) 0%,transparent 60%),var(--bg)}
+    .auth-panel{background:var(--surface);border:1px solid var(--border-gold);padding:3rem 2.5rem;
+      width:100%;max-width:440px;position:relative;box-shadow:0 0 60px rgba(232,201,106,.05),0 20px 40px rgba(0,0,0,.5)}
+    .auth-panel::before{content:'';position:absolute;top:6px;left:6px;right:6px;bottom:6px;
+      border:1px solid rgba(232,201,106,.09);pointer-events:none}
+    .corner{position:absolute;width:18px;height:18px;border-color:var(--gold);border-style:solid}
+    .corner-tl{top:-1px;left:-1px;border-width:2px 0 0 2px}.corner-tr{top:-1px;right:-1px;border-width:2px 2px 0 0}
+    .corner-bl{bottom:-1px;left:-1px;border-width:0 0 2px 2px}.corner-br{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+    .auth-logo{text-align:center;margin-bottom:2.5rem}
+    .aquila{font-size:2.6rem;color:var(--gold-bright);display:block;margin-bottom:.75rem;
+      filter:drop-shadow(0 0 14px rgba(232,201,106,.5))}
+    .auth-logo h1{font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;letter-spacing:.18em;
+      color:var(--gold-bright);text-transform:uppercase}
+    .auth-logo p{font-size:.82rem;color:var(--text-muted);letter-spacing:.1em;margin-top:.5rem;font-style:italic}
+    .auth-div{display:flex;align-items:center;gap:.75rem;margin-bottom:2rem;opacity:.5}
+    .auth-div::before,.auth-div::after{content:'';flex:1;height:1px;background:var(--border-gold)}
+    .auth-div span{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+    .auth-tabs{display:flex;margin-bottom:2rem;border-bottom:1px solid var(--border)}
+    .auth-tab{flex:1;padding:.75rem;background:none;border:none;font-family:'Cinzel',serif;font-size:.72rem;
+      letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);cursor:pointer;
+      border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .2s,border-color .2s}
+    .auth-tab.active{color:var(--gold-bright);border-bottom-color:var(--gold)}
+    .fg{margin-bottom:1.25rem}
+    .fg label{display:block;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.16em;
+      text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem}
+    .fg input{width:100%;padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);
+      color:var(--text);font-family:'EB Garamond',serif;font-size:1rem;outline:none;
+      transition:border-color .2s,box-shadow .2s;border-radius:var(--radius)}
+    .fg input:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-glow)}
+    .btn-primary{width:100%;padding:.85rem;background:linear-gradient(135deg,#d4a93c 0%,#b08830 100%);
+      color:#0a0808;border:none;font-family:'Cinzel',serif;font-size:.75rem;font-weight:700;
+      letter-spacing:.18em;text-transform:uppercase;cursor:pointer;transition:opacity .2s,transform .1s;
+      border-radius:var(--radius);margin-top:.5rem}
+    .btn-primary:hover{opacity:.88}.btn-primary:active{transform:scale(.99)}.btn-primary:disabled{opacity:.45;cursor:not-allowed}
+    .auth-msg{padding:.75rem 1rem;font-size:.9rem;border-radius:var(--radius);margin-bottom:1rem}
+    .auth-msg.error{background:rgba(180,60,60,.12);border:1px solid rgba(180,60,60,.35);color:#e07070}
+    .auth-msg.success{background:rgba(61,139,110,.12);border:1px solid rgba(61,139,110,.35);color:#6dbfa0}
+
+    /* ── APP ── */
+    .app{display:none}.app.visible{display:block}
+
+    /* ── HEADER ── */
+    header{background:var(--surface);border-bottom:1px solid var(--border-gold);padding:0 2rem;
+      display:flex;align-items:center;justify-content:space-between;height:58px;
+      position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,.45)}
+    .h-brand{display:flex;align-items:center;gap:.65rem}
+    .h-aquila{color:var(--gold-bright);font-size:1.2rem;filter:drop-shadow(0 0 6px rgba(232,201,106,.5))}
+    .h-title{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;letter-spacing:.18em;
+      color:var(--gold-bright);text-transform:uppercase;text-shadow:0 0 18px rgba(232,201,106,.35)}
+    .h-sub{font-family:'EB Garamond',serif;font-size:.8rem;color:#b0a898;font-style:italic;margin-left:.25rem}
+    .h-right{display:flex;align-items:center;gap:1.25rem}
+    .h-email{font-size:.8rem;color:var(--text-muted);font-style:italic;max-width:180px;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .btn-logout{padding:.35rem .85rem;background:none;border:1px solid var(--border);color:var(--text-muted);
+      font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;
+      cursor:pointer;transition:border-color .2s,color .2s;border-radius:var(--radius)}
+    .btn-logout:hover{border-color:rgba(232,201,106,.5);color:var(--gold)}
+
+    /* ── STATS ── */
+    .stats{background:var(--surface);border-bottom:1px solid var(--border);padding:.85rem 2rem;
+      display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+    .stat{display:flex;align-items:baseline;gap:.4rem;padding:0 .85rem}
+    .stat:first-child{padding-left:0}
+    .sv{font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:var(--gold-bright);line-height:1}
+    .sl{font-size:.78rem;letter-spacing:.07em;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif}
+    .sdiv{width:1px;height:24px;background:var(--border);flex-shrink:0}
+
+    /* ── CONTROLS ── */
+    .ctrl-wrap{background:rgba(7,7,13,.78);border-bottom:1px solid var(--border);
+      position:sticky;top:58px;z-index:90;backdrop-filter:blur(10px)}
+    .ctrl-row{padding:.65rem 2rem;display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;
+      border-bottom:1px solid rgba(30,28,46,.5)}
+    .ctrl-row:last-child{border-bottom:none}
+    .rl{font-family:'Cinzel',serif;font-size:.69rem;letter-spacing:.14em;text-transform:uppercase;
+      color:#ddd7cc;white-space:nowrap;min-width:50px;margin-right:.2rem}
+    .pill{padding:.3rem .72rem;border:1px solid #3a3650;background:none;color:#cec8be;
+      font-family:'Cinzel',serif;font-size:.69rem;letter-spacing:.09em;text-transform:uppercase;
+      cursor:pointer;transition:all .15s;border-radius:2px;white-space:nowrap}
+    .pill:hover{border-color:rgba(232,201,106,.4);color:var(--text)}
+    .pill.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-bright)}
+    .pill[data-type="Novel"].active{background:rgba(65,120,200,.15);border-color:#4178c8;color:#8abbff}
+    .pill[data-type="Novella"].active{background:rgba(80,160,120,.15);border-color:#50a078;color:#8edfc0}
+    .pill[data-type="Anthology"].active{background:rgba(160,100,180,.15);border-color:#a064b4;color:#d0a0f0}
+    .pill[data-type="Omnibus"].active{background:rgba(200,140,50,.15);border-color:#c88c32;color:#f0c070}
+    .pill[data-type="Audio Drama"].active{background:rgba(200,80,80,.15);border-color:#c85050;color:#f0a0a0}
+    .pill[data-type="eBook"].active{background:rgba(80,160,180,.15);border-color:#50a0b4;color:#90dcf0}
+    .pill[data-type="Series"].active{background:rgba(180,150,50,.18);border-color:#b49632;color:#f0d070}
+    .ctrl-right{margin-left:auto;display:flex;gap:.5rem}
+    .srch{padding:.38rem .82rem;background:var(--surface);border:1px solid var(--border);color:var(--text);
+      font-family:'EB Garamond',serif;font-size:.92rem;outline:none;border-radius:var(--radius);
+      width:190px;transition:border-color .2s}
+    .srch:focus{border-color:rgba(232,201,106,.5)}
+    .srch::placeholder{color:#9a94a2}
+    .subj-sel{padding:.38rem .82rem;background:var(--surface);border:1px solid #3a3650;
+      color:#cec8be;font-family:'Cinzel',serif;font-size:.57rem;letter-spacing:.05em;
+      text-transform:uppercase;outline:none;border-radius:var(--radius);cursor:pointer;
+      transition:border-color .2s;max-width:220px}
+    .subj-sel:focus{border-color:rgba(232,201,106,.5)}
+    .subj-sel option{background:#0d0d18;font-family:sans-serif;text-transform:none;font-size:.88rem}
+
+    /* ── RESULT INFO ── */
+    .rinfo{padding:.32rem 2rem;font-size:.86rem;color:var(--text-muted);font-style:italic;
+      background:var(--bg);border-bottom:1px solid var(--border)}
+
+    /* ── GRID & CARDS ── */
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);margin:0 2rem}
+    
+    
+    
+    .card-thumb{width:100%;aspect-ratio:2/3;background:#0a0a14;
+      border:1px solid #2a2840;overflow:hidden;display:flex;align-items:center;
+      justify-content:center}
+    
+    
+    .card:hover{background:var(--card-hover)}
+
+    /* cover image */
+    .cover-wrap{display:none}
+    .cover-img{width:100%;height:100%;object-fit:contain;display:none}
+    .cover-img.loaded{display:block}
+    .cover-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;
+      width:100%;height:100%;gap:.4rem;padding:.5rem}
+    .cover-placeholder .cp-aquila{font-size:1.6rem;color:var(--gold);opacity:.25}
+    .cover-placeholder .cp-title{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.08em;
+      text-transform:uppercase;color:var(--text-muted);opacity:.45;text-align:center;line-height:1.4}
+    .cover-img.loaded + .cover-placeholder{display:none}
+
+    .card-header-row{display:flex;align-items:center;margin-bottom:.32rem;gap:.4rem;flex-wrap:nowrap}
+    .c-pipe{color:rgba(232,201,106,.3);font-size:.6rem;margin:0 .1rem}
+    .card{background:var(--card);padding:.85rem 1rem 1rem;transition:background .15s;
+      display:flex;flex-direction:column;cursor:pointer;gap:.18rem}
+    .card-body{display:flex;gap:.7rem;margin-bottom:.65rem}
+    .card-meta-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:.18rem}
+    .card-cover-col{flex:1;display:flex;align-items:stretch}
+    .card-thumb{width:100%;aspect-ratio:2/3;background:#0a0a14;
+      border:1px solid #2a2840;overflow:hidden;display:flex;align-items:center;
+      justify-content:center}
+    .card-thumb img{width:100%;height:100%;object-fit:contain}
+    .ct-ph{font-size:.75rem;color:var(--gold);opacity:.15}
+    .card-subject{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.12em;
+      text-transform:uppercase;color:var(--gold-bright);opacity:.85}
+    
+    .cascade-note{font-size:.54rem;font-style:italic;color:var(--text-muted);opacity:.65;margin-top:.15rem}
+    .c-subj{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.15em;text-transform:uppercase;
+      color:var(--gold-bright);opacity:.9;line-height:1.3;flex:1}
+    .tbadge{font-family:'Cinzel',serif;font-size:.48rem;letter-spacing:.07em;text-transform:uppercase;
+      padding:.16rem .4rem;border-radius:2px;white-space:nowrap;flex-shrink:0}
+    .t-Novel{background:rgba(65,120,200,.15);border:1px solid rgba(65,120,200,.3);color:#8abbff}
+    .t-Novella{background:rgba(80,160,120,.15);border:1px solid rgba(80,160,120,.3);color:#8edfc0}
+    .t-Anthology{background:rgba(160,100,180,.15);border:1px solid rgba(160,100,180,.3);color:#d0a0f0}
+    .t-Omnibus{background:rgba(200,140,50,.15);border:1px solid rgba(200,140,50,.3);color:#f0c070}
+    .t-AudioDrama{background:rgba(200,80,80,.15);border:1px solid rgba(200,80,80,.3);color:#f0a0a0}
+    .t-eBook{background:rgba(80,160,180,.15);border:1px solid rgba(80,160,180,.3);color:#90dcf0}
+    .c-title{font-family:'Cinzel',serif;font-size:.96rem;font-weight:600;color:var(--text);
+      line-height:1.35;margin-bottom:.22rem;flex:1}
+    .c-meta{font-size:.9rem;font-style:italic;color:#9a94a0;margin-bottom:.75rem}
+    .c-actions{display:flex;gap:.28rem}
+    .sbtn{flex:1;padding:.38rem .1rem;border-radius:2px;border:1px solid #3a3650;background:none;
+      color:#b8b2ac;font-size:.68rem;font-family:'Cinzel',serif;letter-spacing:.06em;
+      text-transform:uppercase;cursor:pointer;transition:all .15s;display:flex;align-items:center;
+      justify-content:center;gap:.18rem;white-space:nowrap}
+    .sbtn:hover{color:var(--text);border-color:#444}
+    .sbtn.owned{background:var(--owned-bg);border-color:var(--owned);color:#6dcfa6}
+    .sbtn.read{background:var(--read-bg);border-color:var(--read);color:var(--gold-bright)}
+    .sbtn.wishlist{background:var(--wishlist-bg);border-color:var(--wishlist);color:#c090d0}
+
+    .loading,.no-res{grid-column:1/-1;text-align:center;padding:5rem 2rem;color:var(--text-muted)}
+    .spinner{display:inline-block;width:28px;height:28px;border:2px solid var(--border);
+      border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:1rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading p,.no-res p{font-style:italic;font-size:.9rem;margin-top:.5rem}
+
+    ::-webkit-scrollbar{width:7px}::-webkit-scrollbar-track{background:var(--bg)}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+    ::-webkit-scrollbar-thumb:hover{background:rgba(232,201,106,.3)}
+
+    @media(max-width:680px){
+      header{padding:0 1rem}.h-sub,.h-email{display:none}
+      .stats{padding:.7rem 1rem;gap:0}.stat{padding:0 .5rem}.sv{font-size:1.1rem}
+      .ctrl-row{padding:.55rem 1rem}.ctrl-right{margin-left:0;width:100%}.srch{width:100%}
+      .rinfo{padding:.3rem 1rem}
+    }
+  
+    /* ── MODAL ────────────────────────────────────────────────── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;
+      display:flex;align-items:center;justify-content:center;padding:1.5rem;
+      backdrop-filter:blur(4px);animation:fadeIn .15s ease}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .modal-panel{background:var(--surface);border:1px solid var(--border-gold);
+      width:100%;max-width:820px;height:88vh;max-height:660px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+      box-shadow:0 0 80px rgba(232,201,106,.08),0 30px 60px rgba(0,0,0,.7);
+      animation:slideUp .18s ease}
+    @keyframes slideUp{from{transform:translateY(12px);opacity:.6}to{transform:translateY(0);opacity:1}}
+    .modal-panel::before{content:'';position:absolute;top:5px;left:5px;right:5px;bottom:5px;
+      border:1px solid rgba(232,201,106,.07);pointer-events:none;z-index:1}
+    .modal-corner{position:absolute;width:16px;height:16px;border-color:var(--gold);border-style:solid;z-index:2}
+    .mc-tl{top:-1px;left:-1px;border-width:2px 0 0 2px}.mc-tr{top:-1px;right:-1px;border-width:2px 2px 0 0}
+    .mc-bl{bottom:-1px;left:-1px;border-width:0 0 2px 2px}.mc-br{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+
+    /* top bar */
+    .modal-top{display:flex;align-items:center;justify-content:space-between;
+      padding:.8rem 1rem .8rem 1.2rem;border-bottom:1px solid var(--border);gap:1rem;flex-wrap:wrap}
+    .modal-status-row{display:flex;gap:.4rem}
+    .modal-ctrl{display:flex;gap:.35rem;margin-left:auto}
+    .modal-edit-btn,.modal-close-btn{width:30px;height:30px;border-radius:2px;border:1px solid #3a3650;
+      background:none;color:#b8b2ac;font-size:.85rem;cursor:pointer;display:flex;align-items:center;
+      justify-content:center;transition:all .15s}
+    .modal-edit-btn:hover{border-color:var(--gold);color:var(--gold-bright)}
+    .modal-edit-btn.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-bright)}
+    .modal-close-btn:hover{border-color:#c85050;color:#f09090}
+
+    /* body layout */
+    .modal-body{display:flex;gap:1.5rem;padding:1.2rem 1.2rem 1.4rem;flex:1;min-height:0;overflow:hidden}
+    .modal-left{flex-shrink:0;width:230px;display:flex;flex-direction:column;gap:.7rem;overflow-y:auto}
+    .modal-right{flex:1;min-width:0;display:flex;flex-direction:column;gap:.9rem}
+
+    /* cover in modal */
+    .modal-cover{width:230px;aspect-ratio:2/3;background:#0a0a14;border:1px solid var(--border);
+      overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative}
+    .modal-cover-img{width:100%;height:100%;object-fit:contain;display:none}
+    .modal-cover-img.loaded{display:block}
+    .modal-cover-ph{display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:.4rem;width:100%;height:100%;padding:.5rem}
+    .modal-cover-ph .mcp-aquila{font-size:2rem;color:var(--gold);opacity:.2}
+    .modal-cover-ph .mcp-text{font-family:'Cinzel',serif;font-size:.5rem;letter-spacing:.08em;
+      text-transform:uppercase;color:var(--text-muted);opacity:.4;text-align:center;line-height:1.5}
+    .modal-cover-img.loaded + .modal-cover-ph{display:none}
+    .modal-upload-area{display:none}
+    .modal-upload-area.visible{display:block}
+    .modal-upload-btn{width:100%;padding:.45rem;background:none;border:1px dashed #3a3650;
+      color:#9a94a2;font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.1em;
+      text-transform:uppercase;cursor:pointer;transition:all .15s;border-radius:2px}
+    .modal-upload-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+    /* fields */
+    .mfield{display:flex;flex-direction:column;gap:.25rem}
+    .mfield-label{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.16em;
+      text-transform:uppercase;color:var(--gold);opacity:.7}
+    .mfield-val{font-size:1rem;color:#ddd7cc;line-height:1.4}
+    .mfield-val.title{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:600;
+      color:var(--text);letter-spacing:.04em}
+    .mfield-val.meta{font-size:.88rem;font-style:italic;color:#9a94a2}
+    
+    
+    .mfield-val.hidden{display:none}
+
+    /* ── RICH TEXT EDITOR ─────────────────────────── */
+    .rte-wrap{display:none;flex-direction:column;flex:1;min-height:0;
+      border:1px solid #3a3650;border-radius:var(--radius);overflow:hidden;
+      transition:border-color .2s}
+    .rte-wrap.visible{display:flex}
+    .rte-wrap:focus-within{border-color:var(--gold)}
+    .rte-toolbar{display:flex;flex-wrap:wrap;gap:2px;padding:.3rem .4rem;
+      background:#0a0a14;border-bottom:1px solid #2a2840;flex-shrink:0}
+    .rte-btn{width:26px;height:26px;background:none;border:1px solid transparent;
+      border-radius:2px;color:var(--gold);font-size:.78rem;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      font-family:Georgia,serif;transition:all .15s;flex-shrink:0}
+    .rte-btn:hover{background:#1e1c2e;border-color:#3a3650;color:var(--gold-bright)}
+    .rte-btn.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-bright)}
+    .rte-btn.wide{width:auto;padding:0 .5rem;font-family:'Cinzel',serif;
+      font-size:.52rem;letter-spacing:.06em;text-transform:uppercase}
+    .rte-divider{width:1px;background:#2a2840;margin:2px 3px;flex-shrink:0}
+    .rte-editor{flex:1;overflow-y:auto;padding:.7rem .85rem;background:var(--bg);
+      color:var(--text);font-family:'EB Garamond',serif;font-size:.95rem;
+      line-height:1.7;outline:none;min-height:0}
+    .rte-editor:empty::before{content:attr(data-placeholder);color:var(--text-muted);
+      font-style:italic;pointer-events:none}
+    .rte-editor b,.rte-editor strong{color:#e8dfd4;font-weight:700}
+    .rte-editor i,.rte-editor em{font-style:italic;color:#cfc9c0}
+    .rte-editor u{text-decoration:underline;text-decoration-color:rgba(232,201,106,.5)}
+    .rte-editor ul,.rte-editor ol{padding-left:1.4rem;margin:.3rem 0}
+    .rte-editor li{margin:.15rem 0}
+    .rte-editor blockquote{border-left:2px solid var(--gold);padding-left:.75rem;
+      margin:.4rem 0;color:#9a94a2;font-style:italic}
+    .mfield-val.summary{font-size:.9rem;color:#b8b2ac;line-height:1.6;
+      flex:1;overflow-y:auto;padding:.2rem 0;min-height:0}
+    .mfield-val.summary b,.mfield-val.summary strong{color:#e8dfd4;font-weight:700}
+    .mfield-val.summary i,.mfield-val.summary em{font-style:italic}
+    .mfield-val.summary u{text-decoration:underline;
+      text-decoration-color:rgba(232,201,106,.5)}
+    .mfield-val.summary ul,.mfield-val.summary ol{padding-left:1.4rem;margin:.3rem 0}
+    .mfield-val.summary li{margin:.15rem 0}
+    .mfield-val.summary blockquote{border-left:2px solid var(--gold);
+      padding-left:.75rem;margin:.4rem 0;color:#9a94a2;font-style:italic}
+
+    /* save btn */
+    .modal-save-row{display:none;padding:.6rem 1.2rem 1rem;border-top:1px solid var(--border)}
+    .modal-save-row.visible{display:flex;justify-content:flex-end;gap:.6rem}
+    .modal-save-btn{padding:.5rem 1.4rem;background:linear-gradient(135deg,#d4a93c 0%,#b08830 100%);
+      color:#0a0808;border:none;font-family:'Cinzel',serif;font-size:.65rem;font-weight:700;
+      letter-spacing:.14em;text-transform:uppercase;cursor:pointer;border-radius:var(--radius);
+      transition:opacity .2s}
+    .modal-save-btn:hover{opacity:.88}
+    .modal-cancel-btn{padding:.5rem 1rem;background:none;border:1px solid #3a3650;
+      color:#9a94a2;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.12em;
+      text-transform:uppercase;cursor:pointer;border-radius:var(--radius);transition:all .15s}
+    .modal-cancel-btn:hover{border-color:#666;color:var(--text)}
+
+    /* modal status buttons */
+    .msbtn{padding:.42rem .9rem;border-radius:2px;border:1px solid #3a3650;background:none;
+      color:#b8b2ac;font-size:.6rem;font-family:'Cinzel',serif;letter-spacing:.07em;
+      text-transform:uppercase;cursor:pointer;transition:all .15s;display:flex;
+      align-items:center;gap:.25rem}
+    .msbtn:hover{color:var(--text);border-color:#555}
+    .msbtn.owned{background:var(--owned-bg);border-color:var(--owned);color:#6dcfa6}
+    .msbtn.read{background:var(--read-bg);border-color:var(--read);color:var(--gold-bright)}
+    .msbtn.wishlist{background:var(--wishlist-bg);border-color:var(--wishlist);color:#c090d0}
+
+    .modal-type-badge{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.08em;
+      text-transform:uppercase;padding:.2rem .5rem;border-radius:2px}
+
+    @media(max-width:580px){
+      .modal-body{flex-direction:column}
+      .modal-left{width:100%;flex-direction:row;align-items:flex-start}
+      .modal-cover{width:120px;flex-shrink:0}
+    }
+  
+    /* card format badge colors match filter pills */
+    .card-format{font-family:'Cinzel',serif;font-size:.64rem;letter-spacing:.1em;
+      text-transform:uppercase;display:inline-block;padding:.15rem .45rem;
+      border-radius:2px;border:1px solid #3a3650;color:#b8b2ac;margin-top:.1rem;
+      align-self:flex-start}
+    .card-format.t-Novel{background:rgba(65,120,200,.15);border-color:rgba(65,120,200,.4);color:#8abbff}
+    .card-format.t-Novella{background:rgba(80,160,120,.15);border-color:rgba(80,160,120,.4);color:#8edfc0}
+    .card-format.t-Anthology{background:rgba(160,100,180,.15);border-color:rgba(160,100,180,.4);color:#d0a0f0}
+    .card-format.t-Omnibus{background:rgba(200,140,50,.15);border-color:rgba(200,140,50,.4);color:#f0c070}
+    .card-format.t-AudioDrama{background:rgba(200,80,80,.15);border-color:rgba(200,80,80,.4);color:#f0a0a0}
+    .card-format.t-eBook{background:rgba(80,160,180,.15);border-color:rgba(80,160,180,.4);color:#90dcf0}
+    .card-format.t-Series{background:rgba(180,150,50,.18);border-color:rgba(180,150,50,.4);color:#f0d070}
+  </style>
+</head>
+<body>
+
+<!-- ══ AUTH ══════════════════════════════════════════════════ -->
+<div class="auth-wrap" id="authWrap">
+  <div class="auth-panel">
+    <span class="corner corner-tl"></span><span class="corner corner-tr"></span>
+    <span class="corner corner-bl"></span><span class="corner corner-br"></span>
+    <div class="auth-logo">
+      <span class="aquila">&#9869;</span>
+      <h1>Librarium Imperialis</h1>
+      <p>Personal Archive &middot; Black Library Complete Catalogue</p>
+    </div>
+    <div class="auth-div"><span>Identify Yourself</span></div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Sign In</button>
+      <button class="auth-tab" id="tabReg"   onclick="switchTab('register')">Register</button>
+    </div>
+    <div id="authMsg" class="auth-msg error" style="display:none;"></div>
+    <div id="loginForm">
+      <div class="fg"><label>Email Address</label>
+        <input type="email" id="lEmail" placeholder="inquisitor@imperium.terra" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <div class="fg"><label>Password</label>
+        <input type="password" id="lPass" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <button class="btn-primary" id="loginBtn" onclick="doLogin()">Access Archive</button>
+    </div>
+    <div id="regForm" style="display:none;">
+      <div class="fg"><label>Email Address</label>
+        <input type="email" id="rEmail" placeholder="inquisitor@imperium.terra" onkeydown="if(event.key==='Enter')doRegister()"/></div>
+      <div class="fg"><label>Password (min. 6 characters)</label>
+        <input type="password" id="rPass" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" onkeydown="if(event.key==='Enter')doRegister()"/></div>
+      <button class="btn-primary" id="regBtn" onclick="doRegister()">Create Archive</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ═══════════════════════════════════════════════════ -->
+<div class="app" id="app">
+
+  <header>
+    <div class="h-brand">
+      <span class="h-aquila">&#9869;</span>
+      <span class="h-title">Librarium Imperialis</span>
+      <span class="h-sub">&middot; Black Library Complete Catalogue</span>
+    </div>
+    <div class="h-right">
+      <span class="h-email" id="hEmail"></span>
+      <button class="btn-logout" onclick="doLogout()">Abandon Post</button>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="sv" id="sTotal">0</div><div class="sl">Catalogued</div></div>
+    <div class="sdiv"></div>
+    <div class="stat"><div class="sv" id="sOwned">0</div><div class="sl">Owned</div></div>
+    <div class="sdiv"></div>
+    <div class="stat"><div class="sv" id="sRead">0</div><div class="sl">Read</div></div>
+    <div class="sdiv"></div>
+    <div class="stat"><div class="sv" id="sWish">0</div><div class="sl">Wishlist</div></div>
+    <div class="sdiv"></div>
+    <div class="stat"><div class="sv" id="sNovels">0</div><div class="sl">Novels</div></div>
+    <div class="sdiv"></div>
+    <div class="stat"><div class="sv" id="sAudio">0</div><div class="sl">Audio</div></div>
+  </div>
+
+  <div class="ctrl-wrap">
+    <div class="ctrl-row">
+      <span class="rl">Status</span>
+      <button class="pill active" data-filter="all"       onclick="setFilter('all')">All</button>
+      <button class="pill"        data-filter="owned"     onclick="setFilter('owned')">Owned</button>
+      <button class="pill"        data-filter="read"      onclick="setFilter('read')">Read</button>
+      <button class="pill"        data-filter="wishlist"  onclick="setFilter('wishlist')">Wishlist</button>
+      <button class="pill"        data-filter="untracked" onclick="setFilter('untracked')">Untracked</button>
+      <div class="ctrl-right">
+        <input class="srch" type="text" id="srchInput" placeholder="Search title or author&hellip;" oninput="doSearch(this.value)"/>
+      </div>
+    </div>
+    <div class="ctrl-row">
+      <span class="rl">Format</span>
+      <button class="pill active" data-type="all"         onclick="setType('all')">All Formats</button>
+      <button class="pill"        data-type="Series"      onclick="setType('Series')">Series</button>
+      <button class="pill"        data-type="Novel"       onclick="setType('Novel')">Novel</button>
+      <button class="pill"        data-type="Novella"     onclick="setType('Novella')">Novella</button>
+      <button class="pill"        data-type="Anthology"   onclick="setType('Anthology')">Anthology</button>
+      <button class="pill"        data-type="Omnibus"     onclick="setType('Omnibus')">Omnibus</button>
+      <button class="pill"        data-type="Audio Drama" onclick="setType('Audio Drama')">Audio Drama</button>
+      <button class="pill"        data-type="eBook"       onclick="setType('eBook')">eBook</button>
+      <div class="ctrl-right">
+        <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)">
+          <option value="all">&mdash; All Subjects &mdash;</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="rinfo" id="rinfo"></div>
+  <div class="grid" id="grid">
+    <div class="loading"><div class="spinner"></div><p>Loading your archive&hellip;</p></div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+// ════════════════════════════════════════════════════════════
+//  ⚠  REPLACE THESE WITH YOUR SUPABASE CREDENTIALS
+// ════════════════════════════════════════════════════════════
+const SUPABASE_URL      = 'https://yzhoqdjhttdztorcsbdt.supabase.co'
+const SUPABASE_ANON_KEY = 'sb_publishable_MZpvQ3ySRm8l_saadAeKFw_GAKYPPa6'
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+// Card click handlers — use integer index into BOOKS array
+// Plain integers need NO quoting in onclick attributes
+const FIELDS = ['owned','read','wishlisted']
+window.OC = function(n){ if(BOOKS[n]) openModal(BOOKS[n].id) }
+window.SC = function(n,f){ if(BOOKS[n]) toggleStatus(BOOKS[n].id, FIELDS[f]) }
+
+// ════════════════════════════════════════════════════════════
+//  CATALOGUE  (453 entries)
+// ════════════════════════════════════════════════════════════
+const BOOKS = [
+  {id:'hh-01',title:'Horus Rising',subject:'Horus Heresy',type:'Novel',author:'Dan Abnett',year:2006},
+  {id:'hh-02',title:'False Gods',subject:'Horus Heresy',type:'Novel',author:'Graham McNeill',year:2006},
+  {id:'hh-03',title:'Galaxy in Flames',subject:'Horus Heresy',type:'Novel',author:'Ben Counter',year:2006},
+  {id:'hh-04',title:'The Flight of the Eisenstein',subject:'Horus Heresy',type:'Novel',author:'James Swallow',year:2007},
+  {id:'hh-05',title:'Fulgrim',subject:'Horus Heresy',type:'Novel',author:'Graham McNeill',year:2007},
+  {id:'hh-06',title:'Descent of Angels',subject:'Horus Heresy',type:'Novel',author:'Mitchel Scanlon',year:2007},
+  {id:'hh-07',title:'Legion',subject:'Horus Heresy',type:'Novel',author:'Dan Abnett',year:2008},
+  {id:'hh-08',title:'Battle for the Abyss',subject:'Horus Heresy',type:'Novel',author:'Ben Counter',year:2008},
+  {id:'hh-09',title:'Mechanicum',subject:'Horus Heresy',type:'Novel',author:'Graham McNeill',year:2008},
+  {id:'hh-11',title:'Fallen Angels',subject:'Horus Heresy',type:'Novel',author:'Mike Lee',year:2009},
+  {id:'hh-12',title:'A Thousand Sons',subject:'Horus Heresy',type:'Novel',author:'Graham McNeill',year:2010},
+  {id:'hh-13',title:'Nemesis',subject:'Horus Heresy',type:'Novel',author:'James Swallow',year:2010},
+  {id:'hh-14',title:'The First Heretic',subject:'Horus Heresy',type:'Novel',author:'Aaron Dembski-Bowden',year:2010},
+  {id:'hh-15',title:'Prospero Burns',subject:'Horus Heresy',type:'Novel',author:'Dan Abnett',year:2011},
+  {id:'hh-17',title:'The Outcast Dead',subject:'Horus Heresy',type:'Novel',author:'Graham McNeill',year:2011},
+  {id:'hh-18',title:'Deliverance Lost',subject:'Horus Heresy',type:'Novel',author:'Gav Thorpe',year:2012},
+  {id:'hh-19',title:'Know No Fear',subject:'Horus Heresy',type:'Novel',author:'Dan Abnett',year:2012},
+  {id:'hh-21',title:'Fear to Tread',subject:'Horus Heresy',type:'Novel',author:'James Swallow',year:2012},
+  {id:'hh-23',title:'Angel Exterminatus',subject:'Horus Heresy',type:'Novel',author:'Graham McNeill',year:2013},
+  {id:'hh-24',title:'Betrayer',subject:'Horus Heresy',type:'Novel',author:'Aaron Dembski-Bowden',year:2013},
+  {id:'hh-26',title:'Vulkan Lives',subject:'Horus Heresy',type:'Novel',author:'Nick Kyme',year:2013},
+  {id:'hh-27',title:'The Unremembered Empire',subject:'Horus Heresy',type:'Novel',author:'Dan Abnett',year:2014},
+  {id:'hh-28',title:'Scars',subject:'Horus Heresy',type:'Novel',author:'Chris Wraight',year:2014},
+  {id:'hh-29',title:'Vengeful Spirit',subject:'Horus Heresy',type:'Novel',author:'Graham McNeill',year:2014},
+  {id:'hh-30',title:'The Damnation of Pythos',subject:'Horus Heresy',type:'Novel',author:'David Annandale',year:2014},
+  {id:'hh-32',title:'Deathfire',subject:'Horus Heresy',type:'Novel',author:'Nick Kyme',year:2015},
+  {id:'hh-34',title:'Pharos',subject:'Horus Heresy',type:'Novel',author:'Guy Haley',year:2016},
+  {id:'hh-36',title:'The Path of Heaven',subject:'Horus Heresy',type:'Novel',author:'Chris Wraight',year:2016},
+  {id:'hh-38',title:'Angels of Caliban',subject:'Horus Heresy',type:'Novel',author:'Gav Thorpe',year:2016},
+  {id:'hh-39',title:'Praetorian of Dorn',subject:'Horus Heresy',type:'Novel',author:'John French',year:2016},
+  {id:'hh-41',title:'The Master of Mankind',subject:'Horus Heresy',type:'Novel',author:'Aaron Dembski-Bowden',year:2016},
+  {id:'hh-44',title:'The Crimson King',subject:'Horus Heresy',type:'Novel',author:'Graham McNeill',year:2017},
+  {id:'hh-46',title:'Ruinstorm',subject:'Horus Heresy',type:'Novel',author:'David Annandale',year:2017},
+  {id:'hh-47',title:'Old Earth',subject:'Horus Heresy',type:'Novel',author:'Nick Kyme',year:2017},
+  {id:'hh-49',title:'Wolfsbane',subject:'Horus Heresy',type:'Novel',author:'Guy Haley',year:2018},
+  {id:'hh-51',title:'Slaves to Darkness',subject:'Horus Heresy',type:'Novel',author:'John French',year:2018},
+  {id:'hh-53',title:'Titandeath',subject:'Horus Heresy',type:'Novel',author:'Guy Haley',year:2018},
+  {id:'hh-54',title:'The Buried Dagger',subject:'Horus Heresy',type:'Novel',author:'James Swallow',year:2019},
+  {id:'hh-10',title:'Tales of Heresy',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2009},
+  {id:'hh-16',title:'Age of Darkness',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2011},
+  {id:'hh-20',title:'The Primarchs',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2012},
+  {id:'hh-22',title:'Shadows of Treachery',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2012},
+  {id:'hh-25',title:'Mark of Calth',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2013},
+  {id:'hh-31',title:'Legacies of Betrayal',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2015},
+  {id:'hh-33',title:'War Without End',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2016},
+  {id:'hh-35',title:'Eye of Terra',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2016},
+  {id:'hh-37',title:'The Silent War',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2016},
+  {id:'hh-40',title:'Corax',subject:'Horus Heresy',type:'Anthology',author:'Gav Thorpe',year:2016},
+  {id:'hh-42',title:'Garro',subject:'Horus Heresy',type:'Anthology',author:'James Swallow',year:2017},
+  {id:'hh-43',title:'Shattered Legions',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2017},
+  {id:'hh-45',title:'Tallarn',subject:'Horus Heresy',type:'Anthology',author:'John French',year:2017},
+  {id:'hh-48',title:'The Burden of Loyalty',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2018},
+  {id:'hh-50',title:'Born of Flame',subject:'Horus Heresy',type:'Anthology',author:'Nick Kyme',year:2018},
+  {id:'hh-52',title:'Heralds of the Siege',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2018},
+  {id:'hh-ea1',title:'Era of Ruin',subject:'Horus Heresy',type:'Anthology',author:'Various',year:2025},
+  {id:'hhn-01',title:'Promethean Sun',subject:'Horus Heresy',type:'Novella',author:'Nick Kyme',year:2011},
+  {id:'hhn-02',title:'Aurelian',subject:'Horus Heresy',type:'Novella',author:'Aaron Dembski-Bowden',year:2011},
+  {id:'hhn-03',title:'Brotherhood of the Storm',subject:'Horus Heresy',type:'Novella',author:'Chris Wraight',year:2012},
+  {id:'hhn-04',title:'The Crimson Fist',subject:'Horus Heresy',type:'Novella',author:'John French',year:2012},
+  {id:'hhn-05',title:'Scorched Earth',subject:'Horus Heresy',type:'Novella',author:'Nick Kyme',year:2013},
+  {id:'hhn-06',title:'Tallarn: Executioner',subject:'Horus Heresy',type:'Novella',author:'John French',year:2013},
+  {id:'hhn-07',title:'Ravenlord',subject:'Horus Heresy',type:'Novella',author:'Gav Thorpe',year:2014},
+  {id:'hhn-08',title:'Tallarn: Ironclad',subject:'Horus Heresy',type:'Novella',author:'John French',year:2015},
+  {id:'hhn-09',title:'Cybernetica',subject:'Horus Heresy',type:'Novella',author:'Rob Sanders',year:2015},
+  {id:'hhn-10',title:'Wolf King',subject:'Horus Heresy',type:'Novella',author:'Chris Wraight',year:2015},
+  {id:'hhn-11',title:'Garro: Vow of Faith',subject:'Horus Heresy',type:'Novella',author:'James Swallow',year:2015},
+  {id:'hhn-12',title:'Sons of the Selenar',subject:'Horus Heresy',type:'Novella',author:'Graham McNeill',year:2020},
+  {id:'hhn-13',title:'Fury of Magnus',subject:'Horus Heresy',type:'Novella',author:'Graham McNeill',year:2020},
+  {id:'hha-01',title:'The Dark King',subject:'Horus Heresy',type:'Audio Drama',author:'Graham McNeill',year:2008},
+  {id:'hha-02',title:'The Lightning Tower',subject:'Horus Heresy',type:'Audio Drama',author:'Dan Abnett',year:2008},
+  {id:'hha-03',title:'Raven\'s Flight',subject:'Horus Heresy',type:'Audio Drama',author:'Gav Thorpe',year:2010},
+  {id:'hha-04',title:'Garro: Oath of Moment',subject:'Horus Heresy',type:'Audio Drama',author:'James Swallow',year:2010},
+  {id:'hha-05',title:'Garro: Legion of One',subject:'Horus Heresy',type:'Audio Drama',author:'James Swallow',year:2011},
+  {id:'hha-06',title:'Butcher\'s Nails',subject:'Horus Heresy',type:'Audio Drama',author:'Aaron Dembski-Bowden',year:2012},
+  {id:'hha-07',title:'Grey Angel',subject:'Horus Heresy',type:'Audio Drama',author:'John French',year:2012},
+  {id:'hha-08',title:'Prince of Crows',subject:'Horus Heresy',type:'Audio Drama',author:'Aaron Dembski-Bowden',year:2012},
+  {id:'hha-09',title:'Garro: Burden of Duty',subject:'Horus Heresy',type:'Audio Drama',author:'James Swallow',year:2012},
+  {id:'hha-10',title:'Garro: Sword of Truth',subject:'Horus Heresy',type:'Audio Drama',author:'James Swallow',year:2012},
+  {id:'hha-11',title:'The Sigillite',subject:'Horus Heresy',type:'Audio Drama',author:'Chris Wraight',year:2013},
+  {id:'hha-12',title:'Garro: Shield of Lies',subject:'Horus Heresy',type:'Audio Drama',author:'James Swallow',year:2014},
+  {id:'hha-13',title:'Garro: Ashes of Fealty',subject:'Horus Heresy',type:'Audio Drama',author:'James Swallow',year:2015},
+  {id:'hha-14',title:'Blackshields: The False War',subject:'Horus Heresy',type:'Audio Drama',author:'Josh Reynolds',year:2017},
+  {id:'hha-15',title:'Blackshields: The Red Fief',subject:'Horus Heresy',type:'Audio Drama',author:'Josh Reynolds',year:2018},
+  {id:'hha-16',title:'Blackshields: The Broken Chain',subject:'Horus Heresy',type:'Audio Drama',author:'Josh Reynolds',year:2019},
+  {id:'hha-17',title:'Garro: Knight of Grey',subject:'Horus Heresy',type:'Audio Drama',author:'James Swallow',year:2023},
+  {id:'hhe-01',title:'The Reflection Crack\'d',subject:'Horus Heresy',type:'eBook',author:'Graham McNeill',year:2012},
+  {id:'hhe-02',title:'Feat of Iron',subject:'Horus Heresy',type:'eBook',author:'Nick Kyme',year:2012},
+  {id:'hhe-03',title:'The Lion',subject:'Horus Heresy',type:'eBook',author:'Gav Thorpe',year:2012},
+  {id:'hhe-04',title:'The Serpent Beneath',subject:'Horus Heresy',type:'eBook',author:'Rob Sanders',year:2012},
+  {id:'hhe-05',title:'The Long Night',subject:'Horus Heresy',type:'eBook',author:'Aaron Dembski-Bowden',year:2015},
+  {id:'hhe-06',title:'The Eagle\'s Talon',subject:'Horus Heresy',type:'eBook',author:'John French',year:2015},
+  {id:'hhe-07',title:'Iron Corpses',subject:'Horus Heresy',type:'eBook',author:'David Annandale',year:2015},
+  {id:'hhe-08',title:'Red-Marked',subject:'Horus Heresy',type:'eBook',author:'Nick Kyme',year:2016},
+  {id:'hhe-09',title:'The Heart of the Pharos',subject:'Horus Heresy',type:'eBook',author:'L.J. Goulding',year:2016},
+  {id:'hhe-10',title:'Children of Sicarus',subject:'Horus Heresy',type:'eBook',author:'Anthony Reynolds',year:2016},
+  {id:'hhe-11',title:'The Thirteenth Wolf',subject:'Horus Heresy',type:'eBook',author:'Gav Thorpe',year:2016},
+  {id:'hhe-12',title:'Dark Compliance',subject:'Horus Heresy',type:'eBook',author:'John French',year:2017},
+  {id:'hho-01',title:'Crusade\'s End',subject:'Horus Heresy',type:'Omnibus',author:'Various',year:2016},
+  {id:'hho-02',title:'The Last Phoenix',subject:'Horus Heresy',type:'Omnibus',author:'Various',year:2016},
+  {id:'hho-03',title:'The Razing of Prospero',subject:'Horus Heresy',type:'Omnibus',author:'Various',year:2016},
+  {id:'st-01',title:'The Solar War',subject:'Siege of Terra',type:'Novel',author:'John French',year:2019},
+  {id:'st-02',title:'The Lost and the Damned',subject:'Siege of Terra',type:'Novel',author:'Guy Haley',year:2019},
+  {id:'st-03',title:'The First Wall',subject:'Siege of Terra',type:'Novel',author:'Gav Thorpe',year:2020},
+  {id:'st-04',title:'Saturnine',subject:'Siege of Terra',type:'Novel',author:'Dan Abnett',year:2020},
+  {id:'st-05',title:'Mortis',subject:'Siege of Terra',type:'Novel',author:'John French',year:2021},
+  {id:'st-06',title:'Warhawk',subject:'Siege of Terra',type:'Novel',author:'Chris Wraight',year:2021},
+  {id:'st-07',title:'Echoes of Eternity',subject:'Siege of Terra',type:'Novel',author:'Aaron Dembski-Bowden',year:2022},
+  {id:'st-08',title:'The End and the Death: Volume I',subject:'Siege of Terra',type:'Novel',author:'Dan Abnett',year:2023},
+  {id:'st-09',title:'The End and the Death: Volume II',subject:'Siege of Terra',type:'Novel',author:'Dan Abnett',year:2023},
+  {id:'st-10',title:'The End and the Death: Volume III',subject:'Siege of Terra',type:'Novel',author:'Dan Abnett',year:2024},
+  {id:'pr-01',title:'Roboute Guilliman: Lord of Ultramar',subject:'Primarchs',type:'Novella',author:'David Annandale',year:2016},
+  {id:'pr-02',title:'Leman Russ: The Great Wolf',subject:'Primarchs',type:'Novella',author:'Chris Wraight',year:2017},
+  {id:'pr-03',title:'Magnus the Red: Master of Prospero',subject:'Primarchs',type:'Novella',author:'Graham McNeill',year:2017},
+  {id:'pr-04',title:'Perturabo: The Hammer of Olympia',subject:'Primarchs',type:'Novella',author:'Guy Haley',year:2017},
+  {id:'pr-05',title:'Lorgar: Bearer of the Word',subject:'Primarchs',type:'Novella',author:'Gav Thorpe',year:2017},
+  {id:'pr-06',title:'Fulgrim: The Palatine Phoenix',subject:'Primarchs',type:'Novella',author:'Josh Reynolds',year:2018},
+  {id:'pr-07',title:'Ferrus Manus: The Gorgon of Medusa',subject:'Primarchs',type:'Novella',author:'David Guymer',year:2018},
+  {id:'pr-08',title:'Jaghatai Khan: Warhawk of Chogoris',subject:'Primarchs',type:'Novella',author:'Chris Wraight',year:2018},
+  {id:'pr-09',title:'Vulkan: Lord of Drakes',subject:'Primarchs',type:'Novella',author:'David Annandale',year:2018},
+  {id:'pr-10',title:'Corax: Lord of Shadows',subject:'Primarchs',type:'Novella',author:'Guy Haley',year:2018},
+  {id:'pr-11',title:'Angron: Slave of Nuceria',subject:'Primarchs',type:'Novella',author:'Ian St. Martin',year:2019},
+  {id:'pr-12',title:'Konrad Curze: The Night Haunter',subject:'Primarchs',type:'Novella',author:'Guy Haley',year:2019},
+  {id:'pr-13',title:'Lion El\'Jonson: Lord of the First',subject:'Primarchs',type:'Novella',author:'David Guymer',year:2020},
+  {id:'pr-14',title:'Alpharius: Head of the Hydra',subject:'Primarchs',type:'Novella',author:'Mike Brooks',year:2021},
+  {id:'pr-15',title:'Mortarion: The Pale King',subject:'Primarchs',type:'Novella',author:'David Annandale',year:2022},
+  {id:'pr-16',title:'Rogal Dorn: The Emperor\'s Crusader',subject:'Primarchs',type:'Novella',author:'Gav Thorpe',year:2022},
+  {id:'pr-17',title:'Sanguinius: The Great Angel',subject:'Primarchs',type:'Novella',author:'Chris Wraight',year:2022},
+  {id:'pra-01',title:'Sons of the Emperor',subject:'Primarchs',type:'Anthology',author:'Various',year:2018},
+  {id:'pra-02',title:'Scions of the Emperor',subject:'Primarchs',type:'Anthology',author:'Various',year:2019},
+  {id:'pra-03',title:'Blood of the Emperor',subject:'Primarchs',type:'Anthology',author:'Various',year:2021},
+  {id:'ba2-01',title:'I Am Slaughter',subject:'The Beast Arises',type:'Novel',author:'Dan Abnett',year:2016},
+  {id:'ba2-02',title:'Predator, Prey',subject:'The Beast Arises',type:'Novel',author:'Rob Sanders',year:2016},
+  {id:'ba2-03',title:'The Emperor Expects',subject:'The Beast Arises',type:'Novel',author:'Gav Thorpe',year:2016},
+  {id:'ba2-04',title:'The Last Wall',subject:'The Beast Arises',type:'Novel',author:'David Annandale',year:2016},
+  {id:'ba2-05',title:'Throneworld',subject:'The Beast Arises',type:'Novel',author:'Guy Haley',year:2016},
+  {id:'ba2-06',title:'Echoes of the Long War',subject:'The Beast Arises',type:'Novel',author:'David Guymer',year:2016},
+  {id:'ba2-07',title:'The Hunt for Vulkan',subject:'The Beast Arises',type:'Novel',author:'David Annandale',year:2016},
+  {id:'ba2-08',title:'The Beast Must Die',subject:'The Beast Arises',type:'Novel',author:'Gav Thorpe',year:2016},
+  {id:'ba2-09',title:'Watchers in Death',subject:'The Beast Arises',type:'Novel',author:'David Annandale',year:2016},
+  {id:'ba2-10',title:'The Last Son of Dorn',subject:'The Beast Arises',type:'Novel',author:'David Guymer',year:2016},
+  {id:'ba2-11',title:'Shadow of Ullanor',subject:'The Beast Arises',type:'Novel',author:'Rob Sanders',year:2016},
+  {id:'ba2-12',title:'The Beheading',subject:'The Beast Arises',type:'Novel',author:'Guy Haley',year:2016},
+  {id:'df-01',title:'Avenging Son',subject:'Dawn of Fire',type:'Novel',author:'Guy Haley',year:2020},
+  {id:'df-02',title:'The Gate of Bones',subject:'Dawn of Fire',type:'Novel',author:'Andy Clark',year:2021},
+  {id:'df-03',title:'The Wolftime',subject:'Dawn of Fire',type:'Novel',author:'Gav Thorpe',year:2021},
+  {id:'df-04',title:'Throne of Light',subject:'Dawn of Fire',type:'Novel',author:'Guy Haley',year:2022},
+  {id:'df-05',title:'The Iron Kingdom',subject:'Dawn of Fire',type:'Novel',author:'Nick Kyme',year:2023},
+  {id:'df-06',title:'The Martyr\'s Tomb',subject:'Dawn of Fire',type:'Novel',author:'Marc Collins',year:2023},
+  {id:'df-07',title:'Sea of Souls',subject:'Dawn of Fire',type:'Novel',author:'Chris Wraight',year:2024},
+  {id:'df-08',title:'Hand of Abaddon',subject:'Dawn of Fire',type:'Novel',author:'Nick Kyme',year:2024},
+  {id:'df-09',title:'The Silent King',subject:'Dawn of Fire',type:'Novel',author:'Guy Haley',year:2025},
+  {id:'gg-01',title:'First and Only',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:1999},
+  {id:'gg-02',title:'Ghostmaker',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2000},
+  {id:'gg-03',title:'Necropolis',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2000},
+  {id:'gg-04',title:'Honour Guard',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2001},
+  {id:'gg-05',title:'The Guns of Tanith',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2002},
+  {id:'gg-06',title:'Straight Silver',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2002},
+  {id:'gg-07',title:'Sabbat Martyr',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2003},
+  {id:'gg-08',title:'Traitor General',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2004},
+  {id:'gg-09',title:'His Last Command',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2005},
+  {id:'gg-10',title:'The Armour of Contempt',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2006},
+  {id:'gg-11',title:'Only in Death',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2007},
+  {id:'gg-12',title:'Blood Pact',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2009},
+  {id:'gg-13',title:'Salvation\'s Reach',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2011},
+  {id:'gg-14',title:'The Warmaster',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2017},
+  {id:'gg-15',title:'Anarch',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2019},
+  {id:'gg-16',title:'The Vincula Insurgency',subject:'Gaunt\'s Ghosts',type:'Novel',author:'Dan Abnett',year:2022},
+  {id:'gga-01',title:'Sabbat Worlds',subject:'Gaunt\'s Ghosts',type:'Anthology',author:'Various',year:2010},
+  {id:'gga-02',title:'Sabbat Crusade',subject:'Gaunt\'s Ghosts',type:'Anthology',author:'Various',year:2014},
+  {id:'gga-03',title:'Sabbat War',subject:'Gaunt\'s Ghosts',type:'Anthology',author:'Various',year:2021},
+  {id:'ggo-01',title:'The Founding',subject:'Gaunt\'s Ghosts',type:'Omnibus',author:'Dan Abnett',year:2003},
+  {id:'ggo-02',title:'The Saint',subject:'Gaunt\'s Ghosts',type:'Omnibus',author:'Dan Abnett',year:2004},
+  {id:'ggo-03',title:'The Lost',subject:'Gaunt\'s Ghosts',type:'Omnibus',author:'Dan Abnett',year:2007},
+  {id:'ggo-04',title:'The Victory: Part One',subject:'Gaunt\'s Ghosts',type:'Omnibus',author:'Dan Abnett',year:2018},
+  {id:'ggo-05',title:'The Victory: Part Two',subject:'Gaunt\'s Ghosts',type:'Omnibus',author:'Dan Abnett',year:2019},
+  {id:'ei-01',title:'Xenos',subject:'Eisenhorn',type:'Novel',author:'Dan Abnett',year:2001},
+  {id:'ei-02',title:'Malleus',subject:'Eisenhorn',type:'Novel',author:'Dan Abnett',year:2001},
+  {id:'ei-03',title:'Hereticus',subject:'Eisenhorn',type:'Novel',author:'Dan Abnett',year:2002},
+  {id:'ei-04',title:'The Magos',subject:'Eisenhorn',type:'Novel',author:'Dan Abnett',year:2018},
+  {id:'eio-01',title:'Eisenhorn Omnibus',subject:'Eisenhorn',type:'Omnibus',author:'Dan Abnett',year:2004},
+  {id:'eia-01',title:'Regia Occulta',subject:'Eisenhorn',type:'Audio Drama',author:'Dan Abnett',year:2012},
+  {id:'eia-02',title:'Master Imus\'s Transgression',subject:'Eisenhorn',type:'Audio Drama',author:'Dan Abnett',year:2012},
+  {id:'ra-01',title:'Ravenor',subject:'Ravenor',type:'Novel',author:'Dan Abnett',year:2004},
+  {id:'ra-02',title:'Ravenor Returned',subject:'Ravenor',type:'Novel',author:'Dan Abnett',year:2006},
+  {id:'ra-03',title:'Ravenor Rogue',subject:'Ravenor',type:'Novel',author:'Dan Abnett',year:2008},
+  {id:'rao-01',title:'Ravenor Omnibus',subject:'Ravenor',type:'Omnibus',author:'Dan Abnett',year:2009},
+  {id:'raa-01',title:'Thorn Wishes Talon',subject:'Ravenor',type:'Audio Drama',author:'Dan Abnett',year:2012},
+  {id:'bq-01',title:'Pariah',subject:'Bequin',type:'Novel',author:'Dan Abnett',year:2012},
+  {id:'bq-02',title:'Penitent',subject:'Bequin',type:'Novel',author:'Dan Abnett',year:2021},
+  {id:'bq-03',title:'Pandaemonium',subject:'Bequin',type:'Novel',author:'Dan Abnett',year:2023},
+  {id:'cc-01',title:'For the Emperor',subject:'Ciaphas Cain',type:'Novel',author:'Sandy Mitchell',year:2003},
+  {id:'cc-02',title:'Caves of Ice',subject:'Ciaphas Cain',type:'Novel',author:'Sandy Mitchell',year:2004},
+  {id:'cc-03',title:'The Traitor\'s Hand',subject:'Ciaphas Cain',type:'Novel',author:'Sandy Mitchell',year:2005},
+  {id:'cc-04',title:'Death or Glory',subject:'Ciaphas Cain',type:'Novel',author:'Sandy Mitchell',year:2006},
+  {id:'cc-05',title:'Duty Calls',subject:'Ciaphas Cain',type:'Novel',author:'Sandy Mitchell',year:2007},
+  {id:'cc-06',title:'Cain\'s Last Stand',subject:'Ciaphas Cain',type:'Novel',author:'Sandy Mitchell',year:2008},
+  {id:'cc-07',title:'The Emperor\'s Finest',subject:'Ciaphas Cain',type:'Novel',author:'Sandy Mitchell',year:2010},
+  {id:'cc-08',title:'The Last Ditch',subject:'Ciaphas Cain',type:'Novel',author:'Sandy Mitchell',year:2012},
+  {id:'cc-09',title:'The Greater Good',subject:'Ciaphas Cain',type:'Novel',author:'Sandy Mitchell',year:2013},
+  {id:'cc-10',title:'Choose Your Enemies',subject:'Ciaphas Cain',type:'Novel',author:'Sandy Mitchell',year:2018},
+  {id:'cc-11',title:'Vainglorious',subject:'Ciaphas Cain',type:'Novel',author:'Sandy Mitchell',year:2023},
+  {id:'cco-01',title:'Hero of the Imperium',subject:'Ciaphas Cain',type:'Omnibus',author:'Sandy Mitchell',year:2007},
+  {id:'cco-02',title:'Defender of the Imperium',subject:'Ciaphas Cain',type:'Omnibus',author:'Sandy Mitchell',year:2011},
+  {id:'cca-01',title:'Dead in the Water',subject:'Ciaphas Cain',type:'Audio Drama',author:'Sandy Mitchell',year:2011},
+  {id:'cca-02',title:'The Devil You Know',subject:'Ciaphas Cain',type:'Audio Drama',author:'Sandy Mitchell',year:2014},
+  {id:'nl-01',title:'Soul Hunter',subject:'Night Lords',type:'Novel',author:'Aaron Dembski-Bowden',year:2010},
+  {id:'nl-02',title:'Blood Reaver',subject:'Night Lords',type:'Novel',author:'Aaron Dembski-Bowden',year:2011},
+  {id:'nl-03',title:'Void Stalker',subject:'Night Lords',type:'Novel',author:'Aaron Dembski-Bowden',year:2012},
+  {id:'nla-01',title:'Throne of Lies',subject:'Night Lords',type:'Audio Drama',author:'Aaron Dembski-Bowden',year:2010},
+  {id:'nlo-01',title:'Night Lords Omnibus',subject:'Night Lords',type:'Omnibus',author:'Aaron Dembski-Bowden',year:2014},
+  {id:'bl-01',title:'The Talon of Horus',subject:'Black Legion',type:'Novel',author:'Aaron Dembski-Bowden',year:2014},
+  {id:'bl-02',title:'Black Legion',subject:'Black Legion',type:'Novel',author:'Aaron Dembski-Bowden',year:2017},
+  {id:'ah-01',title:'Ahriman: Exile',subject:'Ahriman',type:'Novel',author:'John French',year:2013},
+  {id:'ah-02',title:'Ahriman: Sorcerer',subject:'Ahriman',type:'Novel',author:'John French',year:2014},
+  {id:'ah-03',title:'Ahriman: Unchanged',subject:'Ahriman',type:'Novel',author:'John French',year:2016},
+  {id:'ah-04',title:'Ahriman: Eternal',subject:'Ahriman',type:'Novel',author:'John French',year:2022},
+  {id:'aho-01',title:'Ahriman: The Omnibus',subject:'Ahriman',type:'Omnibus',author:'John French',year:2017},
+  {id:'wb-01',title:'Dark Apostle',subject:'Word Bearers',type:'Novel',author:'Anthony Reynolds',year:2007},
+  {id:'wb-02',title:'Dark Disciple',subject:'Word Bearers',type:'Novel',author:'Anthony Reynolds',year:2008},
+  {id:'wb-03',title:'Dark Creed',subject:'Word Bearers',type:'Novel',author:'Anthony Reynolds',year:2009},
+  {id:'um-01',title:'Nightbringer',subject:'Ultramarines',type:'Novel',author:'Graham McNeill',year:2002},
+  {id:'um-02',title:'Warriors of Ultramar',subject:'Ultramarines',type:'Novel',author:'Graham McNeill',year:2003},
+  {id:'um-03',title:'Dead Sky, Black Sun',subject:'Ultramarines',type:'Novel',author:'Graham McNeill',year:2004},
+  {id:'um-04',title:'The Killing Ground',subject:'Ultramarines',type:'Novel',author:'Graham McNeill',year:2008},
+  {id:'um-05',title:'Courage and Honour',subject:'Ultramarines',type:'Novel',author:'Graham McNeill',year:2011},
+  {id:'um-06',title:'The Chapter\'s Due',subject:'Ultramarines',type:'Novel',author:'Graham McNeill',year:2010},
+  {id:'umo-01',title:'Ultramarines Omnibus',subject:'Ultramarines',type:'Omnibus',author:'Graham McNeill',year:2008},
+  {id:'di-01',title:'Dark Imperium',subject:'Dark Imperium',type:'Novel',author:'Guy Haley',year:2017},
+  {id:'di-02',title:'Plague War',subject:'Dark Imperium',type:'Novel',author:'Guy Haley',year:2018},
+  {id:'di-03',title:'Godblight',subject:'Dark Imperium',type:'Novel',author:'Guy Haley',year:2021},
+  {id:'vt-01',title:'The Carrion Throne',subject:'Vaults of Terra',type:'Novel',author:'Chris Wraight',year:2017},
+  {id:'vt-02',title:'The Hollow Mountain',subject:'Vaults of Terra',type:'Novel',author:'Chris Wraight',year:2019},
+  {id:'vt-03',title:'The Dark City',subject:'Vaults of Terra',type:'Novel',author:'Chris Wraight',year:2022},
+  {id:'wt-01',title:'The Emperor\'s Legion',subject:'Watchers of the Throne',type:'Novel',author:'Chris Wraight',year:2017},
+  {id:'wt-02',title:'The Regent\'s Shadow',subject:'Watchers of the Throne',type:'Novel',author:'Chris Wraight',year:2020},
+  {id:'inq-01',title:'Resurrection',subject:'Inquisition',type:'Novel',author:'John French',year:2017},
+  {id:'inq-02',title:'Incarnation',subject:'Inquisition',type:'Novel',author:'John French',year:2018},
+  {id:'inq-03',title:'Divination',subject:'Inquisition',type:'Anthology',author:'John French',year:2019},
+  {id:'inq-04',title:'Scourge the Heretic',subject:'Inquisition',type:'Novel',author:'Sandy Mitchell',year:2008},
+  {id:'inq-05',title:'Innocence Proves Nothing',subject:'Inquisition',type:'Novel',author:'Sandy Mitchell',year:2009},
+  {id:'inq-06',title:'Atlas Infernal',subject:'Inquisition',type:'Novel',author:'Rob Sanders',year:2011},
+  {id:'sw-01',title:'Space Wolf',subject:'Space Wolf',type:'Novel',author:'William King',year:1999},
+  {id:'sw-02',title:'Ragnar\'s Claw',subject:'Space Wolf',type:'Novel',author:'William King',year:2000},
+  {id:'sw-03',title:'Grey Hunter',subject:'Space Wolf',type:'Novel',author:'William King',year:2001},
+  {id:'sw-04',title:'Wolfblade',subject:'Space Wolf',type:'Novel',author:'William King',year:2003},
+  {id:'sw-05',title:'Wolf\'s Honour',subject:'Space Wolf',type:'Novel',author:'William King',year:2003},
+  {id:'sw-06',title:'Ragnar Blackmane',subject:'Space Wolf',type:'Novel',author:'Aaron Dembski-Bowden',year:2016},
+  {id:'swo-01',title:'Space Wolf Omnibus',subject:'Space Wolf',type:'Omnibus',author:'William King',year:2007},
+  {id:'ba-01',title:'Deus Encarmine',subject:'Blood Angels',type:'Novel',author:'James Swallow',year:2004},
+  {id:'ba-02',title:'Deus Sanguinius',subject:'Blood Angels',type:'Novel',author:'James Swallow',year:2005},
+  {id:'ba-03',title:'Red Fury',subject:'Blood Angels',type:'Novel',author:'James Swallow',year:2008},
+  {id:'ba-04',title:'Black Tide',subject:'Blood Angels',type:'Novel',author:'James Swallow',year:2010},
+  {id:'ba-05',title:'Dante',subject:'Blood Angels',type:'Novel',author:'Guy Haley',year:2017},
+  {id:'ba-06',title:'Darkness in the Blood',subject:'Blood Angels',type:'Novel',author:'Guy Haley',year:2019},
+  {id:'ba-07',title:'Blood of Sanguinius',subject:'Blood Angels',type:'Novel',author:'Darius Hinks',year:2017},
+  {id:'ba-08',title:'The Revenant Crusade',subject:'Blood Angels',type:'Novel',author:'Darius Hinks',year:2018},
+  {id:'ba-09',title:'City of Light',subject:'Blood Angels',type:'Novel',author:'Darius Hinks',year:2019},
+  {id:'ban-01',title:'Heart of Rage',subject:'Blood Angels',type:'Novella',author:'James Swallow',year:2009},
+  {id:'ban-02',title:'Bloodline',subject:'Blood Angels',type:'Novella',author:'James Swallow',year:2010},
+  {id:'baa-01',title:'Bloodquest: Prisoners of the Eye of Terror',subject:'Blood Angels',type:'Audio Drama',author:'Various',year:2012},
+  {id:'baa-02',title:'Bloodspire',subject:'Blood Angels',type:'Audio Drama',author:'Various',year:2013},
+  {id:'bao-01',title:'Blood Angels: The Complete Rafen Omnibus',subject:'Blood Angels',type:'Omnibus',author:'James Swallow',year:2015},
+  {id:'bt-01',title:'Helsreach',subject:'Black Templars',type:'Novel',author:'Aaron Dembski-Bowden',year:2010},
+  {id:'bt-02',title:'Helbrecht: Knight of the Throne',subject:'Black Templars',type:'Novel',author:'Marc Collins',year:2022},
+  {id:'bt-03',title:'Crusade',subject:'Black Templars',type:'Novel',author:'Andy Clark',year:2021},
+  {id:'bt-04',title:'Witchbringer',subject:'Black Templars',type:'Novel',author:'Andy Clark',year:2022},
+  {id:'bt-05',title:'Throne of Light',subject:'Black Templars',type:'Novel',author:'Andy Clark',year:2022},
+  {id:'bt-06',title:'The Iron Kingdom',subject:'Black Templars',type:'Novel',author:'Andy Clark',year:2023},
+  {id:'bt-07',title:'The Martyr\'s Tomb',subject:'Black Templars',type:'Novel',author:'Marc Collins',year:2023},
+  {id:'bt-08',title:'Broken Crusade',subject:'Black Templars',type:'Novel',author:'Marc Collins',year:2024},
+  {id:'as-01',title:'Faith & Fire',subject:'Adepta Sororitas',type:'Novel',author:'James Swallow',year:2006},
+  {id:'as-02',title:'Hammer & Anvil',subject:'Adepta Sororitas',type:'Novel',author:'James Swallow',year:2011},
+  {id:'as-03',title:'Requiem Infernal',subject:'Adepta Sororitas',type:'Novel',author:'Peter Fehervari',year:2019},
+  {id:'as-04',title:'Mark of Faith',subject:'Adepta Sororitas',type:'Novel',author:'Rachel Harrison',year:2019},
+  {id:'as-05',title:'Pilgrims of Fire',subject:'Adepta Sororitas',type:'Novel',author:'Justin D. Hill',year:2023},
+  {id:'as-06',title:'The Rose in the Darkness',subject:'Adepta Sororitas',type:'Novel',author:'Danie Ware',year:2024},
+  {id:'as-07',title:'Morvenn Vahl: Spear of Faith',subject:'Adepta Sororitas',type:'Novel',author:'Jude Reid',year:2024},
+  {id:'asa-01',title:'Red and Black',subject:'Adepta Sororitas',type:'Audio Drama',author:'James Swallow',year:2011},
+  {id:'asa-02',title:'Our Martyred Lady',subject:'Adepta Sororitas',type:'Audio Drama',author:'Gav Thorpe',year:2019},
+  {id:'asa-03',title:'Broken Saints',subject:'Adepta Sororitas',type:'Audio Drama',author:'Alec Worley',year:2020},
+  {id:'aso-01',title:'Sisters of Battle: The Omnibus',subject:'Adepta Sororitas',type:'Omnibus',author:'James Swallow',year:2016},
+  {id:'aso-02',title:'Saints and Martyrs Omnibus',subject:'Adepta Sororitas',type:'Omnibus',author:'Various',year:2024},
+  {id:'da-01',title:'Angels of Darkness',subject:'Dark Angels',type:'Novel',author:'Gav Thorpe',year:2003},
+  {id:'da-02',title:'Ravenwing',subject:'Dark Angels',type:'Novel',author:'Gav Thorpe',year:2013},
+  {id:'da-03',title:'Master of Sanctity',subject:'Dark Angels',type:'Novel',author:'Gav Thorpe',year:2014},
+  {id:'da-04',title:'The Unforgiven',subject:'Dark Angels',type:'Novel',author:'Gav Thorpe',year:2015},
+  {id:'da-05',title:'Azrael',subject:'Dark Angels',type:'Novel',author:'Gav Thorpe',year:2017},
+  {id:'da-06',title:'The Lion: Son of the Forest',subject:'Dark Angels',type:'Novel',author:'Mike Brooks',year:2023},
+  {id:'da-07',title:'Cypher: Lord of the Fallen',subject:'Dark Angels',type:'Novel',author:'John French',year:2023},
+  {id:'da-08',title:'Lazarus: Enmity\'s Edge',subject:'Dark Angels',type:'Novel',author:'Gary Kloster',year:2024},
+  {id:'daa-01',title:'Dark Vengeance',subject:'Dark Angels',type:'Novella',author:'C.Z. Dunn',year:2012},
+  {id:'dao-01',title:'Knights of Caliban',subject:'Dark Angels',type:'Omnibus',author:'Gav Thorpe',year:2019},
+  {id:'dao-02',title:'The Book of the Lion',subject:'Dark Angels',type:'Anthology',author:'Various',year:2013},
+  {id:'dao-03',title:'Lords of Caliban',subject:'Dark Angels',type:'Anthology',author:'Gav Thorpe',year:2015},
+  {id:'gk-01',title:'Grey Knights',subject:'Grey Knights',type:'Novel',author:'Ben Counter',year:2004},
+  {id:'gk-02',title:'Dark Adeptus',subject:'Grey Knights',type:'Novel',author:'Ben Counter',year:2006},
+  {id:'gk-03',title:'Hammer of Daemons',subject:'Grey Knights',type:'Novel',author:'Ben Counter',year:2008},
+  {id:'gk-04',title:'The Emperor\'s Gift',subject:'Grey Knights',type:'Novel',author:'Aaron Dembski-Bowden',year:2012},
+  {id:'gk-05',title:'Warden of the Blade',subject:'Grey Knights',type:'Novel',author:'David Annandale',year:2016},
+  {id:'gk-06',title:'Castellan',subject:'Grey Knights',type:'Novel',author:'David Annandale',year:2018},
+  {id:'gkn-01',title:'Mephiston: Lord of Death',subject:'Grey Knights',type:'Novella',author:'David Annandale',year:2013},
+  {id:'sal-01',title:'Salamander',subject:'Salamanders',type:'Novel',author:'Nick Kyme',year:2009},
+  {id:'sal-02',title:'Firedrake',subject:'Salamanders',type:'Novel',author:'Nick Kyme',year:2010},
+  {id:'sal-03',title:'Nocturne',subject:'Salamanders',type:'Novel',author:'Nick Kyme',year:2011},
+  {id:'sal-04',title:'Rebirth',subject:'Salamanders',type:'Novel',author:'Nick Kyme',year:2016},
+  {id:'salo-01',title:'Tome of Fire',subject:'Salamanders',type:'Anthology',author:'Nick Kyme',year:2012},
+  {id:'am-01',title:'Priests of Mars',subject:'Adeptus Mechanicus',type:'Novel',author:'Graham McNeill',year:2012},
+  {id:'am-02',title:'Lords of Mars',subject:'Adeptus Mechanicus',type:'Novel',author:'Graham McNeill',year:2013},
+  {id:'am-03',title:'Gods of Mars',subject:'Adeptus Mechanicus',type:'Novel',author:'Graham McNeill',year:2014},
+  {id:'am-04',title:'Skitarius',subject:'Adeptus Mechanicus',type:'Novel',author:'Rob Sanders',year:2015},
+  {id:'am-05',title:'Tech-Priest',subject:'Adeptus Mechanicus',type:'Novel',author:'Rob Sanders',year:2015},
+  {id:'am-06',title:'Belisarius Cawl: The Great Work',subject:'Adeptus Mechanicus',type:'Novel',author:'Guy Haley',year:2019},
+  {id:'am-07',title:'Day of Ascension',subject:'Adeptus Mechanicus',type:'Novel',author:'Adrian Tchaikovsky',year:2022},
+  {id:'ama-01',title:'Servants of the Machine-God',subject:'Adeptus Mechanicus',type:'Anthology',author:'Various',year:2018},
+  {id:'sd-01',title:'Soul Drinker',subject:'Soul Drinkers',type:'Novel',author:'Ben Counter',year:2002},
+  {id:'sd-02',title:'The Bleeding Chalice',subject:'Soul Drinkers',type:'Novel',author:'Ben Counter',year:2003},
+  {id:'sd-03',title:'Crimson Tears',subject:'Soul Drinkers',type:'Novel',author:'Ben Counter',year:2005},
+  {id:'sd-04',title:'Chapter War',subject:'Soul Drinkers',type:'Novel',author:'Ben Counter',year:2007},
+  {id:'sd-05',title:'Hellforged',subject:'Soul Drinkers',type:'Novel',author:'Ben Counter',year:2009},
+  {id:'sd-06',title:'Phalanx',subject:'Soul Drinkers',type:'Novel',author:'Ben Counter',year:2012},
+  {id:'sdo-01',title:'Soul Drinkers Omnibus',subject:'Soul Drinkers',type:'Omnibus',author:'Ben Counter',year:2010},
+  {id:'dg-01',title:'The Lords of Silence',subject:'Death Guard',type:'Novel',author:'Chris Wraight',year:2018},
+  {id:'al-01',title:'Shroud of Night',subject:'Alpha Legion',type:'Novel',author:'Andy Clark',year:2017},
+  {id:'al-02',title:'Sons of the Hydra',subject:'Alpha Legion',type:'Novel',author:'Rob Sanders',year:2018},
+  {id:'al-03',title:'Renegades: Harrowmaster',subject:'Alpha Legion',type:'Novel',author:'Mike Brooks',year:2022},
+  {id:'el-01',title:'Path of the Warrior',subject:'Eldar Path',type:'Novel',author:'Gav Thorpe',year:2010},
+  {id:'el-02',title:'Path of the Seer',subject:'Eldar Path',type:'Novel',author:'Gav Thorpe',year:2011},
+  {id:'el-03',title:'Path of the Outcast',subject:'Eldar Path',type:'Novel',author:'Gav Thorpe',year:2012},
+  {id:'el-04',title:'Asurmen: Hand of Asuryan',subject:'Eldar Path',type:'Novel',author:'Gav Thorpe',year:2016},
+  {id:'el-05',title:'Jain Zar: The Storm of Silence',subject:'Eldar Path',type:'Novel',author:'Gav Thorpe',year:2017},
+  {id:'el-06',title:'Ghost Warrior',subject:'Eldar Path',type:'Novel',author:'Gav Thorpe',year:2017},
+  {id:'el-07',title:'Wild Rider',subject:'Eldar Path',type:'Novel',author:'Gav Thorpe',year:2018},
+  {id:'ela-01',title:'Asurmen: The Darker Road',subject:'Eldar Path',type:'Audio Drama',author:'Gav Thorpe',year:2017},
+  {id:'de-01',title:'Path of the Renegade',subject:'Drukhari',type:'Novel',author:'Andy Chambers',year:2012},
+  {id:'de-02',title:'Path of the Incubus',subject:'Drukhari',type:'Novel',author:'Andy Chambers',year:2013},
+  {id:'de-03',title:'Path of the Archon',subject:'Drukhari',type:'Novel',author:'Andy Chambers',year:2014},
+  {id:'de-04',title:'Lelith Hesperax: Queen of Knives',subject:'Drukhari',type:'Novel',author:'Mike Brooks',year:2024},
+  {id:'den-01',title:'The Masque of Vyle',subject:'Drukhari',type:'Novella',author:'Andy Chambers',year:2013},
+  {id:'ya-01',title:'Imperial Creed',subject:'Yarrick',type:'Novel',author:'David Annandale',year:2015},
+  {id:'ya-02',title:'The Pyres of Armageddon',subject:'Yarrick',type:'Novel',author:'David Annandale',year:2016},
+  {id:'yan-01',title:'Chains of Golgotha',subject:'Yarrick',type:'Novella',author:'David Annandale',year:2013},
+  {id:'yao-01',title:'Yarrick: The Omnibus',subject:'Yarrick',type:'Omnibus',author:'David Annandale',year:2023},
+  {id:'dw-01',title:'Deathwatch',subject:'Deathwatch',type:'Novel',author:'Steve Parker',year:2013},
+  {id:'dw-02',title:'Shadowbreaker',subject:'Deathwatch',type:'Novel',author:'Steve Parker',year:2019},
+  {id:'dwa-01',title:'Deathwatch: Ignition',subject:'Deathwatch',type:'Anthology',author:'Various',year:2016},
+  {id:'dwa-02',title:'Deathwatch: The Last Guardian',subject:'Deathwatch',type:'Audio Drama',author:'C.Z. Dunn',year:2016},
+  {id:'nec-01',title:'Survival Instinct',subject:'Necromunda',type:'Novel',author:'Andy Chambers',year:2005},
+  {id:'nec-02',title:'Junktion',subject:'Necromunda',type:'Novel',author:'Matthew Farrer',year:2005},
+  {id:'nec-03',title:'Fleshworks',subject:'Necromunda',type:'Novel',author:'Lucien Soulban',year:2006},
+  {id:'nec-04',title:'Terminal Overkill',subject:'Necromunda',type:'Novel',author:'Justin D. Hill',year:2019},
+  {id:'nec-05',title:'Kal Jerico: Sinner\'s Bounty',subject:'Necromunda',type:'Novel',author:'Josh Reynolds',year:2020},
+  {id:'nec-06',title:'Road to Redemption',subject:'Necromunda',type:'Novel',author:'Mike Brooks',year:2020},
+  {id:'nec-07',title:'Fire Made Flesh',subject:'Necromunda',type:'Novel',author:'Denny Flowers',year:2021},
+  {id:'nec-08',title:'Soulless Fury',subject:'Necromunda',type:'Novel',author:'Will McDermott',year:2020},
+  {id:'neca-01',title:'Underhive',subject:'Necromunda',type:'Anthology',author:'Various',year:2019},
+  {id:'ncr-01',title:'The Infinite and the Divine',subject:'Necrons',type:'Novel',author:'Robert Rath',year:2020},
+  {id:'ncr-02',title:'Assassinorum: Kingmaker',subject:'Necrons',type:'Novel',author:'Robert Rath',year:2022},
+  {id:'ncr-03',title:'Severed',subject:'Necrons',type:'Novella',author:'Nate Crowley',year:2019},
+  {id:'or-01',title:'Brutal Kunnin',subject:'Orks',type:'Novel',author:'Mike Brooks',year:2020},
+  {id:'or-02',title:'Ghazghkull Thraka: Prophet of the Waaagh!',subject:'Orks',type:'Novel',author:'Nate Crowley',year:2022},
+  {id:'or-03',title:'Warboss',subject:'Orks',type:'Novel',author:'Mike Brooks',year:2022},
+  {id:'or-04',title:'Da Big Dakka',subject:'Orks',type:'Novel',author:'Mike Brooks',year:2024},
+  {id:'orn-01',title:'Da Gobbo\'s Revenge',subject:'Orks',type:'Novella',author:'Mike Brooks',year:2021},
+  {id:'orn-02',title:'Da Gobbo\'s Demise',subject:'Orks',type:'Novella',author:'Denny Flowers',year:2022},
+  {id:'orn-03',title:'Da Gobbo Rides Again',subject:'Orks',type:'Novella',author:'Rhuairidh James',year:2023},
+  {id:'orn-04',title:'Grotsnik: Da Mad Dok',subject:'Orks',type:'Novel',author:'Denny Flowers',year:2025},
+  {id:'ora-01',title:'Da Red Gobbo Collection',subject:'Orks',type:'Anthology',author:'Various',year:2024},
+  {id:'ig-01',title:'Fifteen Hours',subject:'Astra Militarum',type:'Novel',author:'Mitchel Scanlon',year:2005},
+  {id:'ig-02',title:'Death World',subject:'Astra Militarum',type:'Novel',author:'Steve Lyons',year:2006},
+  {id:'ig-03',title:'Rebel Winter',subject:'Astra Militarum',type:'Novel',author:'Steve Parker',year:2007},
+  {id:'ig-04',title:'Desert Raiders',subject:'Astra Militarum',type:'Novel',author:'Lucien Soulban',year:2007},
+  {id:'ig-05',title:'Ice Guard',subject:'Astra Militarum',type:'Novel',author:'Steve Lyons',year:2009},
+  {id:'ig-06',title:'Gunheads',subject:'Astra Militarum',type:'Novel',author:'Steve Parker',year:2009},
+  {id:'ig-07',title:'Cadian Blood',subject:'Astra Militarum',type:'Novel',author:'Aaron Dembski-Bowden',year:2009},
+  {id:'ig-08',title:'Redemption Corps',subject:'Astra Militarum',type:'Novel',author:'Rob Sanders',year:2010},
+  {id:'ig-09',title:'Dead Men Walking',subject:'Astra Militarum',type:'Novel',author:'Steve Lyons',year:2010},
+  {id:'ig-10',title:'Imperial Glory',subject:'Astra Militarum',type:'Novel',author:'Richard Williams',year:2011},
+  {id:'ig-11',title:'Iron Guard',subject:'Astra Militarum',type:'Novel',author:'Mark Clapham',year:2012},
+  {id:'ig-12',title:'Baneblade',subject:'Astra Militarum',type:'Novel',author:'Guy Haley',year:2013},
+  {id:'ig-13',title:'Straken',subject:'Astra Militarum',type:'Novel',author:'Toby Frost',year:2014},
+  {id:'ig-14',title:'Shadowsword',subject:'Astra Militarum',type:'Novel',author:'Guy Haley',year:2016},
+  {id:'ig-15',title:'Cadia Stands',subject:'Astra Militarum',type:'Novel',author:'Justin D. Hill',year:2017},
+  {id:'ig-16',title:'Cadian Honour',subject:'Astra Militarum',type:'Novel',author:'Justin D. Hill',year:2019},
+  {id:'ig-17',title:'Honourbound: Severina Raine',subject:'Astra Militarum',type:'Novel',author:'Rachel Harrison',year:2019},
+  {id:'ig-18',title:'Steel Tread',subject:'Astra Militarum',type:'Novel',author:'Andy Clark',year:2021},
+  {id:'ig-19',title:'Catachan Devil',subject:'Astra Militarum',type:'Novel',author:'Justin Woolley',year:2022},
+  {id:'ig-20',title:'Krieg',subject:'Astra Militarum',type:'Novel',author:'Steve Lyons',year:2022},
+  {id:'ig-21',title:'Longshot',subject:'Astra Militarum',type:'Novel',author:'Rob Young',year:2023},
+  {id:'ig-22',title:'The Fall of Cadia',subject:'Astra Militarum',type:'Novel',author:'Robert Rath',year:2023},
+  {id:'ig-23',title:'Deathworlder',subject:'Astra Militarum',type:'Novel',author:'Victoria Hayward',year:2024},
+  {id:'ig-24',title:'Siege of Vraks',subject:'Astra Militarum',type:'Novel',author:'Steve Lyons',year:2024},
+  {id:'ig-25',title:'Leontus: Lord Solar',subject:'Astra Militarum',type:'Novel',author:'Rob Young',year:2025},
+  {id:'ih-01',title:'The Eye of Medusa',subject:'Iron Hands',type:'Novel',author:'David Guymer',year:2017},
+  {id:'ih-02',title:'The Voice of Mars',subject:'Iron Hands',type:'Novel',author:'David Guymer',year:2018},
+  {id:'ihn-01',title:'Medusan Wings',subject:'Iron Hands',type:'Novella',author:'Matt Westbrook',year:2016},
+  {id:'iw-01',title:'Storm of Iron',subject:'Iron Warriors',type:'Novel',author:'Graham McNeill',year:2002},
+  {id:'iwn-01',title:'Iron Warrior',subject:'Iron Warriors',type:'Novella',author:'Graham McNeill',year:2010},
+  {id:'iwo-01',title:'Iron Warriors: The Omnibus',subject:'Iron Warriors',type:'Omnibus',author:'Graham McNeill',year:2012},
+  {id:'rt-01',title:'Rogue Star',subject:'Rogue Trader',type:'Novel',author:'Andy Hoare',year:2006},
+  {id:'rt-02',title:'Star of Damocles',subject:'Rogue Trader',type:'Novel',author:'Andy Hoare',year:2007},
+  {id:'rt-03',title:'Rites of Passage',subject:'Rogue Trader',type:'Novel',author:'Mike Brooks',year:2019},
+  {id:'rt-04',title:'Void King',subject:'Rogue Trader',type:'Novel',author:'Marc Collins',year:2023},
+  {id:'rta-01',title:'Corsair: The Face of the Void',subject:'Rogue Trader',type:'Audio Drama',author:'James Swallow',year:2018},
+  {id:'smb-01',title:'Rynn\'s World',subject:'Space Marines Battles',type:'Novel',author:'Steve Parker',year:2010},
+  {id:'smb-02',title:'The Hunt for Voldorius',subject:'Space Marines Battles',type:'Novel',author:'Andy Hoare',year:2010},
+  {id:'smb-03',title:'The Fall of Damnos',subject:'Space Marines Battles',type:'Novel',author:'Nick Kyme',year:2011},
+  {id:'smb-04',title:'Battle of the Fang',subject:'Space Marines Battles',type:'Novel',author:'Chris Wraight',year:2011},
+  {id:'smb-05',title:'The Purging of Kadillus',subject:'Space Marines Battles',type:'Novel',author:'Gav Thorpe',year:2011},
+  {id:'smb-06',title:'The Gildar Rift',subject:'Space Marines Battles',type:'Novel',author:'Sarah Cawkwell',year:2011},
+  {id:'smb-07',title:'Legion of the Damned',subject:'Space Marines Battles',type:'Novel',author:'Rob Sanders',year:2012},
+  {id:'smb-08',title:'Wrath of Iron',subject:'Space Marines Battles',type:'Novel',author:'Chris Wraight',year:2012},
+  {id:'smb-09',title:'The Death of Antagonis',subject:'Space Marines Battles',type:'Novel',author:'David Annandale',year:2013},
+  {id:'smb-10',title:'The Death of Integrity',subject:'Space Marines Battles',type:'Novel',author:'Guy Haley',year:2013},
+  {id:'smb-11',title:'Malodrax',subject:'Space Marines Battles',type:'Novel',author:'Ben Counter',year:2014},
+  {id:'smb-12',title:'Blades of Damocles',subject:'Space Marines Battles',type:'Novel',author:'Phil Kelly',year:2016},
+  {id:'smb-13',title:'Calgar\'s Siege',subject:'Space Marines Battles',type:'Novel',author:'Paul Kearney',year:2016},
+  {id:'tau-01',title:'Farsight',subject:'Tau',type:'Novel',author:'Phil Kelly',year:2015},
+  {id:'gc-01',title:'Cult of the Warmason',subject:'Genestealer Cults',type:'Novel',author:'C.L. Werner',year:2017},
+  {id:'gc-02',title:'Cult of the Spiral Dawn',subject:'Genestealer Cults',type:'Novel',author:'Peter Fehervari',year:2018},
+  {id:'bf-01',title:'Blackstone Fortress',subject:'Blackstone Fortress',type:'Novel',author:'Darius Hinks',year:2020},
+  {id:'bf-02',title:'Ascension',subject:'Blackstone Fortress',type:'Novel',author:'Darius Hinks',year:2020},
+  {id:'bfa-01',title:'Vaults of Obsidian',subject:'Blackstone Fortress',type:'Anthology',author:'Various',year:2020},
+  {id:'mc-01',title:'Angel of Fire',subject:'Macharian Crusade',type:'Novel',author:'William King',year:2012},
+  {id:'mc-02',title:'Fist of Demetrius',subject:'Macharian Crusade',type:'Novel',author:'William King',year:2013},
+  {id:'mc-03',title:'Fall of Macharius',subject:'Macharian Crusade',type:'Novel',author:'William King',year:2014},
+  {id:'sc-01',title:'Crossfire',subject:'Shira Calpurnia',type:'Novel',author:'Matthew Farrer',year:2003},
+  {id:'sc-02',title:'Legacy',subject:'Shira Calpurnia',type:'Novel',author:'Matthew Farrer',year:2004},
+  {id:'sc-03',title:'Blind',subject:'Shira Calpurnia',type:'Novel',author:'Matthew Farrer',year:2006},
+  {id:'sco-01',title:'Enforcer: The Shira Calpurnia Omnibus',subject:'Shira Calpurnia',type:'Omnibus',author:'Matthew Farrer',year:2010},
+  {id:'dw2-01',title:'Dawn of War',subject:'Dawn of War',type:'Novel',author:'Cassern S. Goto',year:2004},
+  {id:'dw2-02',title:'Ascension',subject:'Dawn of War',type:'Novel',author:'Cassern S. Goto',year:2005},
+  {id:'dw2-03',title:'Tempest',subject:'Dawn of War',type:'Novel',author:'Cassern S. Goto',year:2006},
+  {id:'dw2-04',title:'Dawn of War II',subject:'Dawn of War',type:'Novel',author:'Chris Roberson',year:2009},
+  {id:'dw2-05',title:'Dawn of War III',subject:'Dawn of War',type:'Novel',author:'Robbie MacNiven',year:2017},
+  {id:'ca-01',title:'Red Tithe',subject:'Carcharodons',type:'Novel',author:'Robbie MacNiven',year:2017},
+  {id:'ca-02',title:'Outer Dark',subject:'Carcharodons',type:'Novel',author:'Robbie MacNiven',year:2018},
+  {id:'ca-03',title:'Void Exile',subject:'Carcharodons',type:'Novel',author:'Robbie MacNiven',year:2025},
+  {id:'sa-01',title:'Eye of Terror',subject:'Standalone',type:'Novel',author:'Barrington J. Bayley',year:1999},
+  {id:'sa-02',title:'Lord of the Night',subject:'Standalone',type:'Novel',author:'Simon Spurrier',year:2005},
+  {id:'sa-03',title:'Double Eagle',subject:'Standalone',type:'Novel',author:'Dan Abnett',year:2004},
+  {id:'sa-04',title:'Titanicus',subject:'Standalone',type:'Novel',author:'Dan Abnett',year:2008},
+  {id:'sa-05',title:'Warlord: Fury of the God-Machine',subject:'Standalone',type:'Novel',author:'David Annandale',year:2017},
+  {id:'sa-06',title:'Imperator: Wrath of the Omnissiah',subject:'Standalone',type:'Novel',author:'Gav Thorpe',year:2018},
+  {id:'sa-07',title:'Spear of the Emperor',subject:'Standalone',type:'Novel',author:'Aaron Dembski-Bowden',year:2019},
+  {id:'sa-08',title:'Armageddon Saint',subject:'Standalone',type:'Novel',author:'Gav Thorpe',year:2019},
+  {id:'sa-09',title:'Interceptor City',subject:'Standalone',type:'Novel',author:'Dan Abnett',year:2024},
+  {id:'sa-10',title:'Valdor: Birth of the Imperium',subject:'Standalone',type:'Novel',author:'Chris Wraight',year:2020},
+  {id:'sa-11',title:'Luther: First of the Fallen',subject:'Standalone',type:'Novel',author:'Gav Thorpe',year:2021},
+  {id:'sa-12',title:'Sigismund: The Eternal Crusader',subject:'Standalone',type:'Novel',author:'John French',year:2022},
+  {id:'sa-13',title:'Eidolon: The Auric Hammer',subject:'Standalone',type:'Novel',author:'Marc Collins',year:2024},
+  {id:'sa-14',title:'The Lion: Son of the Forest',subject:'Standalone',type:'Novel',author:'Mike Brooks',year:2023},
+  {id:'sa-15',title:'Legacy of Dorn',subject:'Standalone',type:'Novel',author:'Mike Lee',year:2018},
+  {id:'sa-16',title:'Ghazghkull Thraka: Prophet of the Waaagh!',subject:'Standalone',type:'Novel',author:'Nate Crowley',year:2021},
+]
+
+// Subjects treated as "named series" for the Series filter
+const SERIES_SUBJECTS = new Set(['Ahriman','Adepta Sororitas','Alpha Legion','Adeptus Mechanicus','Bequin','Black Legion','Black Templars','Blood Angels','Carcharodons','Ciaphas Cain','Dark Angels','Dark Imperium','Dawn of Fire','Dawn of War','Death Guard','Deathwatch','Drukhari','Eisenhorn','Eldar Path','Gaunt\'s Ghosts','Genestealer Cults','Grey Knights','Horus Heresy','Inquisition','Iron Hands','Iron Warriors','Macharian Crusade','Necromunda','Necrons','Night Lords','Orks','Primarchs','Ravenor','Rogue Trader','Salamanders','Shira Calpurnia','Siege of Terra','Soul Drinkers','Space Marines Battles','Space Wolf','The Beast Arises','Ultramarines','Vaults of Terra','Watchers of the Throne','Word Bearers','Yarrick'])
+
+// Omnibus → contained book IDs (cascade on owned/read toggle)
+const OMNIBUS_CONTENTS = {
+  'eio-01':['ei-01','ei-02','ei-03'],
+  'rao-01':['ra-01','ra-02','ra-03'],
+  'nlo-01':['nl-01','nl-02','nl-03'],
+  'cco-01':['cc-01','cc-02','cc-03'],
+  'cco-02':['cc-04','cc-05','cc-06','cc-07'],
+  'ggo-01':['gg-01','gg-02','gg-03'],
+  'ggo-02':['gg-04','gg-05','gg-06','gg-07'],
+  'ggo-03':['gg-08','gg-09','gg-10','gg-11'],
+  'ggo-04':['gg-12','gg-13'],
+  'ggo-05':['gg-14','gg-15'],
+  'sco-01':['sc-01','sc-02','sc-03'],
+  'iwo-01':['iw-01','iwn-01'],
+  'umo-01':['um-01','um-02','um-03','um-04','um-05','um-06'],
+  'aho-01':['ah-01','ah-02','ah-03'],
+  'bao-01':['ba-01','ba-02','ba-03','ba-04'],
+  'dao-01':['da-01','da-05'],
+  'swo-01':['sw-01','sw-02','sw-03','sw-04','sw-05'],
+  'sdo-01':['sd-01','sd-02','sd-03'],
+  'yao-01':['ya-01','ya-02','yan-01'],
+  'hho-01':['hh-01','hh-02','hh-03'],
+  'hho-02':['hh-05','hh-23'],
+  'hho-03':['hh-12','hh-15'],
+  'aso-01':['as-01','as-02'],
+  'aso-02':['as-03','as-04'],
+}
+
+// ════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════
+let currentUser = null
+let userBooks   = {}      // bookId → {db_id,owned,read,wishlisted}
+let activeFilter= 'all'
+let activeType  = 'all'
+let activeSubject='all'
+let searchQuery = ''
+let pending     = {}
+const coverCache= {}
+
+// ════════════════════════════════════════════════════════════
+//  EXPOSE HANDLERS
+// ════════════════════════════════════════════════════════════
+Object.assign(window,{
+  switchTab,doLogin,doRegister,doLogout,
+  setFilter,setType,doSearch,setSubject,toggleStatus
+})
+
+// ════════════════════════════════════════════════════════════
+//  AUTH
+// ════════════════════════════════════════════════════════════
+function switchTab(t){
+  const isL=t==='login'
+  document.getElementById('loginForm').style.display=isL?'':'none'
+  document.getElementById('regForm').style.display=isL?'none':''
+  document.getElementById('tabLogin').classList.toggle('active',isL)
+  document.getElementById('tabReg').classList.toggle('active',!isL)
+  clearMsg()
+}
+function showMsg(txt,type='error'){
+  const el=document.getElementById('authMsg')
+  el.className='auth-msg '+type; el.textContent=txt; el.style.display=''
+}
+function clearMsg(){document.getElementById('authMsg').style.display='none'}
+
+async function doLogin(){
+  const email=document.getElementById('lEmail').value.trim()
+  const pass=document.getElementById('lPass').value
+  if(!email||!pass){showMsg('Please enter your email and password.');return}
+  const btn=document.getElementById('loginBtn')
+  btn.disabled=true; btn.textContent='Accessing…'
+  const {error}=await supabase.auth.signInWithPassword({email,password:pass})
+  if(error){showMsg(error.message);btn.disabled=false;btn.textContent='Access Archive'}
+}
+async function doRegister(){
+  const email=document.getElementById('rEmail').value.trim()
+  const pass=document.getElementById('rPass').value
+  if(!email||!pass){showMsg('Please fill in all fields.');return}
+  if(pass.length<6){showMsg('Password must be at least 6 characters.');return}
+  const btn=document.getElementById('regBtn')
+  btn.disabled=true; btn.textContent='Creating…'
+  const {error}=await supabase.auth.signUp({email,password:pass})
+  if(error){showMsg(error.message);btn.disabled=false;btn.textContent='Create Archive'}
+  else{showMsg('Archive created! Check your email to confirm, then sign in.','success');btn.disabled=false;btn.textContent='Create Archive'}
+}
+async function doLogout(){await supabase.auth.signOut()}
+
+// ════════════════════════════════════════════════════════════
+//  DATA
+// ════════════════════════════════════════════════════════════
+async function loadUserBooks(){
+  const {data,error}=await supabase.from('user_books').select('*').eq('user_id',currentUser.id)
+  if(error){console.error(error);return}
+  userBooks={}
+  for(const r of (data||[])){
+    userBooks[r.book_id]={db_id:r.id,owned:r.owned,read:r.read,wishlisted:r.wishlisted,cover_image:r.cover_image||null,summary:r.summary||''}
+  }
+}
+
+async function saveBook(bookId,updated,prevDbId){
+  const payload={user_id:currentUser.id,book_id:bookId,owned:updated.owned,read:updated.read,wishlisted:updated.wishlisted}
+  if(prevDbId)payload.id=prevDbId
+  const {data,error}=await supabase.from('user_books').upsert(payload,{onConflict:'user_id,book_id'}).select().single()
+  if(!error&&data){if(userBooks[bookId])userBooks[bookId].db_id=data.id}
+  return error
+}
+
+async function toggleStatus(bookId,field){
+  if(pending[bookId])return
+  pending[bookId]=true
+
+  const prev=userBooks[bookId]||{owned:false,read:false,wishlisted:false}
+  const newVal=!prev[field]
+  const updated={...prev,[field]:newVal}
+  userBooks[bookId]=updated
+  updateCard(bookId); updateStats()
+
+  // Cascade to omnibus contents (owned/read only, not wishlist)
+  const cascadeIds=[]
+  if(field!=='wishlisted'){
+    const contents=OMNIBUS_CONTENTS[bookId]
+    if(contents){
+      for(const cid of contents){
+        const cp=userBooks[cid]||{owned:false,read:false,wishlisted:false}
+        // only cascade ON (don't auto-remove when omnibus is unticked)
+        if(newVal && !cp[field]){
+          userBooks[cid]={...cp,[field]:true}
+          cascadeIds.push(cid)
+        }
+      }
+    }
+  }
+
+  // Save primary
+  const err=await saveBook(bookId,updated,prev.db_id)
+  if(err){
+    userBooks[bookId]=prev
+    updateCard(bookId); updateStats()
+    pending[bookId]=false; return
+  }
+
+  // Save cascaded
+  for(const cid of cascadeIds){
+    const cp=userBooks[cid]
+    const cprev=cp
+    await saveBook(cid,cp,cprev.db_id)
+    updateCard(cid)
+  }
+  if(cascadeIds.length)updateStats()
+
+  pending[bookId]=false
+}
+
+// ════════════════════════════════════════════════════════════
+//  COVER IMAGES
+// ════════════════════════════════════════════════════════════
+const coverObserver = new IntersectionObserver((entries)=>{
+  for(const e of entries){
+    if(e.isIntersecting){
+      const wrap=e.target
+      const bookId=wrap.dataset.bookId
+      const title=wrap.dataset.title
+      const author=wrap.dataset.author
+      coverObserver.unobserve(wrap)
+      loadCover(wrap,bookId,title,author)
+    }
+  }
+},{rootMargin:'200px'})
+
+async function loadCover(wrap,bookId,title,author){
+    const cached=sessionStorage.getItem('cv_'+bookId)
+    if(cached==='NONE'){return}
+    if(cached){applyCover(wrap,cached);return}
+
+    // Primary: Open Library (no key needed, great BL coverage)
+    const slug=encodeURIComponent(title)
+    const olUrl=`https://covers.openlibrary.org/b/title/${slug}-M.jpg`
+    try{
+      const res=await fetch(olUrl,{cache:'force-cache'})
+      if(res.ok){
+        const blob=await res.blob()
+        if(blob.size>1500){
+          const objUrl=URL.createObjectURL(blob)
+          sessionStorage.setItem('cv_'+bookId,objUrl)
+          applyCover(wrap,objUrl)
+          return
+        }
+      }
+    }catch(e){}
+
+    // Fallback: Google Books
+    try{
+      const q=encodeURIComponent('"'+title+'"')
+      const gbUrl='https://www.googleapis.com/books/v1/volumes?q='+q+'&maxResults=1&fields=items(volumeInfo(imageLinks))'
+      const res2=await fetch(gbUrl)
+      const data=await res2.json()
+      const thumb=data.items?.[0]?.volumeInfo?.imageLinks?.thumbnail
+      if(thumb){
+        const secure=thumb.replace('http:','https:').replace('zoom=1','zoom=2')
+        sessionStorage.setItem('cv_'+bookId,secure)
+        applyCover(wrap,secure)
+        return
+      }
+    }catch(e){}
+
+    sessionStorage.setItem('cv_'+bookId,'NONE')
+  }
+
+function applyCover(wrap,url){
+  const img=wrap.querySelector('.cover-img')
+  if(!img)return
+  img.onload=()=>img.classList.add('loaded')
+  img.src=url
+}
+
+// ════════════════════════════════════════════════════════════
+//  FILTERING
+// ════════════════════════════════════════════════════════════
+function getFiltered(){
+  return BOOKS.filter(b=>{
+    const ub=userBooks[b.id]||{}
+    if(activeFilter==='owned'     && !ub.owned)                          return false
+    if(activeFilter==='read'      && !ub.read)                           return false
+    if(activeFilter==='wishlist'  && !ub.wishlisted)                     return false
+    if(activeFilter==='untracked' && (ub.owned||ub.read||ub.wishlisted)) return false
+    if(activeType==='Series'      && !SERIES_SUBJECTS.has(b.subject))   return false
+    if(activeType!=='all' && activeType!=='Series' && b.type!==activeType) return false
+    if(activeSubject!=='all'      && b.subject!==activeSubject)          return false
+    if(searchQuery){
+      const q=searchQuery.toLowerCase()
+      if(!b.title.toLowerCase().includes(q)&&!b.author.toLowerCase().includes(q)) return false
+    }
+    return true
+  })
+}
+
+function setFilter(f){
+  activeFilter=f
+  document.querySelectorAll('[data-filter]').forEach(el=>el.classList.toggle('active',el.dataset.filter===f))
+  renderGrid()
+}
+
+function setType(t){
+  activeType=t
+  document.querySelectorAll('[data-type]').forEach(el=>el.classList.toggle('active',el.dataset.type===t))
+  activeSubject='all'
+  populateSubjects()
+  renderGrid()
+}
+
+function doSearch(v){searchQuery=v;renderGrid()}
+function setSubject(v){activeSubject=v;renderGrid()}
+
+// ════════════════════════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════════════════════════
+function renderGrid(){
+  const grid=document.getElementById('grid')
+  const books=getFiltered()
+  document.getElementById('rinfo').textContent=
+    books.length===BOOKS.length
+      ?`Showing all ${BOOKS.length.toLocaleString()} entries in the archive`
+      :`Showing ${books.length.toLocaleString()} of ${BOOKS.length.toLocaleString()} entries`
+
+  if(!books.length){
+    grid.innerHTML='<div class="no-res"><p>No tomes match your current filter, Inquisitor.</p></div>'
+    return
+  }
+  grid.innerHTML=books.map(renderCard).join('')
+}
+
+function typeClass(t){return t.replace(' ','')}
+
+function renderCard(b){
+  const ub    = userBooks[b.id] || {}
+  const tc    = b.type.replace(' ','')
+  const idx   = BOOKS.indexOf(b)
+  const owned = ub.owned      ? ' owned'    : ''
+  const read  = ub.read       ? ' read'     : ''
+  const wish  = ub.wishlisted ? ' wishlist' : ''
+  const oIcon = ub.owned      ? '&#10003;'  : '&#9675;'
+  const rIcon = ub.read       ? '&#10003;'  : '&#9675;'
+  const wIcon = ub.wishlisted ? '&#9733;'   : '&#9734;'
+  const coverHtml = ub.cover_image
+    ? '<img src="' + ub.cover_image + '" alt="" style="width:100%;height:100%;object-fit:contain"/>'
+    : '<span class="ct-ph">&#9869;</span>'
+  const cascade = b.type === 'Omnibus'
+    ? '<div class="cascade-note">&#8627; Owned/Read updates included titles</div>' : ''
+  return '<div class="card" id="card-' + esc(b.id) + '" onclick="OC(' + idx + ')">'
+    + '<div class="card-body">'
+    +   '<div class="card-meta-col">'
+    +     '<div class="card-subject">' + esc(b.subject) + '</div>'
+    +     '<div class="card-format t-' + tc + '">' + esc(b.type) + '</div>'
+    +     '<div style="flex:1;min-height:.4rem"></div>'
+    +     '<div class="c-title">' + esc(b.title) + '</div>'
+    +     '<div class="c-meta">' + esc(b.author) + ' &middot; ' + b.year + '</div>'
+    +     cascade
+    +   '</div>'
+    +   '<div class="card-cover-col">'
+    +     '<div class="card-thumb">' + coverHtml + '</div>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="c-actions">'
+    +   '<button class="sbtn' + owned + '" onclick="event.stopPropagation();SC(' + idx + ',0)">' + oIcon + '&nbsp;Owned</button>'
+    +   '<button class="sbtn' + read  + '" onclick="event.stopPropagation();SC(' + idx + ',1)">' + rIcon + '&nbsp;Read</button>'
+    +   '<button class="sbtn' + wish  + '" onclick="event.stopPropagation();SC(' + idx + ',2)">' + wIcon + '&nbsp;Want</button>'
+    + '</div>'
+    + '</div>'
+}
+
+
+function updateCard(id){
+  const el=document.getElementById('card-'+id)
+  if(!el)return
+  const b=BOOKS.find(x=>x.id===id)
+  if(b){el.outerHTML=renderCard(b)}
+  if(activeFilter!=='all')renderGrid()
+}
+
+function updateStats(){
+  const vals=Object.values(userBooks)
+  document.getElementById('sTotal').textContent  = BOOKS.length.toLocaleString()
+  document.getElementById('sOwned').textContent  = vals.filter(b=>b.owned).length
+  document.getElementById('sRead').textContent   = vals.filter(b=>b.read).length
+  document.getElementById('sWish').textContent   = vals.filter(b=>b.wishlisted).length
+  document.getElementById('sNovels').textContent = BOOKS.filter(b=>b.type==='Novel').length
+  document.getElementById('sAudio').textContent  = BOOKS.filter(b=>b.type==='Audio Drama').length
+}
+
+function populateSubjects(){
+  let pool=BOOKS
+  if(activeType==='Series')     pool=pool.filter(b=>SERIES_SUBJECTS.has(b.subject))
+  else if(activeType!=='all')   pool=pool.filter(b=>b.type===activeType)
+  const subjects=[...new Set(pool.map(b=>b.subject))].sort()
+  const sel=document.getElementById('subjSel')
+  sel.innerHTML=`<option value="all">&mdash; All Subjects &mdash;</option>`
+    +subjects.map(s=>`<option value="${esc(s)}"${s===activeSubject?' selected':''}>${esc(s)}</option>`).join('')
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+// ════════════════════════════════════════════════════════════
+//  LIFECYCLE
+// ════════════════════════════════════════════════════════════
+async function showApp(user){
+  currentUser=user
+  document.getElementById('authWrap').style.display='none'
+  document.getElementById('app').classList.add('visible')
+  document.getElementById('hEmail').textContent=user.email
+  document.getElementById('grid').innerHTML='<div class="loading"><div class="spinner"></div><p>Loading your archive…</p></div>'
+  await loadUserBooks()
+  populateSubjects()
+  updateStats()
+  renderGrid()
+}
+
+function showAuth(){
+  currentUser=null; userBooks={}
+  document.getElementById('authWrap').style.display=''
+  document.getElementById('app').classList.remove('visible')
+}
+
+supabase.auth.onAuthStateChange((_e,session)=>{
+  if(session?.user) showApp(session.user)
+  else showAuth()
+})
+
+const {data:{session}}=await supabase.auth.getSession()
+if(session?.user) showApp(session.user)
+else showAuth()
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  MODAL
+// ════════════════════════════════════════════════════════════════════════════
+let modalBookId   = null
+let modalEditMode = false
+let pendingCover  = null   // base64 string waiting to be saved
+
+Object.assign(window,{openModal,closeModal,closeModalBg,toggleEditMode,
+  cancelEditMode,saveModalEdits,handleCoverUpload,modalToggle})
+
+function openModal(bookId){
+  modalBookId   = bookId
+  modalEditMode = false
+  pendingCover  = null
+  const b  = BOOKS.find(x=>x.id===bookId)
+  const ub = userBooks[bookId]||{}
+  if(!b) return
+
+  // Populate static fields
+  document.getElementById('mTitle').textContent   = b.title
+  document.getElementById('mAuthor').textContent  = b.author
+  document.getElementById('mYear').textContent    = b.year
+  document.getElementById('mSubject').textContent = b.subject
+  document.getElementById('mFormat').innerHTML    = `<span class="tbadge t-${b.type.replace(' ','')}">${b.type}</span>`
+  document.getElementById('modalCoverPhTitle').textContent = b.title
+
+  // Summary
+  const sum = ub.summary||''
+  document.getElementById('mSummaryView').innerHTML = sum || '<em style="color:var(--text-muted);font-style:italic">No summary added yet. Click Edit to add one.</em>'
+
+  // Cover
+  refreshModalCover(ub.cover_image)
+
+  // Status buttons
+  refreshModalStatus()
+
+  // Lock mode
+  applyEditMode(false)
+
+  document.getElementById('bookModal').style.display='flex'
+  document.body.style.overflow='hidden'
+}
+
+function closeModal(){
+  if(modalEditMode){
+    const cur=document.getElementById('rteEditor').innerHTML
+    const saved=userBooks[modalBookId]?.summary||''
+    if(pendingCover!==null||cur!==saved){
+      if(!confirm('You have unsaved changes. Discard them and close?')) return
+    }
+    cancelEditMode()
+  }
+  document.getElementById('bookModal').style.display='none'
+  document.body.style.overflow=''
+  modalBookId=null
+}
+
+function closeModalBg(e){
+  if(e.target!==document.getElementById('bookModal')) return
+  if(modalEditMode){
+    const cur=document.getElementById('rteEditor').innerHTML
+    const saved=userBooks[modalBookId]?.summary||''
+    if(pendingCover!==null||cur!==saved){
+      if(!confirm('You have unsaved changes. Discard them and close?')) return
+    }
+    cancelEditMode()
+  }
+  closeModal()
+}
+
+function refreshModalCover(src){
+  const img=document.getElementById('modalCoverImg')
+  if(src){
+    img.onload=()=>img.classList.add('loaded')
+    img.src=src
+  } else {
+    img.src=''; img.classList.remove('loaded')
+  }
+}
+
+function refreshModalStatus(){
+  const ub=userBooks[modalBookId]||{}
+  const o=document.getElementById('mBtnOwned')
+  const r=document.getElementById('mBtnRead')
+  const w=document.getElementById('mBtnWishlist')
+  o.className='msbtn'+(ub.owned?' owned':'')
+  o.innerHTML=(ub.owned?'&#10003;':'&#9675;')+'&nbsp;Owned'
+  r.className='msbtn'+(ub.read?' read':'')
+  r.innerHTML=(ub.read?'&#10003;':'&#9675;')+'&nbsp;Read'
+  w.className='msbtn'+(ub.wishlisted?' wishlist':'')
+  w.innerHTML=(ub.wishlisted?'&#9733;':'&#9734;')+'&nbsp;Want'
+}
+
+async function modalToggle(field){
+  if(!modalBookId) return
+  await toggleStatus(modalBookId, field)
+  refreshModalStatus()
+}
+
+function toggleEditMode(){
+  applyEditMode(!modalEditMode)
+}
+
+function applyEditMode(on){
+  modalEditMode=on
+  // Summary toggle
+  document.getElementById('mSummaryView').classList.toggle('hidden',on)
+  document.getElementById('rteWrap').classList.toggle('visible',on)
+  if(on){
+    // Populate editor with current saved HTML
+    const ub=userBooks[modalBookId]||{}
+    const ed=document.getElementById('rteEditor')
+    ed.innerHTML=ub.summary||''
+    setTimeout(()=>ed.focus(),50)
+  }
+  // Upload button
+  document.getElementById('modalUploadArea').classList.toggle('visible',on)
+  // Edit button highlight
+  document.getElementById('modalEditBtn').classList.toggle('active',on)
+  // Save row
+  document.getElementById('modalSaveRow').classList.toggle('visible',on)
+}
+
+function cancelEditMode(){
+  if(pendingCover){
+    const ub=userBooks[modalBookId]||{}
+    refreshModalCover(ub.cover_image)
+    pendingCover=null
+  }
+  const ub=userBooks[modalBookId]||{}
+  document.getElementById('rteEditor').innerHTML=ub.summary||''
+  applyEditMode(false)
+}
+
+async function saveModalEdits(){
+  if(!modalBookId) return
+  const summary=document.getElementById('rteEditor').innerHTML.trim()
+  const ub=userBooks[modalBookId]||{owned:false,read:false,wishlisted:false}
+
+  const payload={
+    user_id:     currentUser.id,
+    book_id:     modalBookId,
+    owned:       ub.owned,
+    read:        ub.read,
+    wishlisted:  ub.wishlisted,
+    summary:     summary,
+    cover_image: pendingCover !== null ? pendingCover : (ub.cover_image||null)
+  }
+  if(ub.db_id) payload.id=ub.db_id
+
+  const btn=document.getElementById('modalSaveRow').querySelector('.modal-save-btn')
+  btn.disabled=true; btn.textContent='Saving…'
+
+  const {data,error}=await supabase.from('user_books')
+    .upsert(payload,{onConflict:'user_id,book_id'}).select().single()
+
+  if(error){
+    console.error(error)
+    btn.disabled=false; btn.textContent='Save Changes'
+    return
+  }
+
+  // Update local state
+  userBooks[modalBookId]={
+    db_id:       data.id,
+    owned:       data.owned,
+    read:        data.read,
+    wishlisted:  data.wishlisted,
+    summary:     data.summary||'',
+    cover_image: data.cover_image||null
+  }
+  pendingCover=null
+
+  // Refresh display
+  document.getElementById('mSummaryView').innerHTML=summary||'<em style="color:var(--text-muted);font-style:italic">No summary added yet. Click Edit to add one.</em>'
+  refreshModalCover(data.cover_image)
+
+  btn.disabled=false; btn.textContent='Save Changes'
+  applyEditMode(false)
+  updateCard(modalBookId)
+}
+
+async function handleCoverUpload(input){
+  const file=input.files[0]
+  if(!file) return
+  // Compress to max 280px wide, JPEG 0.75
+  const compressed=await compressImage(file,280,0.78)
+  pendingCover=compressed
+  refreshModalCover(compressed)
+}
+
+function compressImage(file,maxW,quality){
+  return new Promise(resolve=>{
+    const reader=new FileReader()
+    reader.onload=e=>{
+      const img=new Image()
+      img.onload=()=>{
+        // Scale to fit within maxW wide, preserve aspect ratio — no cropping
+        const ratio=Math.min(maxW/img.width,1)
+        const canvas=document.createElement('canvas')
+        canvas.width=Math.round(img.width*ratio)
+        canvas.height=Math.round(img.height*ratio)
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height)
+        resolve(canvas.toDataURL('image/jpeg',quality))
+      }
+      img.src=e.target.result
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+
+// ════════════════════════════════════════════════════════════════════════
+//  RICH TEXT EDITOR
+// ════════════════════════════════════════════════════════════════════════
+Object.assign(window,{rteCmd,rteBlockquote,rteKeydown,rteUpdateToolbar})
+
+function rteCmd(cmd,val=null){
+  document.getElementById('rteEditor').focus()
+  document.execCommand(cmd,false,val)
+  rteUpdateToolbar()
+}
+
+function rteBlockquote(){
+  const ed=document.getElementById('rteEditor')
+  ed.focus()
+  const sel=window.getSelection()
+  if(!sel.rangeCount) return
+  const range=sel.getRangeAt(0)
+  const bq=document.createElement('blockquote')
+  try{
+    range.surroundContents(bq)
+  }catch(e){
+    bq.appendChild(range.extractContents())
+    range.insertNode(bq)
+  }
+  rteUpdateToolbar()
+}
+
+function rteUpdateToolbar(){
+  const cmds=['bold','italic','underline','insertUnorderedList','insertOrderedList']
+  cmds.forEach(cmd=>{
+    const btn=document.querySelector(`.rte-btn[onclick="rteCmd('${cmd}')"]`)
+    if(btn) btn.classList.toggle('active', document.queryCommandState(cmd))
+  })
+}
+
+function rteKeydown(e){
+  // Tab = indent, Shift+Tab = outdent
+  if(e.key==='Tab'){
+    e.preventDefault()
+    e.shiftKey ? rteCmd('outdent') : rteCmd('indent')
+  }
+  // Ctrl/Cmd shortcuts
+  if((e.ctrlKey||e.metaKey)){
+    if(e.key==='b'){e.preventDefault();rteCmd('bold')}
+    if(e.key==='i'){e.preventDefault();rteCmd('italic')}
+    if(e.key==='u'){e.preventDefault();rteCmd('underline')}
+  }
+}
+
+</script>
+
+<!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
+<div class="modal-overlay" id="bookModal" style="display:none;" onclick="closeModalBg(event)">
+  <div class="modal-panel" onclick="event.stopPropagation()">
+    <span class="modal-corner mc-tl"></span><span class="modal-corner mc-tr"></span>
+    <span class="modal-corner mc-bl"></span><span class="modal-corner mc-br"></span>
+
+    <!-- top bar: status buttons + edit/close -->
+    <div class="modal-top">
+      <div class="modal-status-row">
+        <button class="msbtn" id="mBtnOwned"    onclick="modalToggle('owned')">&#9675;&nbsp;Owned</button>
+        <button class="msbtn" id="mBtnRead"     onclick="modalToggle('read')">&#9675;&nbsp;Read</button>
+        <button class="msbtn" id="mBtnWishlist" onclick="modalToggle('wishlisted')">&#9734;&nbsp;Want</button>
+      </div>
+      <div class="modal-ctrl">
+        <button class="modal-edit-btn" id="modalEditBtn" title="Edit" onclick="toggleEditMode()">&#9998;</button>
+        <button class="modal-close-btn" title="Close" onclick="closeModal()">&#10005;</button>
+      </div>
+    </div>
+
+    <!-- body -->
+    <div class="modal-body">
+      <!-- LEFT: cover + metadata -->
+      <div class="modal-left">
+        <div class="modal-cover" id="modalCoverWrap">
+          <img class="modal-cover-img" id="modalCoverImg" alt="Book cover"/>
+          <div class="modal-cover-ph">
+            <span class="mcp-aquila">&#9869;</span>
+            <span class="mcp-text" id="modalCoverPhTitle"></span>
+          </div>
+        </div>
+        <div class="modal-upload-area" id="modalUploadArea">
+          <button class="modal-upload-btn" onclick="document.getElementById('modalFileInput').click()">
+            &#8593; Upload Cover
+          </button>
+          <input type="file" id="modalFileInput" accept="image/*" style="display:none"
+            onchange="handleCoverUpload(this)"/>
+        </div>
+        <div class="mfield">
+          <span class="mfield-label">Series / Subject</span>
+          <div class="mfield-val meta" id="mSubject"></div>
+        </div>
+        <div class="mfield">
+          <span class="mfield-label">Title</span>
+          <div class="mfield-val title" id="mTitle"></div>
+        </div>
+        <div class="mfield">
+          <span class="mfield-label">Author</span>
+          <div class="mfield-val" id="mAuthor"></div>
+        </div>
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+          <div class="mfield">
+            <span class="mfield-label">Published</span>
+            <div class="mfield-val meta" id="mYear"></div>
+          </div>
+          <div class="mfield">
+            <span class="mfield-label">Format</span>
+            <div class="mfield-val" id="mFormat"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: summary -->
+      <div class="modal-right">
+        <div class="mfield" style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <span class="mfield-label" style="flex-shrink:0">Summary</span>
+          <div class="mfield-val summary" id="mSummaryView"></div>
+
+          <!-- Rich text editor (edit mode) -->
+          <div class="rte-wrap" id="rteWrap">
+            <div class="rte-toolbar" id="rteToolbar">
+              <button class="rte-btn" title="Bold" onclick="rteCmd('bold')"><b>B</b></button>
+              <button class="rte-btn" title="Italic" onclick="rteCmd('italic')"><i>I</i></button>
+              <button class="rte-btn" title="Underline" onclick="rteCmd('underline')"><u>U</u></button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn wide" title="Bullet list" onclick="rteCmd('insertUnorderedList')">&#8226; List</button>
+              <button class="rte-btn wide" title="Numbered list" onclick="rteCmd('insertOrderedList')">1. List</button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn" title="Indent" onclick="rteCmd('indent')">&#8677;</button>
+              <button class="rte-btn" title="Outdent" onclick="rteCmd('outdent')">&#8676;</button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn" title="Blockquote" onclick="rteBlockquote()">&ldquo;</button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn" title="Clear formatting" onclick="rteCmd('removeFormat')">&#10007;</button>
+            </div>
+            <div class="rte-editor" id="rteEditor" contenteditable="true"
+              data-placeholder="Add your notes or a summary here…"
+              onkeydown="rteKeydown(event)"
+              onmouseup="rteUpdateToolbar()"
+              onkeyup="rteUpdateToolbar()"></div>
+          </div>
+        </div>
+      </div></div>
+
+    <!-- save row (edit mode only) -->
+    <div class="modal-save-row" id="modalSaveRow">
+      <button class="modal-cancel-btn" onclick="cancelEditMode()">Cancel</button>
+      <button class="modal-save-btn" onclick="saveModalEdits()">Save Changes</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
