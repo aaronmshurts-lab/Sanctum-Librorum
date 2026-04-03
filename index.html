@@ -466,6 +466,18 @@ const SUPABASE_ANON_KEY = 'sb_publishable_MZpvQ3ySRm8l_saadAeKFw_GAKYPPa6'
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+// ── ADMIN CONFIG ─────────────────────────────────────────────────────────
+// Replace with your Supabase user ID. Find it:
+// Supabase → Authentication → Users → click your email → copy UUID
+const ADMIN_USER_ID = '4e172dbd-4716-4fcb-9773-d2c7c0b00706'
+
+// Global book data (covers + summaries) — loaded once, shared by all users
+let globalBooks = {}   // { book_id: { cover_image, summary } }
+
+function isAdmin(){
+  return currentUser && currentUser.id === ADMIN_USER_ID
+}
+
 // Card click handlers — use integer index into BOOKS array
 // Plain integers need NO quoting in onclick attributes
 const FIELDS = ['owned','read','wishlisted']
@@ -1024,6 +1036,19 @@ async function doLogout(){await supabase.auth.signOut()}
 // ════════════════════════════════════════════════════════════
 //  DATA
 // ════════════════════════════════════════════════════════════
+async function loadGlobalBooks(){
+  const {data,error} = await supabase.from('books_global').select('*')
+  if(error){ console.error('loadGlobalBooks:', error); return }
+  globalBooks = {}
+  for(const r of (data||[])){
+    globalBooks[r.book_id] = {
+      cover_image: r.cover_image || null,
+      summary:     r.summary     || '',
+      db_id:       r.id
+    }
+  }
+}
+
 async function loadUserBooks(){
   const {data,error}=await supabase.from('user_books').select('*').eq('user_id',currentUser.id)
   if(error){console.error(error);return}
@@ -1217,8 +1242,9 @@ function renderCard(b){
   const oIcon = ub.owned      ? '&#10003;'  : '&#9675;'
   const rIcon = ub.read       ? '&#10003;'  : '&#9675;'
   const wIcon = ub.wishlisted ? '&#9733;'   : '&#9734;'
-  const coverHtml = ub.cover_image
-    ? '<img src="' + ub.cover_image + '" alt="" style="width:100%;height:100%;object-fit:contain"/>'
+  const gb2       = globalBooks[b.id] || {}
+  const coverHtml = gb2.cover_image
+    ? '<img src="' + gb2.cover_image + '" alt="" style="width:100%;height:100%;object-fit:contain"/>'
     : '<span class="ct-ph">&#9869;</span>'
   const cascade = b.type === 'Omnibus'
     ? '<div class="cascade-note">&#8627; Owned/Read updates included titles</div>' : ''
@@ -1284,7 +1310,7 @@ async function showApp(user){
   document.getElementById('app').classList.add('visible')
   document.getElementById('hEmail').textContent=user.email
   document.getElementById('grid').innerHTML='<div class="loading"><div class="spinner"></div><p>Loading your archive…</p></div>'
-  await loadUserBooks()
+  await Promise.all([loadGlobalBooks(), loadUserBooks()])
   populateSubjects()
   updateStats()
   renderGrid()
@@ -1332,12 +1358,16 @@ function openModal(bookId){
   document.getElementById('mFormat').innerHTML    = `<span class="tbadge t-${b.type.replace(' ','')}">${b.type}</span>`
   document.getElementById('modalCoverPhTitle').textContent = b.title
 
-  // Summary
-  const sum = ub.summary||''
-  document.getElementById('mSummaryView').innerHTML = sum || '<em style="color:var(--text-muted);font-style:italic">No summary added yet. Click Edit to add one.</em>'
+  // Global data (cover + summary) — from books_global, visible to all
+  const gb  = globalBooks[bookId] || {}
+  const sum = gb.summary || ''
+  document.getElementById('mSummaryView').innerHTML = sum || '<em style="color:var(--text-muted);font-style:italic">No summary added yet.</em>'
 
-  // Cover
-  refreshModalCover(ub.cover_image)
+  // Cover — from global store
+  refreshModalCover(gb.cover_image || null)
+
+  // Show/hide edit button based on admin status
+  document.getElementById('modalEditBtn').style.display = isAdmin() ? '' : 'none'
 
   // Status buttons
   refreshModalStatus()
@@ -1352,7 +1382,7 @@ function openModal(bookId){
 function closeModal(){
   if(modalEditMode){
     const cur=document.getElementById('rteEditor').innerHTML
-    const saved=userBooks[modalBookId]?.summary||''
+    const saved=globalBooks[modalBookId]?.summary||''
     if(pendingCover!==null||cur!==saved){
       if(!confirm('You have unsaved changes. Discard them and close?')) return
     }
@@ -1367,7 +1397,7 @@ function closeModalBg(e){
   if(e.target!==document.getElementById('bookModal')) return
   if(modalEditMode){
     const cur=document.getElementById('rteEditor').innerHTML
-    const saved=userBooks[modalBookId]?.summary||''
+    const saved=globalBooks[modalBookId]?.summary||''
     if(pendingCover!==null||cur!==saved){
       if(!confirm('You have unsaved changes. Discard them and close?')) return
     }
@@ -1441,47 +1471,46 @@ function cancelEditMode(){
 }
 
 async function saveModalEdits(){
-  if(!modalBookId) return
-  const summary=document.getElementById('rteEditor').innerHTML.trim()
-  const ub=userBooks[modalBookId]||{owned:false,read:false,wishlisted:false}
+  if(!modalBookId || !isAdmin()) return
+  const summary = document.getElementById('rteEditor').innerHTML.trim()
+  const gb      = globalBooks[modalBookId] || {}
+  const coverToSave = pendingCover !== null ? pendingCover : (gb.cover_image || null)
 
-  const payload={
-    user_id:     currentUser.id,
-    book_id:     modalBookId,
-    owned:       ub.owned,
-    read:        ub.read,
-    wishlisted:  ub.wishlisted,
-    summary:     summary,
-    cover_image: pendingCover !== null ? pendingCover : (ub.cover_image||null)
-  }
-  if(ub.db_id) payload.id=ub.db_id
-
-  const btn=document.getElementById('modalSaveRow').querySelector('.modal-save-btn')
+  const btn = document.getElementById('modalSaveRow').querySelector('.modal-save-btn')
   btn.disabled=true; btn.textContent='Saving…'
 
-  const {data,error}=await supabase.from('user_books')
-    .upsert(payload,{onConflict:'user_id,book_id'}).select().single()
+  // Save cover + summary to books_global (admin only)
+  const globalPayload = {
+    book_id:     modalBookId,
+    cover_image: coverToSave,
+    summary:     summary,
+    updated_at:  new Date().toISOString()
+  }
+  if(gb.db_id) globalPayload.id = gb.db_id
 
-  if(error){
-    console.error(error)
+  const {data:gData, error:gError} = await supabase
+    .from('books_global')
+    .upsert(globalPayload, {onConflict:'book_id'})
+    .select().single()
+
+  if(gError){
+    console.error('Global save error:', gError)
     btn.disabled=false; btn.textContent='Save Changes'
     return
   }
 
-  // Update local state
-  userBooks[modalBookId]={
-    db_id:       data.id,
-    owned:       data.owned,
-    read:        data.read,
-    wishlisted:  data.wishlisted,
-    summary:     data.summary||'',
-    cover_image: data.cover_image||null
+  // Update local global store
+  globalBooks[modalBookId] = {
+    db_id:       gData.id,
+    cover_image: gData.cover_image || null,
+    summary:     gData.summary     || ''
   }
-  pendingCover=null
+  pendingCover = null
 
   // Refresh display
-  document.getElementById('mSummaryView').innerHTML=summary||'<em style="color:var(--text-muted);font-style:italic">No summary added yet. Click Edit to add one.</em>'
-  refreshModalCover(data.cover_image)
+  document.getElementById('mSummaryView').innerHTML = summary ||
+    '<em style="color:var(--text-muted);font-style:italic">No summary added yet.</em>'
+  refreshModalCover(gData.cover_image)
 
   btn.disabled=false; btn.textContent='Save Changes'
   applyEditMode(false)
