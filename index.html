@@ -1698,3 +1698,107 @@ function rteKeydown(e){
   }
 }
 </script>
+
+<!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
+<div class="modal-overlay" id="bookModal" style="display:none;" onclick="closeModalBg(event)">
+  <div class="modal-panel" onclick="event.stopPropagation()">
+    <span class="modal-corner mc-tl"></span><span class="modal-corner mc-tr"></span>
+    <span class="modal-corner mc-bl"></span><span class="modal-corner mc-br"></span>
+
+    <!-- top bar: status buttons + edit/close -->
+    <div class="modal-top">
+      <div class="modal-status-row">
+        <button class="msbtn" id="mBtnOwned"    onclick="modalToggle('owned')">&#9675;&nbsp;Owned</button>
+        <button class="msbtn" id="mBtnRead"     onclick="modalToggle('read')">&#9675;&nbsp;Read</button>
+        <button class="msbtn" id="mBtnWishlist" onclick="modalToggle('wishlisted')">&#9734;&nbsp;Want</button>
+      </div>
+      <div class="modal-ctrl">
+        <button class="modal-edit-btn" id="modalEditBtn" title="Edit" onclick="toggleEditMode()">&#9998;</button>
+        <button class="modal-close-btn" title="Close" onclick="closeModal()">&#10005;</button>
+      </div>
+    </div>
+
+    <!-- body -->
+    <div class="modal-body">
+      <!-- LEFT: cover + metadata -->
+      <div class="modal-left">
+        <div class="modal-cover" id="modalCoverWrap">
+          <img class="modal-cover-img" id="modalCoverImg" alt="Book cover"/>
+          <div class="modal-cover-ph">
+            <span class="mcp-aquila">&#9869;</span>
+            <span class="mcp-text" id="modalCoverPhTitle"></span>
+          </div>
+        </div>
+        <div class="modal-upload-area" id="modalUploadArea">
+          <button class="modal-upload-btn" onclick="document.getElementById('modalFileInput').click()">
+            &#8593; Upload Cover
+          </button>
+          <input type="file" id="modalFileInput" accept="image/*" style="display:none"
+            onchange="handleCoverUpload(this)"/>
+        </div>
+        <div class="mfield">
+          <span class="mfield-label">Series / Subject</span>
+          <div class="mfield-val meta" id="mSubject"></div>
+        </div>
+        <div class="mfield">
+          <span class="mfield-label">Title</span>
+          <div class="mfield-val title" id="mTitle"></div>
+        </div>
+        <div class="mfield">
+          <span class="mfield-label">Author</span>
+          <div class="mfield-val" id="mAuthor"></div>
+        </div>
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+          <div class="mfield">
+            <span class="mfield-label">Published</span>
+            <div class="mfield-val meta" id="mYear"></div>
+          </div>
+          <div class="mfield">
+            <span class="mfield-label">Format</span>
+            <div class="mfield-val" id="mFormat"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: summary -->
+      <div class="modal-right">
+        <div class="mfield" style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <span class="mfield-label" style="flex-shrink:0">Summary</span>
+          <div class="mfield-val summary" id="mSummaryView"></div>
+
+          <!-- Rich text editor (edit mode) -->
+          <div class="rte-wrap" id="rteWrap">
+            <div class="rte-toolbar" id="rteToolbar">
+              <button class="rte-btn" title="Bold" onclick="rteCmd('bold')"><b>B</b></button>
+              <button class="rte-btn" title="Italic" onclick="rteCmd('italic')"><i>I</i></button>
+              <button class="rte-btn" title="Underline" onclick="rteCmd('underline')"><u>U</u></button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn wide" title="Bullet list" onclick="rteCmd('insertUnorderedList')">&#8226; List</button>
+              <button class="rte-btn wide" title="Numbered list" onclick="rteCmd('insertOrderedList')">1. List</button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn" title="Indent" onclick="rteCmd('indent')">&#8677;</button>
+              <button class="rte-btn" title="Outdent" onclick="rteCmd('outdent')">&#8676;</button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn" title="Blockquote" onclick="rteBlockquote()">&ldquo;</button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn" title="Clear formatting" onclick="rteCmd('removeFormat')">&#10007;</button>
+            </div>
+            <div class="rte-editor" id="rteEditor" contenteditable="true"
+              data-placeholder="Add your notes or a summary here…"
+              onkeydown="rteKeydown(event)"
+              onmouseup="rteUpdateToolbar()"
+              onkeyup="rteUpdateToolbar()"></div>
+          </div>
+        </div>
+      </div></div>
+
+    <!-- save row (edit mode only) -->
+    <div class="modal-save-row" id="modalSaveRow">
+      <button class="modal-cancel-btn" onclick="cancelEditMode()">Cancel</button>
+      <button class="modal-save-btn" onclick="saveModalEdits()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
