@@ -291,7 +291,7 @@
       line-height:1.7;outline:none;min-height:0}
     .rte-editor:empty::before{content:attr(data-placeholder);color:var(--text-muted);
       font-style:italic;pointer-events:none}
-    .rte-editor b,.rte-editor strong{color:#e8dfd4;font-weight:700}
+    .rte-editor b,.rte-editor strong,.rte-editor [style*="font-weight"]{color:#e8dfd4;font-weight:700!important}
     .rte-editor i,.rte-editor em{font-style:italic;color:#cfc9c0}
     .rte-editor u{text-decoration:underline;text-decoration-color:rgba(232,201,106,.5)}
     .rte-editor ul,.rte-editor ol{padding-left:1.4rem;margin:.3rem 0}
@@ -300,7 +300,7 @@
       margin:.4rem 0;color:#9a94a2;font-style:italic}
     .mfield-val.summary{font-size:.9rem;color:#b8b2ac;line-height:1.6;
       flex:1;overflow-y:auto;padding:.2rem 0;min-height:0}
-    .mfield-val.summary b,.mfield-val.summary strong{color:#e8dfd4;font-weight:700}
+    .mfield-val.summary b,.mfield-val.summary strong,.mfield-val.summary [style*="font-weight"]{color:#e8dfd4;font-weight:700!important}
     .mfield-val.summary i,.mfield-val.summary em{font-style:italic}
     .mfield-val.summary u{text-decoration:underline;
       text-decoration-color:rgba(232,201,106,.5)}
@@ -481,6 +481,12 @@ function isAdmin(){
 // Card click handlers — use integer index into BOOKS array
 // Plain integers need NO quoting in onclick attributes
 const FIELDS = ['owned','read','wishlisted']
+// Normalize editor behavior across browsers
+document.addEventListener('DOMContentLoaded', function(){
+  try{ document.execCommand('defaultParagraphSeparator', false, 'p') }catch(e){}
+  try{ document.execCommand('styleWithCSS', false, false) }catch(e){}
+})
+
 window.OC = function(n){ if(BOOKS[n]) openModal(BOOKS[n].id) }
 window.SC = function(n,f){ if(BOOKS[n]) toggleStatus(BOOKS[n].id, FIELDS[f]) }
 
@@ -1445,10 +1451,10 @@ function applyEditMode(on){
   document.getElementById('mSummaryView').classList.toggle('hidden',on)
   document.getElementById('rteWrap').classList.toggle('visible',on)
   if(on){
-    // Populate editor with current saved HTML
-    const ub=userBooks[modalBookId]||{}
+    // Populate editor from globalBooks (admin-managed content)
+    const gb=globalBooks[modalBookId]||{}
     const ed=document.getElementById('rteEditor')
-    ed.innerHTML=ub.summary||''
+    ed.innerHTML=gb.summary||''
     setTimeout(()=>ed.focus(),50)
   }
   // Upload button
@@ -1472,7 +1478,21 @@ function cancelEditMode(){
 
 async function saveModalEdits(){
   if(!modalBookId || !isAdmin()) return
-  const summary = document.getElementById('rteEditor').innerHTML.trim()
+  // Normalize bold formatting before saving
+  const rawHTML = document.getElementById('rteEditor').innerHTML
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = rawHTML
+  // Convert any inline font-weight styles to <strong> tags
+  tempDiv.querySelectorAll('[style*="font-weight"]').forEach(el => {
+    if(el.style.fontWeight === 'bold' || el.style.fontWeight === '700'){
+      const strong = document.createElement('strong')
+      strong.innerHTML = el.innerHTML
+      el.replaceWith(strong)
+    } else {
+      el.style.fontWeight = ''
+    }
+  })
+  const summary = tempDiv.innerHTML.trim()
   const gb      = globalBooks[modalBookId] || {}
   const coverToSave = pendingCover !== null ? pendingCover : (gb.cover_image || null)
 
