@@ -383,6 +383,15 @@
       border-color:var(--gold-bright);
       box-shadow:0 0 14px rgba(232,201,106,.7),0 0 30px rgba(232,201,106,.3);
       animation:ltdPulse 2.5s ease-in-out infinite}
+  
+    .t-LastChancers{background:rgba(180,80,80,.12);border-color:rgba(180,80,80,.35);color:#e09090}
+    .t-Mephiston{background:rgba(160,20,20,.15);border-color:rgba(200,40,40,.45);color:#ff8888}
+    .t-RavenGuard{background:rgba(60,60,80,.18);border-color:rgba(100,100,140,.4);color:#b0b0d0}
+    .t-ScythesoftheEmperor{background:rgba(200,160,40,.12);border-color:rgba(200,160,40,.35);color:#e8cc70}
+    .t-SpaceMarineLegends{background:rgba(80,110,180,.15);border-color:rgba(80,110,180,.4);color:#a0b8ff}
+    .t-Tyranids{background:rgba(120,40,160,.15);border-color:rgba(160,60,200,.4);color:#d080ff}
+    .t-WhiteScars{background:rgba(220,220,220,.12);border-color:rgba(200,200,200,.4);color:#e8e8e8}
+    .t-Ynnari{background:rgba(160,80,180,.15);border-color:rgba(180,100,200,.4);color:#d0a0e8}
   </style>
 </head>
 <body>
@@ -1118,6 +1127,44 @@ const BOOKS = [
   {id:'pg-340', title:'Saviour of the Imperium', subject:'Ciaphas Cain', type:'Omnibus', author:'Sandy Mitchell', year:2018},
   {id:'pg-341', title:'Of Honour and Iron', subject:'Space Marines Battles', type:'Novel', author:'Ian St. Martin', year:2017},
   {id:'pg-342', title:'Uriel Ventris Chronicles: Volume 1', subject:'Ultramarines', type:'Omnibus', author:'Graham McNeill', year:2018},
+  // ── PAGES 7-14 ADDITIONS ───────────────────────────────────────────────────
+  {id:'bl-500', title:'Lucius: The Faultless Blade', subject:'Space Marine Legends', type:'Novel', author:'Ian St. Martin', year:2017},
+  {id:'bl-501', title:'Scythes of the Emperor', subject:'Scythes of the Emperor', type:'Novel', author:'L.J. Goulding', year:2017},
+  {id:'bl-502', title:'Crusade and Other Stories', subject:'Standalone', type:'Anthology', author:'Various', year:2017},
+  {id:'bl-503', title:'Tyrant of the Hollow Worlds', subject:'Space Marines Battles', type:'Novel', author:'Mark Clapham', year:2012},
+  {id:'bl-504', title:'Legacy of Russ', subject:'Space Wolf', type:'Novel', author:'Various', year:2016},
+  {id:'bl-505', title:'Sons of Corax', subject:'Raven Guard', type:'Novel', author:'Various', year:2016},
+  {id:'bl-506', title:'Storm of Damocles', subject:'Tau', type:'Novel', author:'Justin D. Hill', year:2016},
+  {id:'bl-507', title:'War of the Fang', subject:'Space Marines Battles', type:'Novel', author:'Chris Wraight', year:2012},
+  {id:'bl-508', title:'Arjac Rockfist: Anvil of Fenris', subject:'Space Wolf', type:'Novel', author:'Various', year:2016},
+  {id:'bl-509', title:'Sanctus Reach', subject:'Space Marines Battles', type:'Anthology', author:'Various', year:2014},
+  {id:'bl-510', title:'Shas\'o', subject:'Tau', type:'Novel', author:'Various', year:2012},
+  {id:'bl-511', title:'Defenders of Mankind', subject:'Standalone', type:'Omnibus', author:'Various', year:2017},
+  {id:'bl-512', title:'The Carnac Campaign', subject:'Necrons', type:'Novel', author:'Josh Reynolds', year:2014},
+  {id:'bl-513', title:'Path of the Dark Eldar', subject:'Drukhari', type:'Omnibus', author:'Andy Chambers', year:2015},
+  {id:'bl-514', title:'The Everliving Legion', subject:'Necrons', type:'Novel', author:'David Annandale', year:2015},
+  {id:'bl-515', title:'Sons of Wrath', subject:'Blood Angels', type:'Novel', author:'Andy Smillie', year:2015},
+  {id:'bl-516', title:'Deathstorm', subject:'Blood Angels', type:'Novel', author:'Various', year:2014},
+  {id:'bl-517', title:'Sin of Damnation', subject:'Standalone', type:'Novel', author:'Various', year:2014},
+  {id:'bl-518', title:'Blood on the Mountain', subject:'Space Marines Battles', type:'Novel', author:'Tim Pryor', year:2014},
+  {id:'bl-519', title:'There is Only War', subject:'Standalone', type:'Anthology', author:'Various', year:2013},
+  {id:'bl-520', title:'Pandorax', subject:'Space Marines Battles', type:'Novel', author:'C.Z. Dunn', year:2013},
+  {id:'bl-521', title:'Seventh Retribution', subject:'Standalone', type:'Novel', author:'Ben Counter', year:2014},
+  {id:'bl-522', title:'Shadowsun: The Last of Kiru\\'s Line', subject:'Tau', type:'Novel', author:'Braden Campbell', year:2013},
+  {id:'bl-523', title:'Fire Caste', subject:'Tau', type:'Novel', author:'Peter Fehervari', year:2013},
+  {id:'bl-524', title:'Daemon World', subject:'Standalone', type:'Novel', author:'Ben Counter', year:2003},
+  {id:'bl-525', title:'Pawns of Chaos', subject:'Standalone', type:'Novel', author:'Brian Craig', year:2001},
+  {id:'bl-526', title:'Deathwing', subject:'Dark Angels', type:'Anthology', author:'Various', year:2012},
+  {id:'bl-527', title:'Tales from the Dark Millennium', subject:'Standalone', type:'Anthology', author:'Various', year:2006},
+  {id:'bl-528', title:'Kill Team', subject:'Standalone', type:'Novel', author:'Gavin Thorpe', year:2010},
+  {id:'bl-529', title:'Fire Warrior', subject:'Tau', type:'Novel', author:'Simon Spurrier', year:2003},
+  {id:'bl-530', title:'Annihilation Squad', subject:'Last Chancers', type:'Novel', author:'Gavin Thorpe', year:2004},
+  {id:'bl-531', title:'Legends of the Space Marines', subject:'Standalone', type:'Anthology', author:'Various', year:2010},
+  {id:'bl-532', title:'Brothers of the Snake', subject:'Standalone', type:'Novel', author:'Dan Abnett', year:2007},
+  {id:'bl-533', title:'Heroes of the Space Marines', subject:'Standalone', type:'Anthology', author:'Various', year:2009},
+  {id:'bl-534', title:'Sons of Fenris', subject:'Space Wolf', type:'Novel', author:'Lee Lightner', year:2007},
+  {id:'bl-535', title:'Wolf\'s Honour', subject:'Space Wolf', type:'Novel', author:'Lee Lightner', year:2008},
+  {id:'bl-536', title:'Savage Scars', subject:'White Scars', type:'Novel', author:'Andy Hoare', year:2011},
 ]
 
 // Subjects treated as "named series" for the Series filter
