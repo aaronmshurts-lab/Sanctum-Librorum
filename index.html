@@ -609,7 +609,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 // ── ADMIN CONFIG ─────────────────────────────────────────────────────────
 // Replace with your Supabase user ID. Find it:
 // Supabase → Authentication → Users → click your email → copy UUID
-const ADMIN_USER_ID = 'YOUR-ADMIN-USER-ID-HERE'
+const ADMIN_USER_ID = '4e172dbd-4716-4fcb-9773-d2c7c0b00706'
 
 // Global book data (covers + summaries) — loaded once, shared by all users
 let globalBooks = {}   // { book_id: { cover_image, summary } }
@@ -1643,7 +1643,7 @@ async function showApp(user){
   document.getElementById('app').classList.add('visible')
   document.getElementById('hEmail').textContent=user.email
   document.getElementById('grid').innerHTML='<div class="loading"><div class="spinner"></div><p>Loading your archive…</p></div>'
-  await Promise.all([loadGlobalBooks(), loadUserBooks(), loadCustomTomes()])
+  await Promise.all([loadGlobalBooks(), loadUserBooks(), loadCustomTomes(), loadHiddenBooks()])
   await loadSubmissions()
   populateSubjects()
   updateStats()
@@ -1736,7 +1736,7 @@ function openModal(bookId){
   document.getElementById('modalEditBtn').style.display = ''
   // Delete button: admin only, custom tomes only
   const delBtn = document.getElementById('modalDeleteBtn')
-  if(delBtn) delBtn.style.display = (isAdmin() && b && b._customId) ? '' : 'none'
+  if(delBtn) delBtn.style.display = isAdmin() ? '' : 'none'
 
   // Status buttons
   refreshModalStatus()
@@ -2431,7 +2431,8 @@ function showToast(msg){
 //  INSCRIBE TOME — Custom book entry
 // ════════════════════════════════════════════════════════════════════════
 let inscribePendingCover = null
-let customTomes = []   // loaded from Supabase custom_tomes table
+let customTomes  = []   // loaded from Supabase custom_tomes table
+let hiddenBookIds = new Set()  // book IDs hidden by admin
 
 Object.assign(window, {
   openInscribeModal, closeInscribeModal, closeInscribeBg,
@@ -2673,28 +2674,40 @@ Object.assign(window, {deleteCustomTome})
 async function deleteCustomTome(){
   if(!modalBookId || !isAdmin()) return
   const b = BOOKS.find(x=>x.id===modalBookId)
-  if(!b || !b._customId) return
+  if(!b) return
 
-  if(!confirm('Permanently delete "' + b.title + '" from the archive? This cannot be undone.')) return
+  const label = b.title || modalBookId
+  if(!confirm('Permanently remove "' + label + '" from the archive? This cannot be undone.')) return
 
-  const {error} = await supabase
-    .from('custom_tomes')
-    .delete()
-    .eq('id', b._customId)
-
-  if(error){
-    console.error('Delete error:', error)
-    showToast('Delete failed: ' + (error.message || error.code))
-    return
+  if(b._customId){
+    // Custom tome — delete from DB
+    const {error} = await supabase
+      .from('custom_tomes')
+      .delete()
+      .eq('id', b._customId)
+    if(error){
+      console.error('Delete error:', error)
+      showToast('Delete failed: ' + (error.message || error.code))
+      return
+    }
+    const ci = customTomes.findIndex(x=>x._customId === b._customId)
+    if(ci >= 0) customTomes.splice(ci, 1)
+  } else {
+    // Catalogue book — record in hidden_books so it stays hidden across sessions
+    const {error} = await supabase
+      .from('hidden_books')
+      .upsert({book_id: modalBookId, hidden_by: currentUser.id}, {onConflict:'book_id'})
+    if(error){
+      console.error('Hide error:', error)
+      showToast('Delete failed: ' + (error.message || error.code))
+      return
+    }
+    hiddenBookIds.add(modalBookId)
   }
 
-  // Remove from BOOKS and customTomes
+  // Remove from BOOKS array and userBooks
   const bi = BOOKS.findIndex(x=>x.id===modalBookId)
   if(bi >= 0) BOOKS.splice(bi, 1)
-  const ci = customTomes.findIndex(x=>x._customId === b._customId)
-  if(ci >= 0) customTomes.splice(ci, 1)
-
-  // Remove from userBooks
   delete userBooks[modalBookId]
 
   closeModal()
@@ -2702,6 +2715,18 @@ async function deleteCustomTome(){
   populateSubjects()
   renderGrid()
   showToast('Tome expunged from the archive.')
+}
+
+
+async function loadHiddenBooks(){
+  const {data, error} = await supabase.from('hidden_books').select('book_id')
+  if(error){ console.error('loadHiddenBooks:', error); return }
+  hiddenBookIds = new Set((data||[]).map(r=>r.book_id))
+  // Remove hidden books from BOOKS array
+  for(const id of hiddenBookIds){
+    const idx = BOOKS.findIndex(b=>b.id===id)
+    if(idx>=0) BOOKS.splice(idx,1)
+  }
 }
 
 </script>
