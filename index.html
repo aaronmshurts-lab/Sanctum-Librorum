@@ -524,6 +524,11 @@
     .contained-cascade-note{font-size:.75rem;color:var(--owned);font-family:'Cinzel',serif;
       letter-spacing:.06em;margin-top:.35rem;display:none}
     .contained-cascade-note.visible{display:block}
+  
+    .t-WarhammerCrime{background:rgba(60,80,40,.15);border-color:rgba(100,140,60,.4);color:#a0d070}
+    .t-WarhammerHorror{background:rgba(80,20,20,.18);border-color:rgba(140,40,40,.45);color:#d08080}
+  
+    .t-HorusHeresyTheScouring{background:rgba(180,120,40,.15);border-color:rgba(220,160,60,.4);color:#f0c870}
   </style>
 </head>
 <body>
@@ -1211,7 +1216,7 @@ const BOOKS = [
   {id:'p3-221', title:'The Devastation of Baal',                       subject:'Blood Angels',     type:'Novel',       author:'Guy Haley',             year:2017},
   {id:'p3-222', title:'Legacy of the Wulfen',                          subject:'Space Wolf',       type:'Novel',       author:'Various',               year:2016},
   {id:'p3-223', title:'Angron: The Red Angel',                         subject:'Standalone',       type:'Novel',       author:'David Guymer',          year:2023},
-  {id:'p3-224', title:'Ashes of the Imperium',                         subject:'Standalone',       type:'Novel',       author:'Guy Haley',             year:2025},
+  {id:'p3-224', title:'Ashes of the Imperium',                         subject:'Horus Heresy: The Scouring', type:'Novel',       author:'Guy Haley',             year:2025},
   // ── eSHORTS / QUICK READS ────────────────────────────────────────────────
   {id:'es-01',  title:'Imperfect Engines',                             subject:'Adeptus Mechanicus',type:'eBook',      author:'Various',               year:2025},
   {id:'es-02',  title:'Beneath the Ashes',                             subject:'Standalone',       type:'eBook',       author:'Various',               year:2025},
@@ -1310,6 +1315,65 @@ const BOOKS = [
   {id:'bl-534', title:'Sons of Fenris', subject:'Space Wolf', type:'Novel', author:'Lee Lightner', year:2007},
   {id:'bl-535', title:'Wolfs Honour', subject:'Space Wolf', type:'Novel', author:'Lee Lightner', year:2008},
   {id:'bl-536', title:'Savage Scars', subject:'White Scars', type:'Novel', author:'Andy Hoare', year:2011},
+  // ── MISSED TITLES (all-products section, not in main novels sweep) ──────
+  {id:'cel-01', title:'Celestine: The Living Saint', subject:'Adepta Sororitas', type:'Novel',    author:'Andy Clark',  year:2019},
+  {id:'cel-02', title:'Celestine: Revelation',       subject:'Adepta Sororitas', type:'eBook',    author:'Andy Clark',  year:2020},
+  {id:'ind-01', title:'Indomitus',                   subject:'Ultramarines',     type:'Novel',    author:'Gav Thorpe',  year:2020},
+  {id:'dag-01', title:'Ephrael Stern: Daemonifuge',  subject:'Adepta Sororitas', type:'Anthology',author:'Jim Campbell', year:2021},
+  // ── WARHAMMER CRIME (complete section — all 17 titles) ──────────────────
+  {id:'wc-01', title:'Bloodlines',              subject:'Warhammer Crime', type:'Novel',     author:'Various',         year:2020},
+  {id:'wc-02', title:'Flesh and Steel',         subject:'Warhammer Crime', type:'Novel',     author:'Guy Haley',       year:2020},
+  {id:'wc-03', title:'No Good Men',             subject:'Warhammer Crime', type:'Anthology', author:'Various',         year:2020},
+  {id:'wc-04', title:'Dredge Runners',          subject:'Warhammer Crime', type:'Audio Drama',author:'Various',        year:2020},
+  {id:'wc-05', title:'Broken City',             subject:'Warhammer Crime', type:'Novel',     author:'Various',         year:2021},
+  {id:'wc-06', title:'Grim Repast',             subject:'Warhammer Crime', type:'Novel',     author:'Various',         year:2021},
+  {id:'wc-07', title:'Sanction & Sin',          subject:'Warhammer Crime', type:'Anthology', author:'Various',         year:2021},
+  {id:'wc-08', title:'The Vorbis Conspiracy',   subject:'Warhammer Crime', type:'Novel',     author:'Various',         year:2022},
+  {id:'wc-09', title:'The Wraithbone Phoenix',  subject:'Warhammer Crime', type:'Novel',     author:'Alec Worley',     year:2022},
+  {id:'wc-10', title:'Chains',                  subject:'Warhammer Crime', type:'eBook',     author:'Various',         year:2022},
+  {id:'wc-11', title:'Clear as Glass',          subject:'Warhammer Crime', type:'eBook',     author:'Various',         year:2022},
+  {id:'wc-12', title:'Slate Run',               subject:'Warhammer Crime', type:'eBook',     author:'Various',         year:2022},
+  {id:'wc-13', title:'Once a Killer... Part 1', subject:'Warhammer Crime', type:'eBook',     author:'Various',         year:2022},
+  {id:'wc-14', title:'Once a Killer... Part 2', subject:'Warhammer Crime', type:'eBook',     author:'Various',         year:2022},
+  {id:'wc-15', title:'The King of the Spoil',   subject:'Warhammer Crime', type:'Novel',     author:'Various',         year:2023},
+  {id:'wc-16', title:'Once a Killer',           subject:'Warhammer Crime', type:'Anthology', author:'Various',         year:2023},
+  {id:'wc-17', title:'Call of Oblivion',        subject:'Warhammer Crime', type:'eBook',     author:'Various',         year:2024},
+  // ── WARHAMMER HORROR (40K titles) ────────────────────────────────────────
+  {id:'wh-01', title:'The Harrowed Paths',       subject:'Warhammer Horror', type:'Anthology', author:'Various',       year:2021},
+  {id:'wh-02', title:'The Accursed',             subject:'Warhammer Horror', type:'Novel',     author:'David Annandale',year:2021},
+  {id:'wh-03', title:'The Bookkeeper\'s Skull', subject:'Warhammer Horror', type:'Novel',     author:'C.L. Werner',    year:2022},
+  {id:'wh-04', title:'Briardark',                subject:'Warhammer Horror', type:'Novel',     author:'C.L. Werner',    year:2022},
+  {id:'wh-05', title:'Unholy: Tales of Horror and Woe from the Imperium', subject:'Warhammer Horror', type:'Anthology', author:'Various', year:2023},
+  {id:'wh-06', title:'The Resting Places',       subject:'Warhammer Horror', type:'Novel',     author:'Various',       year:2023},
+  {id:'wh-07', title:'Black-Eyed Saint',         subject:'Warhammer Horror', type:'Novel',     author:'Peter Fehervari',year:2023},
+  // ── NEW 40K AUDIO DRAMAS / NOVELS (missed from audio section) ────────────
+  {id:'aud-01', title:'Demolisher',              subject:'Standalone',       type:'Novel',     author:'Guy Haley',     year:2025},
+  {id:'aud-02', title:'The Remnant Blade',       subject:'Dark Angels',      type:'Audio Drama',author:'Various',      year:2025},
+  {id:'aud-03', title:'Final Deployment',        subject:'Standalone',       type:'Audio Drama',author:'Various',      year:2025},
+  {id:'aud-04', title:'First Marshal',           subject:'Black Templars',   type:'Audio Drama',author:'Marc Collins', year:2025},
+  {id:'aud-05', title:'Kingsblade',              subject:'Standalone',       type:'Novel',     author:'Various',       year:2025},
+  {id:'aud-06', title:'The Relentless Dead',     subject:'Standalone',       type:'Novel',     author:'Various',       year:2025},
+  // ── HORUS HERESY — MISSING TITLES ────────────────────────────────────────
+  // Novels
+  {id:'hh-55', title:'Dropsite Massacre',              subject:'Horus Heresy',             type:'Novel',    author:'John French',          year:2025},
+  // Siege of Terra
+  {id:'st-11', title:'Siege of Terra: The Shattered and the Soulless', subject:'Siege of Terra', type:'Omnibus', author:'Graham McNeill', year:2026},
+  // Anthologies
+  {id:'hha-18', title:'Heirs of the Emperor',          subject:'Horus Heresy',             type:'Anthology', author:'Various',             year:2022},
+  {id:'hha-19', title:'Cthonia\'s Reckoning',         subject:'Horus Heresy',             type:'Anthology', author:'Various',             year:2022},
+  {id:'hha-20', title:'Lupercal\'s War',              subject:'Horus Heresy',             type:'Anthology', author:'Various',             year:2022},
+  // Novellas
+  {id:'hhn-14', title:'Spear of Ultramar',             subject:'Horus Heresy',             type:'Novella',   author:'David Annandale',      year:2018},
+  {id:'hhn-15', title:'Dreadwing',                     subject:'Horus Heresy',             type:'Novella',   author:'David Guymer',         year:2018},
+  // eBooks / Quick Reads
+  {id:'hhe-13', title:'Blood Games',                   subject:'Horus Heresy',             type:'eBook',     author:'Dan Abnett',           year:2009},
+  {id:'hhe-14', title:'Sons of the Forge',             subject:'Horus Heresy',             type:'eBook',     author:'Nick Kyme',            year:2013},
+  {id:'hhe-15', title:'Two Metaphysical Blades',       subject:'Horus Heresy',             type:'eBook',     author:'Chris Wraight',        year:2019},
+  {id:'hhe-16', title:'Mercy of the Dragon',           subject:'Horus Heresy',             type:'eBook',     author:'Nick Kyme',            year:2018},
+  {id:'hhe-17', title:'Bringer of Sorrow',             subject:'Horus Heresy',             type:'eBook',     author:'Graham McNeill',       year:2019},
+  {id:'hhe-18', title:'Lantern\'s Light',             subject:'Horus Heresy',             type:'eBook',     author:'James Swallow',        year:2018},
+  {id:'hhe-19', title:'Anathema',                      subject:'Horus Heresy',             type:'eBook',     author:'Various',              year:2024},
+  // The Scouring (new series)
 ]
 
 // Subjects treated as "named series" for the Series filter
