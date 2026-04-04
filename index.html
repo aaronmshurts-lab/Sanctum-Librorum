@@ -2782,17 +2782,17 @@ async function approveCustomTome(ci, promote){
   const {error} = await supabase
     .from('custom_tomes')
     .update({status: newStatus, approved_by: currentUser.id, approved_at: new Date().toISOString()})
-    .eq('id', t._customId)
+    .eq('id', t.id)
 
   if(error){ console.error('approveCustomTome error:', JSON.stringify(error)); showToast('Failed: ' + (error.message || error.code || 'check console')); return }
 
   // Update local
-  const bookEntry = BOOKS.find(b => b.id === t.id)
+  const bookEntry = BOOKS.find(b => b.id === 'custom-' + t.id || b._customId === t.id)
   if(bookEntry){
     bookEntry._isCustom = !promote   // promoted = no custom badge
     bookEntry._status   = newStatus
   }
-  const ct = customTomes.find(x => x._customId === t._customId)
+  const ct = customTomes.find(x => x.id === t.id)
   if(ct) ct.status = newStatus
 
   // Update badge count
@@ -2816,11 +2816,11 @@ async function rejectCustomTome(ci){
   const {error} = await supabase
     .from('custom_tomes')
     .update({status: 'rejected'})
-    .eq('id', t._customId)
+    .eq('id', t.id)
 
   if(error){ console.error(error); showToast('Failed to reject tome.'); return }
 
-  const ct = customTomes.find(x => x._customId === t._customId)
+  const ct = customTomes.find(x => x.id === t.id)
   if(ct) ct.status = 'rejected'
 
   // Remove from BOOKS if not the owner
