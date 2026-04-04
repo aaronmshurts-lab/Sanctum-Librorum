@@ -2392,8 +2392,7 @@ async function submitForReview(){
     user_email:  currentUser.email,
     cover_image: coverToSave,
     summary:     summary || null,
-    status:      isAdmin() ? 'promoted' : 'pending',
-    approved_by: isAdmin() ? currentUser.id : null
+    status:      'pending'
   })
 
   if(error){
@@ -2517,7 +2516,7 @@ async function approveSubmission(idx){
     summary:     sub.summary     || gb.summary     || '',
     updated_at:  new Date().toISOString()
   }
-  if(gb.db_id) payload.id = gb.db_id
+  if(gb.db_id && typeof gb.db_id === 'string' && gb.db_id.length > 10) payload.id = gb.db_id
 
   // Write to books_global
   const {data: gData, error: gErr} = await supabase
@@ -2525,13 +2524,16 @@ async function approveSubmission(idx){
     .upsert(payload, {onConflict:'book_id'})
     .select().single()
 
-  if(gErr){ console.error(gErr); showToast('Approval failed.'); return }
+  if(gErr){ console.error('books_global upsert error:', gErr); showToast('Approval failed: ' + (gErr.message || gErr.code || 'check console')); return }
 
   // Mark submission as approved
-  await supabase.from('submissions').update({
-    status: 'approved',
-    reviewed_at: new Date().toISOString()
-  }).eq('id', sub.id)
+  if(sub.id){
+    const {error: subErr} = await supabase.from('submissions').update({
+      status: 'approved',
+      reviewed_at: new Date().toISOString()
+    }).eq('id', sub.id)
+    if(subErr) console.error('submissions update error:', subErr)
+  }
 
   // Update local state
   globalBooks[sub.book_id] = {
@@ -2558,10 +2560,13 @@ async function rejectSubmission(idx){
   const sub = pendingSubmissions[idx]
   if(!sub) return
 
-  await supabase.from('submissions').update({
-    status: 'rejected',
-    reviewed_at: new Date().toISOString()
-  }).eq('id', sub.id)
+  if(sub.id){
+    const {error: subErr} = await supabase.from('submissions').update({
+      status: 'rejected',
+      reviewed_at: new Date().toISOString()
+    }).eq('id', sub.id)
+    if(subErr) console.error('submissions reject error:', subErr)
+  }
 
   pendingSubmissions.splice(idx, 1)
   renderReviewList()
