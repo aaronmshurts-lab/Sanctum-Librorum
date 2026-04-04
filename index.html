@@ -491,6 +491,39 @@
     #mContainedView ul{list-style:none;padding:0;margin:0}
     #mContainedView ul li{padding:.15rem 0;color:#b8b2ac}
     #mContainedView ul li::before{content:'❧ ';color:var(--gold);opacity:.6;font-size:.8rem}
+  
+    /* ── CONTAINED WORKS TAG INPUT ────────────────────────────── */
+    .tag-input-wrap{border:1px solid #3a3650;border-radius:var(--radius);
+      background:var(--bg);padding:.4rem .5rem;display:flex;flex-wrap:wrap;
+      gap:.3rem;min-height:48px;cursor:text;transition:border-color .2s}
+    .tag-input-wrap:focus-within{border-color:rgba(232,201,106,.5)}
+    .tag-pill{display:inline-flex;align-items:center;gap:.25rem;
+      background:var(--gold-dim);border:1px solid rgba(232,201,106,.4);
+      color:var(--gold-bright);font-family:'Cinzel',serif;font-size:.58rem;
+      letter-spacing:.06em;padding:.22rem .5rem;border-radius:2px;
+      white-space:nowrap;max-width:200px}
+    .tag-pill span{overflow:hidden;text-overflow:ellipsis}
+    .tag-pill-remove{cursor:pointer;opacity:.6;font-size:.75rem;flex-shrink:0;
+      background:none;border:none;color:var(--gold-bright);padding:0;line-height:1}
+    .tag-pill-remove:hover{opacity:1}
+    .tag-input-field{flex:1;min-width:120px;background:none;border:none;
+      outline:none;color:var(--text);font-family:'EB Garamond',serif;
+      font-size:.92rem;padding:.15rem .2rem}
+    .tag-input-field::placeholder{color:#9a94a2}
+    .tag-autocomplete{position:absolute;z-index:200;background:var(--surface);
+      border:1px solid var(--border-gold);width:100%;max-height:180px;
+      overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+    .tag-ac-item{padding:.45rem .75rem;cursor:pointer;font-size:.88rem;
+      color:#cec8be;border-bottom:1px solid var(--border);display:flex;
+      flex-direction:column;gap:.1rem;transition:background .1s}
+    .tag-ac-item:last-child{border-bottom:none}
+    .tag-ac-item:hover,.tag-ac-item.focused{background:var(--card-hover)}
+    .tag-ac-title{font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold-bright)}
+    .tag-ac-meta{font-size:.75rem;color:var(--text-muted);font-style:italic}
+    .tag-ac-empty{padding:.6rem .75rem;color:var(--text-muted);font-style:italic;font-size:.85rem}
+    .contained-cascade-note{font-size:.75rem;color:var(--owned);font-family:'Cinzel',serif;
+      letter-spacing:.06em;margin-top:.35rem;display:none}
+    .contained-cascade-note.visible{display:block}
   </style>
 </head>
 <body>
@@ -1430,8 +1463,8 @@ async function toggleStatus(bookId,field){
   // Cascade to omnibus contents (owned/read only, not wishlist)
   const cascadeIds=[]
   if(field!=='wishlisted'){
-    const contents=OMNIBUS_CONTENTS[bookId]
-    if(contents){
+    const contents=getCascadeIds(bookId)
+    if(contents && contents.length){
       for(const cid of contents){
         const cp=userBooks[cid]||{owned:false,read:false,wishlisted:false}
         // only cascade ON (don't auto-remove when omnibus is unticked)
@@ -1743,16 +1776,20 @@ function openModal(bookId){
   const containedView    = document.getElementById('mContainedView')
   const containedEdit    = document.getElementById('mContainedEdit')
   if(containedSection){
-    const showContained = (b.type === 'Omnibus')
+    // Show for Omnibus in view mode; always show for admin in edit mode
+    const showContained = (b.type === 'Omnibus') || isAdmin()
     containedSection.style.display = showContained ? '' : 'none'
-    if(showContained){
-      const works = gb.contained_works || ''
-      containedEdit.value = works
-      const lines = works.split('\n').map(l=>l.trim()).filter(Boolean)
-      containedView.innerHTML = lines.length
-        ? '<ul>' + lines.map(l=>'<li>' + esc(l) + '</li>').join('') + '</ul>'
-        : '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet.</em>'
+    // Load tags
+    loadContainedTags(bookId)
+    // Render view list from tags
+    const works = (globalBooks[bookId]||{}).contained_works || ''
+    let viewHtml = ''
+    if(containedTags.length){
+      viewHtml = '<ul>' + containedTags.map(t=>'<li>' + esc(t.title) + '</li>').join('') + '</ul>'
+    } else {
+      viewHtml = '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet.</em>'
     }
+    if(containedView) containedView.innerHTML = viewHtml
   }
 
   // Populate edit fields for admin
@@ -1788,6 +1825,8 @@ function openModal(bookId){
 }
 
 function closeModal(){
+  document.getElementById('containedAcList').style.display='none'
+
   if(modalEditMode){
     const cur=document.getElementById('rteEditor').innerHTML
     const saved=globalBooks[modalBookId]?.summary||''
@@ -1924,8 +1963,7 @@ async function saveModalEdits(){
   btn.disabled=true; btn.textContent='Saving…'
 
   // Save cover + summary to books_global (admin only)
-  const containedEl = document.getElementById('mContainedEdit')
-  const containedWorks = containedEl ? containedEl.value.trim() : ''
+  const containedWorks = serializeContainedTags()
   const globalPayload = {
     book_id:         modalBookId,
     cover_image:     coverToSave,
@@ -1961,10 +1999,9 @@ async function saveModalEdits(){
   refreshModalCover(gData.cover_image)
   // Refresh contained works view
   const cvEl = document.getElementById('mContainedView')
-  if(cvEl && containedWorks){
-    const lines = containedWorks.split('\n').map(l=>l.trim()).filter(Boolean)
-    cvEl.innerHTML = lines.length
-      ? '<ul>' + lines.map(l=>'<li>' + esc(l) + '</li>').join('') + '</ul>'
+  if(cvEl){
+    cvEl.innerHTML = containedTags.length
+      ? '<ul>' + containedTags.map(t=>'<li>' + esc(t.title) + '</li>').join('') + '</ul>'
       : '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet.</em>'
   }
 
@@ -2806,6 +2843,162 @@ function clearSubject(){
   renderGrid()
 }
 
+
+// ════════════════════════════════════════════════════════════════════════
+//  CONTAINED WORKS — Tag Input with Autocomplete + Status Cascade
+// ════════════════════════════════════════════════════════════════════════
+let containedTags = []   // [{id, title}] for current modal
+let acFocusIdx    = -1   // keyboard nav index in autocomplete
+
+Object.assign(window, {focusTagInput, tagAutocomplete, tagKeydown, removeTag})
+
+function focusTagInput(){
+  document.getElementById('containedTagInput').focus()
+}
+
+function tagAutocomplete(query){
+  acFocusIdx = -1
+  const ac = document.getElementById('containedAcList')
+  if(!query || query.length < 2){ ac.style.display='none'; return }
+
+  const q = query.toLowerCase()
+  const already = new Set(containedTags.map(t=>t.id))
+  const matches = BOOKS
+    .filter(b => !already.has(b.id) && b.title.toLowerCase().includes(q))
+    .slice(0, 12)
+
+  if(!matches.length){
+    ac.innerHTML = '<div class="tag-ac-empty">No matching tomes found</div>'
+    ac.style.display = ''
+    return
+  }
+
+  ac.innerHTML = matches.map((b,i) =>
+    '<div class="tag-ac-item" data-idx="' + i + '" data-id="' + esc(b.id) + '" data-title="' + esc(b.title) + '"'
+    + ' onclick="selectTag(\'' + b.id.replace(/'/g,"\\'") + '\',\'' + b.title.replace(/'/g,"\\'") + '\')">'
+    + '<span class="tag-ac-title">' + esc(b.title) + '</span>'
+    + '<span class="tag-ac-meta">' + esc(b.author) + ' · ' + b.year + ' · ' + esc(b.type) + '</span>'
+    + '</div>'
+  ).join('')
+  ac.style.display = ''
+}
+
+function tagKeydown(e){
+  const ac = document.getElementById('containedAcList')
+  const items = ac.querySelectorAll('.tag-ac-item')
+  if(e.key === 'ArrowDown'){
+    e.preventDefault()
+    acFocusIdx = Math.min(acFocusIdx+1, items.length-1)
+    items.forEach((el,i)=>el.classList.toggle('focused',i===acFocusIdx))
+  } else if(e.key === 'ArrowUp'){
+    e.preventDefault()
+    acFocusIdx = Math.max(acFocusIdx-1, 0)
+    items.forEach((el,i)=>el.classList.toggle('focused',i===acFocusIdx))
+  } else if(e.key === 'Enter' && acFocusIdx >= 0 && items[acFocusIdx]){
+    e.preventDefault()
+    const el = items[acFocusIdx]
+    selectTag(el.dataset.id, el.dataset.title)
+  } else if(e.key === 'Escape'){
+    ac.style.display = 'none'
+  }
+}
+
+Object.assign(window, {selectTag})
+
+function selectTag(id, title){
+  if(containedTags.find(t=>t.id===id)) return
+  containedTags.push({id, title})
+  renderTagPills()
+  const inp = document.getElementById('containedTagInput')
+  inp.value = ''
+  document.getElementById('containedAcList').style.display = 'none'
+  inp.focus()
+  // Show cascade note
+  const note = document.getElementById('containedCascadeNote')
+  if(note) note.classList.add('visible')
+}
+
+function removeTag(id){
+  containedTags = containedTags.filter(t=>t.id!==id)
+  renderTagPills()
+  if(!containedTags.length){
+    const note = document.getElementById('containedCascadeNote')
+    if(note) note.classList.remove('visible')
+  }
+}
+
+function renderTagPills(){
+  const wrap = document.getElementById('containedTagWrap')
+  const input = document.getElementById('containedTagInput')
+  // Remove existing pills (keep the input)
+  wrap.querySelectorAll('.tag-pill').forEach(p=>p.remove())
+  // Insert pills before input
+  containedTags.forEach(t => {
+    const pill = document.createElement('span')
+    pill.className = 'tag-pill'
+    pill.innerHTML = '<span>' + esc(t.title) + '</span>'
+      + '<button class="tag-pill-remove" onclick="removeTag(\'' + t.id.replace(/'/g,"\\'") + '\')" title="Remove">&#10005;</button>'
+    wrap.insertBefore(pill, input)
+  })
+}
+
+// Load contained tags from stored JSON in globalBooks
+function loadContainedTags(bookId){
+  containedTags = []
+  const gb = globalBooks[bookId] || {}
+  const raw = gb.contained_works || ''
+  if(!raw) return
+  try {
+    const parsed = JSON.parse(raw)
+    if(Array.isArray(parsed)){
+      containedTags = parsed.filter(t => t.id && t.title)
+    }
+  } catch(e){
+    // Legacy plain-text fallback — try to match titles against BOOKS
+    const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean)
+    for(const line of lines){
+      const match = BOOKS.find(b=>b.title.toLowerCase()===line.toLowerCase())
+      if(match) containedTags.push({id:match.id, title:match.title})
+      else containedTags.push({id:'_txt_'+line, title:line})
+    }
+  }
+  renderTagPills()
+  const note = document.getElementById('containedCascadeNote')
+  if(note) note.classList.toggle('visible', containedTags.length > 0)
+}
+
+// Serialize tags for saving
+function serializeContainedTags(){
+  return containedTags.length ? JSON.stringify(containedTags) : ''
+}
+
+// ── STATUS CASCADE from contained_works ───────────────────────────────────
+// Called from toggleStatus — cascades to contained book IDs
+function getCascadeIds(bookId){
+  // 1. Check hardcoded OMNIBUS_CONTENTS first
+  if(OMNIBUS_CONTENTS[bookId]) return OMNIBUS_CONTENTS[bookId]
+  // 2. Check dynamic contained_works from globalBooks
+  const gb = globalBooks[bookId] || {}
+  const raw = gb.contained_works || ''
+  if(!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if(Array.isArray(parsed)){
+      return parsed.map(t=>t.id).filter(id=>id && !id.startsWith('_txt_'))
+    }
+  } catch(e){}
+  return []
+}
+
+
+// Close autocomplete when clicking outside
+document.addEventListener('click', function(e){
+  const ac = document.getElementById('containedAcList')
+  if(ac && !ac.contains(e.target) && e.target.id !== 'containedTagInput'){
+    ac.style.display = 'none'
+  }
+})
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -2907,9 +3100,19 @@ function clearSubject(){
           <div id="mContainedSection" style="display:none;margin-bottom:.8rem;flex-shrink:0">
             <span class="mfield-label">Contained Works</span>
             <div id="mContainedView" style="font-size:.85rem;color:#b8b2ac;line-height:1.8;margin-top:.3rem"></div>
-            <textarea class="inscribe-textarea modal-edit-field" id="mContainedEdit"
-              style="display:none;min-height:80px;font-size:.85rem"
-              placeholder="One title per line&#10;e.g.&#10;Xenos&#10;Malleus&#10;Hereticus"></textarea>
+            <div class="modal-edit-field" id="mContainedEditWrap" style="display:none;position:relative">
+              <div class="tag-input-wrap" id="containedTagWrap" onclick="focusTagInput()">
+                <input class="tag-input-field" id="containedTagInput"
+                  placeholder="Type a title to search…"
+                  oninput="tagAutocomplete(this.value)"
+                  onkeydown="tagKeydown(event)"
+                  autocomplete="off"/>
+              </div>
+              <div class="tag-autocomplete" id="containedAcList" style="display:none"></div>
+              <div class="contained-cascade-note" id="containedCascadeNote">
+                ✦ Owned/Read/Want will cascade to these titles
+              </div>
+            </div>
           </div>
           <span class="mfield-label" style="flex-shrink:0">Summary</span>
           <div class="mfield-val summary" id="mSummaryView"></div>
