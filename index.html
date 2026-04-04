@@ -1812,6 +1812,7 @@ function openModal(bookId){
   modalBookId   = bookId
   modalEditMode = false
   pendingCover  = null
+  containedTags = []  // clear previous modal's tags
   const b  = BOOKS.find(x=>x.id===bookId)
   const ub = userBooks[bookId]||{}
   if(!b) return
@@ -1867,6 +1868,8 @@ function openModal(bookId){
   if(yearEdit)    yearEdit.value    = b.year    || ''
   if(typeEdit)    typeEdit.value    = b.type    || 'Novel'
   if(subjectEdit) subjectEdit.value = b.subject || ''
+  const factionEdit = document.getElementById('mFactionEdit')
+  if(factionEdit) factionEdit.value = b.subject || ''
 
   // Edit button always visible (save is still admin-protected)
   document.getElementById('modalEditBtn').style.display = ''
@@ -2076,7 +2079,12 @@ async function saveModalEdits(){
     const newAuthor  = (document.getElementById('mAuthorEdit').value  || '').trim()
     const newYear    = parseInt(document.getElementById('mYearEdit').value)   || bk.year
     const newType    = document.getElementById('mTypeEdit').value    || bk.type
-    const newSubject = (document.getElementById('mSubjectEdit').value || '').trim()
+    // Subject can be edited via Series field OR Faction field — faction takes precedence if changed
+    const subjectFromSeries  = (document.getElementById('mSubjectEdit').value  || '').trim()
+    const subjectFromFaction = (document.getElementById('mFactionEdit') ? (document.getElementById('mFactionEdit').value || '').trim() : '')
+    const newSubject = (subjectFromFaction && subjectFromFaction !== bk.subject)
+      ? subjectFromFaction
+      : (subjectFromSeries || bk.subject)
 
     if(newTitle){
       const metaPayload = {}
@@ -2120,6 +2128,7 @@ async function saveModalEdits(){
         document.getElementById('mSubject').textContent = bk.subject
         const mSEl = document.getElementById('mSeries')
         if(mSEl) mSEl.textContent = bk.subject || 'Standalone'
+        document.getElementById('mSubject').textContent = bk.subject || 'Standalone'
         document.getElementById('mFormat').innerHTML    = '<span class="tbadge t-' + bk.type.replace(' ','') + '">' + bk.type + '</span>'
       }
     }
@@ -3141,6 +3150,7 @@ document.addEventListener('click', function(e){
           <div class="mfield">
             <span class="mfield-label">Faction / Subject</span>
             <div class="mfield-val meta" id="mSubject"></div>
+            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="e.g. Adepta Sororitas, Black Templars…"/>
           </div>
         </div>
         <div class="bindings-section">
