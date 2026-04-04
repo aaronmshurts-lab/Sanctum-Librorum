@@ -486,6 +486,11 @@
       text-transform:uppercase;padding:.12rem .35rem;border-radius:2px;
       background:rgba(232,201,106,.12);border:1px solid rgba(232,201,106,.3);
       color:var(--gold);margin-left:.3rem;vertical-align:middle}
+  
+    /* contained works list */
+    #mContainedView ul{list-style:none;padding:0;margin:0}
+    #mContainedView ul li{padding:.15rem 0;color:#b8b2ac}
+    #mContainedView ul li::before{content:'❧ ';color:var(--gold);opacity:.6;font-size:.8rem}
   </style>
 </head>
 <body>
@@ -604,7 +609,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 // ── ADMIN CONFIG ─────────────────────────────────────────────────────────
 // Replace with your Supabase user ID. Find it:
 // Supabase → Authentication → Users → click your email → copy UUID
-const ADMIN_USER_ID = '4e172dbd-4716-4fcb-9773-d2c7c0b00706'
+const ADMIN_USER_ID = 'YOUR-ADMIN-USER-ID-HERE'
 
 // Global book data (covers + summaries) — loaded once, shared by all users
 let globalBooks = {}   // { book_id: { cover_image, summary } }
@@ -1362,9 +1367,10 @@ async function loadGlobalBooks(){
   globalBooks = {}
   for(const r of (data||[])){
     globalBooks[r.book_id] = {
-      cover_image: r.cover_image || null,
-      summary:     r.summary     || '',
-      db_id:       r.id
+      cover_image:     r.cover_image     || null,
+      summary:         r.summary         || '',
+      contained_works: r.contained_works || '',
+      db_id:           r.id
     }
   }
 }
@@ -1682,7 +1688,10 @@ function openModal(bookId){
   document.getElementById('mTitle').textContent   = b.title
   document.getElementById('mAuthor').textContent  = b.author
   document.getElementById('mYear').textContent    = b.year
-  document.getElementById('mSubject').textContent = b.subject
+  // Series label (same as subject — serves as series identifier)
+  const mSeriesEl = document.getElementById('mSeries')
+  if(mSeriesEl) mSeriesEl.textContent = b.subject || 'Standalone'
+  document.getElementById('mSubject').textContent = b.subject || 'Standalone'
   document.getElementById('mFormat').innerHTML    = `<span class="tbadge t-${b.type.replace(' ','')}">${b.type}</span>`
   document.getElementById('modalCoverPhTitle').textContent = b.title
 
@@ -1693,6 +1702,23 @@ function openModal(bookId){
 
   // Cover — from global store
   refreshModalCover(gb.cover_image || null)
+
+  // Contained Works — show for Omnibus, populate from stored data
+  const containedSection = document.getElementById('mContainedSection')
+  const containedView    = document.getElementById('mContainedView')
+  const containedEdit    = document.getElementById('mContainedEdit')
+  if(containedSection){
+    const showContained = (b.type === 'Omnibus')
+    containedSection.style.display = showContained ? '' : 'none'
+    if(showContained){
+      const works = gb.contained_works || ''
+      containedEdit.value = works
+      const lines = works.split('\n').map(l=>l.trim()).filter(Boolean)
+      containedView.innerHTML = lines.length
+        ? '<ul>' + lines.map(l=>'<li>' + esc(l) + '</li>').join('') + '</ul>'
+        : '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet.</em>'
+    }
+  }
 
   // Populate edit fields for admin
   const titleEdit   = document.getElementById('mTitleEdit')
@@ -1708,6 +1734,9 @@ function openModal(bookId){
 
   // Edit button always visible (save is still admin-protected)
   document.getElementById('modalEditBtn').style.display = ''
+  // Delete button: admin only, custom tomes only
+  const delBtn = document.getElementById('modalDeleteBtn')
+  if(delBtn) delBtn.style.display = (isAdmin() && b && b._customId) ? '' : 'none'
 
   // Status buttons
   refreshModalStatus()
@@ -1859,11 +1888,14 @@ async function saveModalEdits(){
   btn.disabled=true; btn.textContent='Saving…'
 
   // Save cover + summary to books_global (admin only)
+  const containedEl = document.getElementById('mContainedEdit')
+  const containedWorks = containedEl ? containedEl.value.trim() : ''
   const globalPayload = {
-    book_id:     modalBookId,
-    cover_image: coverToSave,
-    summary:     summary,
-    updated_at:  new Date().toISOString()
+    book_id:         modalBookId,
+    cover_image:     coverToSave,
+    summary:         summary,
+    contained_works: containedWorks || null,
+    updated_at:      new Date().toISOString()
   }
   if(gb.db_id) globalPayload.id = gb.db_id
 
@@ -1880,9 +1912,10 @@ async function saveModalEdits(){
 
   // Update local global store
   globalBooks[modalBookId] = {
-    db_id:       gData.id,
-    cover_image: gData.cover_image || null,
-    summary:     gData.summary     || ''
+    db_id:           gData.id,
+    cover_image:     gData.cover_image     || null,
+    summary:         gData.summary         || '',
+    contained_works: gData.contained_works || ''
   }
   pendingCover = null
 
@@ -1890,6 +1923,14 @@ async function saveModalEdits(){
   document.getElementById('mSummaryView').innerHTML = summary ||
     '<em style="color:var(--text-muted);font-style:italic">No summary added yet.</em>'
   refreshModalCover(gData.cover_image)
+  // Refresh contained works view
+  const cvEl = document.getElementById('mContainedView')
+  if(cvEl && containedWorks){
+    const lines = containedWorks.split('\n').map(l=>l.trim()).filter(Boolean)
+    cvEl.innerHTML = lines.length
+      ? '<ul>' + lines.map(l=>'<li>' + esc(l) + '</li>').join('') + '</ul>'
+      : '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet.</em>'
+  }
 
   // Save metadata edits if this is a custom tome and admin
   const bk = BOOKS.find(x=>x.id===modalBookId)
@@ -1917,6 +1958,8 @@ async function saveModalEdits(){
         document.getElementById('mAuthor').textContent  = bk.author
         document.getElementById('mYear').textContent    = bk.year
         document.getElementById('mSubject').textContent = bk.subject
+        const mSEl = document.getElementById('mSeries')
+        if(mSEl) mSEl.textContent = bk.subject || 'Standalone'
         document.getElementById('mFormat').innerHTML    = '<span class="tbadge t-' + bk.type.replace(' ','') + '">' + bk.type + '</span>'
       }
     }
@@ -2623,6 +2666,44 @@ async function rejectCustomTome(ci){
   showToast('Custom tome rejected.')
 }
 
+
+// ── DELETE CUSTOM TOME ────────────────────────────────────────────────────
+Object.assign(window, {deleteCustomTome})
+
+async function deleteCustomTome(){
+  if(!modalBookId || !isAdmin()) return
+  const b = BOOKS.find(x=>x.id===modalBookId)
+  if(!b || !b._customId) return
+
+  if(!confirm('Permanently delete "' + b.title + '" from the archive? This cannot be undone.')) return
+
+  const {error} = await supabase
+    .from('custom_tomes')
+    .delete()
+    .eq('id', b._customId)
+
+  if(error){
+    console.error('Delete error:', error)
+    showToast('Delete failed: ' + (error.message || error.code))
+    return
+  }
+
+  // Remove from BOOKS and customTomes
+  const bi = BOOKS.findIndex(x=>x.id===modalBookId)
+  if(bi >= 0) BOOKS.splice(bi, 1)
+  const ci = customTomes.findIndex(x=>x._customId === b._customId)
+  if(ci >= 0) customTomes.splice(ci, 1)
+
+  // Remove from userBooks
+  delete userBooks[modalBookId]
+
+  closeModal()
+  updateStats()
+  populateSubjects()
+  renderGrid()
+  showToast('Tome expunged from the archive.')
+}
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -2640,6 +2721,7 @@ async function rejectCustomTome(ci){
       </div>
       <div class="modal-ctrl">
         <button class="modal-edit-btn" id="modalEditBtn" title="Edit" onclick="toggleEditMode()">&#9998;</button>
+        <button class="modal-edit-btn" id="modalDeleteBtn" title="Delete Entry" style="display:none;border-color:rgba(180,60,60,.4);color:#e07070" onclick="deleteCustomTome()">&#128465;</button>
         <button class="modal-close-btn" title="Close" onclick="closeModal()">&#10005;</button>
       </div>
     </div>
@@ -2663,10 +2745,6 @@ async function rejectCustomTome(ci){
             onchange="handleCoverUpload(this)"/>
         </div>
         <div class="mfield">
-          <span class="mfield-label">Series / Subject</span>
-          <div class="mfield-val meta" id="mSubject"></div>
-        </div>
-        <div class="mfield">
           <span class="mfield-label">Title</span>
           <div class="mfield-val title" id="mTitle"></div>
           <input class="inscribe-input modal-edit-field" id="mTitleEdit" style="display:none;font-family:Cinzel,serif;font-size:.9rem" placeholder="Title"/>
@@ -2683,7 +2761,7 @@ async function rejectCustomTome(ci){
             <input class="inscribe-input modal-edit-field" id="mYearEdit" type="number" style="display:none;width:80px" placeholder="Year"/>
           </div>
           <div class="mfield">
-            <span class="mfield-label">Format</span>
+            <span class="mfield-label">Tome</span>
             <div class="mfield-val" id="mFormat"></div>
             <select class="inscribe-select modal-edit-field" id="mTypeEdit" style="display:none">
               <option value="Novel">Novel</option>
@@ -2695,10 +2773,16 @@ async function rejectCustomTome(ci){
             </select>
           </div>
         </div>
-        <div class="mfield">
-          <span class="mfield-label">Subject</span>
-          <div class="mfield-val meta" id="mSubject"></div>
-          <input class="inscribe-input modal-edit-field" id="mSubjectEdit" style="display:none" placeholder="Subject / Series"/>
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+          <div class="mfield">
+            <span class="mfield-label">Series</span>
+            <div class="mfield-val meta" id="mSeries"></div>
+            <input class="inscribe-input modal-edit-field" id="mSubjectEdit" style="display:none" placeholder="Series"/>
+          </div>
+          <div class="mfield">
+            <span class="mfield-label">Faction / Subject</span>
+            <div class="mfield-val meta" id="mSubject"></div>
+          </div>
         </div>
         <div class="bindings-section">
           <span class="bindings-label">Bindings Owned</span>
@@ -2717,6 +2801,14 @@ async function rejectCustomTome(ci){
       <!-- RIGHT: summary -->
       <div class="modal-right">
         <div class="mfield" style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <!-- Contained Works (Omnibus only) -->
+          <div id="mContainedSection" style="display:none;margin-bottom:.8rem;flex-shrink:0">
+            <span class="mfield-label">Contained Works</span>
+            <div id="mContainedView" style="font-size:.85rem;color:#b8b2ac;line-height:1.8;margin-top:.3rem"></div>
+            <textarea class="inscribe-textarea modal-edit-field" id="mContainedEdit"
+              style="display:none;min-height:80px;font-size:.85rem"
+              placeholder="One title per line&#10;e.g.&#10;Xenos&#10;Malleus&#10;Hereticus"></textarea>
+          </div>
           <span class="mfield-label" style="flex-shrink:0">Summary</span>
           <div class="mfield-val summary" id="mSummaryView"></div>
 
