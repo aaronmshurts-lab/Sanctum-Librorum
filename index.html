@@ -568,7 +568,12 @@
       <button class="pill"        data-filter="wishlist"  onclick="setFilter('wishlist')">Wishlist</button>
       <button class="pill"        data-filter="untracked" onclick="setFilter('untracked')">Untracked</button>
       <div class="ctrl-right">
-        <input class="srch" type="text" id="srchInput" placeholder="Search title or author&hellip;" oninput="doSearch(this.value)"/>
+        <div style="position:relative;display:flex;align-items:center">
+          <input class="srch" type="text" id="srchInput" placeholder="Search title or author&hellip;" oninput="doSearch(this.value)" style="padding-right:1.8rem"/>
+          <button id="srchClear" onclick="clearSearch()" title="Clear search"
+            style="display:none;position:absolute;right:.4rem;background:none;border:none;
+            color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
+        </div>
       </div>
     </div>
     <div class="ctrl-row">
@@ -582,9 +587,15 @@
       <button class="pill"        data-type="Audio Drama" onclick="setType('Audio Drama')">Audio Drama</button>
       <button class="pill"        data-type="eBook"       onclick="setType('eBook')">eBOOK ONLY</button>
       <div class="ctrl-right">
-        <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)">
-          <option value="all">&mdash; All Subjects &mdash;</option>
-        </select>
+        <div style="display:flex;align-items:center;gap:.35rem">
+          <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)">
+            <option value="all">&mdash; All Subjects &mdash;</option>
+          </select>
+          <button id="subjClear" onclick="clearSubject()" title="Clear subject filter"
+            style="display:none;padding:.32rem .5rem;background:none;border:1px solid #3a3650;
+            border-radius:2px;color:var(--text-muted);cursor:pointer;font-size:.75rem;
+            transition:all .15s;white-space:nowrap">&#10005;</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1370,7 +1381,21 @@ async function loadGlobalBooks(){
       cover_image:     r.cover_image     || null,
       summary:         r.summary         || '',
       contained_works: r.contained_works || '',
+      title_override:   r.title_override  || null,
+      author_override:  r.author_override || null,
+      year_override:    r.year_override   || null,
+      type_override:    r.type_override   || null,
+      subject_override: r.subject_override|| null,
       db_id:           r.id
+    }
+    // Apply any metadata overrides to the BOOKS array
+    const bookEntry = BOOKS.find(bk=>bk.id===r.book_id)
+    if(bookEntry){
+      if(r.title_override)   bookEntry.title   = r.title_override
+      if(r.author_override)  bookEntry.author  = r.author_override
+      if(r.year_override)    bookEntry.year    = r.year_override
+      if(r.type_override)    bookEntry.type    = r.type_override
+      if(r.subject_override) bookEntry.subject = r.subject_override
     }
   }
 }
@@ -1535,8 +1560,18 @@ function setType(t){
   renderGrid()
 }
 
-function doSearch(v){searchQuery=v;renderGrid()}
-function setSubject(v){activeSubject=v;renderGrid()}
+function doSearch(v){
+  searchQuery=v
+  const clr = document.getElementById('srchClear')
+  if(clr) clr.style.display = v ? '' : 'none'
+  renderGrid()
+}
+function setSubject(v){
+  activeSubject=v
+  const clr = document.getElementById('subjClear')
+  if(clr) clr.style.display = (v && v!=='all') ? '' : 'none'
+  renderGrid()
+}
 
 // ════════════════════════════════════════════════════════════
 //  RENDER
@@ -1819,20 +1854,21 @@ function applyEditMode(on){
   if(saveBtn) saveBtn.textContent = isAdmin() ? 'Save Changes' : 'Submit for Review'
   // Summary toggle
   document.getElementById('mSummaryView').classList.toggle('hidden',on)
-  // Show/hide editable metadata fields
-  // Available when: book is a custom tome (creator or admin can edit metadata)
+  // Show/hide editable metadata fields — admin can edit any book
   const b = BOOKS.find(x=>x.id===modalBookId)
-  const isCustomTome = b && !!b._customId
-  const canEditMeta = isCustomTome && on
+  const canEditMeta = isAdmin() && on
   document.querySelectorAll('.modal-edit-field').forEach(el => {
     el.style.display = canEditMeta ? '' : 'none'
   })
   // In edit mode hide static labels; in view mode show them
-  const staticFields = ['mTitle','mAuthor','mYear','mFormat','mSubject']
+  const staticFields = ['mTitle','mAuthor','mYear','mFormat','mSubject','mSeries']
   staticFields.forEach(id => {
     const el = document.getElementById(id)
     if(el) el.style.display = canEditMeta ? 'none' : ''
   })
+  // Contained works section — show in edit mode for admin (omnibus or not)
+  const containedSection = document.getElementById('mContainedSection')
+  if(containedSection && isAdmin()) containedSection.style.display = on ? '' : (b && b.type==='Omnibus' ? '' : 'none')
   document.getElementById('rteWrap').classList.toggle('visible',on)
   if(on){
     // Populate editor from globalBooks (admin-managed content)
@@ -1934,7 +1970,7 @@ async function saveModalEdits(){
 
   // Save metadata edits if this is a custom tome and admin
   const bk = BOOKS.find(x=>x.id===modalBookId)
-  if(bk && bk._customId){
+  if(bk && isAdmin()){
     const newTitle   = (document.getElementById('mTitleEdit').value   || '').trim()
     const newAuthor  = (document.getElementById('mAuthorEdit').value  || '').trim()
     const newYear    = parseInt(document.getElementById('mYearEdit').value)   || bk.year
@@ -1950,7 +1986,30 @@ async function saveModalEdits(){
       if(newSubject !== bk.subject) metaPayload.subject = newSubject
 
       if(Object.keys(metaPayload).length > 0){
-        await supabase.from('custom_tomes').update(metaPayload).eq('id', bk._customId)
+        if(bk._customId){
+          await supabase.from('custom_tomes').update(metaPayload).eq('id', bk._customId)
+        } else {
+          // Catalogue book — store metadata overrides in books_global
+          const gbEntry = globalBooks[bk.id] || {}
+          const overridePayload = {
+            book_id: bk.id,
+            cover_image:     gbEntry.cover_image     || null,
+            summary:         gbEntry.summary         || '',
+            contained_works: gbEntry.contained_works || null,
+            title_override:   metaPayload.title   || null,
+            author_override:  metaPayload.author  || null,
+            year_override:    metaPayload.year    || null,
+            type_override:    metaPayload.type    || null,
+            subject_override: metaPayload.subject || null,
+            updated_at: new Date().toISOString()
+          }
+          if(gbEntry.db_id) overridePayload.id = gbEntry.db_id
+          const {data:ovData} = await supabase.from('books_global')
+            .upsert(overridePayload, {onConflict:'book_id'}).select().single()
+          if(ovData){
+            globalBooks[bk.id] = {...globalBooks[bk.id], ...ovData}
+          }
+        }
         // Update local BOOKS entry
         Object.assign(bk, metaPayload)
         // Refresh static display fields
@@ -2727,6 +2786,24 @@ async function loadHiddenBooks(){
     const idx = BOOKS.findIndex(b=>b.id===id)
     if(idx>=0) BOOKS.splice(idx,1)
   }
+}
+
+
+// ── CLEAR SEARCH / SUBJECT ────────────────────────────────────────────────
+Object.assign(window, {clearSearch, clearSubject})
+
+function clearSearch(){
+  const inp = document.getElementById('srchInput')
+  inp.value = ''
+  doSearch('')
+  document.getElementById('srchClear').style.display = 'none'
+}
+
+function clearSubject(){
+  activeSubject = 'all'
+  document.getElementById('subjSel').value = 'all'
+  document.getElementById('subjClear').style.display = 'none'
+  renderGrid()
 }
 
 </script>
