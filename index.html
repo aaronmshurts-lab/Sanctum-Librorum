@@ -604,7 +604,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 // ── ADMIN CONFIG ─────────────────────────────────────────────────────────
 // Replace with your Supabase user ID. Find it:
 // Supabase → Authentication → Users → click your email → copy UUID
-const ADMIN_USER_ID = '4e172dbd-4716-4fcb-9773-d2c7c0b00706'
+const ADMIN_USER_ID = 'YOUR-ADMIN-USER-ID-HERE'
 
 // Global book data (covers + summaries) — loaded once, shared by all users
 let globalBooks = {}   // { book_id: { cover_image, summary } }
@@ -1694,6 +1694,18 @@ function openModal(bookId){
   // Cover — from global store
   refreshModalCover(gb.cover_image || null)
 
+  // Populate edit fields for admin
+  const titleEdit   = document.getElementById('mTitleEdit')
+  const authorEdit  = document.getElementById('mAuthorEdit')
+  const yearEdit    = document.getElementById('mYearEdit')
+  const typeEdit    = document.getElementById('mTypeEdit')
+  const subjectEdit = document.getElementById('mSubjectEdit')
+  if(titleEdit)   titleEdit.value   = b.title   || ''
+  if(authorEdit)  authorEdit.value  = b.author  || ''
+  if(yearEdit)    yearEdit.value    = b.year    || ''
+  if(typeEdit)    typeEdit.value    = b.type    || 'Novel'
+  if(subjectEdit) subjectEdit.value = b.subject || ''
+
   // Edit button always visible (save is still admin-protected)
   document.getElementById('modalEditBtn').style.display = ''
 
@@ -1778,6 +1790,19 @@ function applyEditMode(on){
   if(saveBtn) saveBtn.textContent = isAdmin() ? 'Save Changes' : 'Submit for Review'
   // Summary toggle
   document.getElementById('mSummaryView').classList.toggle('hidden',on)
+  // Show/hide editable metadata fields (admin + custom tome only)
+  const b = BOOKS.find(x=>x.id===modalBookId)
+  const canEditMeta = isAdmin() && b && b._isCustom !== undefined  // any book admin can edit meta if custom
+  const isCustom = b && b._customId
+  document.querySelectorAll('.modal-edit-field').forEach(el => {
+    el.style.display = (on && isAdmin()) ? '' : 'none'
+  })
+  // In view mode show static fields; in edit mode hide them
+  const staticFields = ['mTitle','mAuthor','mYear','mFormat','mSubject']
+  staticFields.forEach(id => {
+    const el = document.getElementById(id)
+    if(el) el.style.display = (on && isAdmin()) ? 'none' : ''
+  })
   document.getElementById('rteWrap').classList.toggle('visible',on)
   if(on){
     // Populate editor from globalBooks (admin-managed content)
@@ -1864,6 +1889,37 @@ async function saveModalEdits(){
   document.getElementById('mSummaryView').innerHTML = summary ||
     '<em style="color:var(--text-muted);font-style:italic">No summary added yet.</em>'
   refreshModalCover(gData.cover_image)
+
+  // Save metadata edits if this is a custom tome and admin
+  const bk = BOOKS.find(x=>x.id===modalBookId)
+  if(bk && bk._customId && isAdmin()){
+    const newTitle   = (document.getElementById('mTitleEdit').value   || '').trim()
+    const newAuthor  = (document.getElementById('mAuthorEdit').value  || '').trim()
+    const newYear    = parseInt(document.getElementById('mYearEdit').value)   || bk.year
+    const newType    = document.getElementById('mTypeEdit').value    || bk.type
+    const newSubject = (document.getElementById('mSubjectEdit').value || '').trim()
+
+    if(newTitle){
+      const metaPayload = {}
+      if(newTitle   !== bk.title)   metaPayload.title   = newTitle
+      if(newAuthor  !== bk.author)  metaPayload.author  = newAuthor
+      if(newYear    !== bk.year)    metaPayload.year    = newYear
+      if(newType    !== bk.type)    metaPayload.type    = newType
+      if(newSubject !== bk.subject) metaPayload.subject = newSubject
+
+      if(Object.keys(metaPayload).length > 0){
+        await supabase.from('custom_tomes').update(metaPayload).eq('id', bk._customId)
+        // Update local BOOKS entry
+        Object.assign(bk, metaPayload)
+        // Refresh static display fields
+        document.getElementById('mTitle').textContent   = bk.title
+        document.getElementById('mAuthor').textContent  = bk.author
+        document.getElementById('mYear').textContent    = bk.year
+        document.getElementById('mSubject').textContent = bk.subject
+        document.getElementById('mFormat').innerHTML    = '<span class="tbadge t-' + bk.type.replace(' ','') + '">' + bk.type + '</span>'
+      }
+    }
+  }
 
   btn.disabled=false; btn.textContent='Save Changes'
   applyEditMode(false)
@@ -2123,8 +2179,8 @@ async function submitForReview(){
     user_email:  currentUser.email,
     cover_image: coverToSave,
     summary:     summary || null,
-    status:      'pending',
-    approved_by: null
+    status:      isAdmin() ? 'promoted' : 'pending',
+    approved_by: isAdmin() ? currentUser.id : null
   })
 
   if(error){
@@ -2446,7 +2502,7 @@ async function saveInscribedTome(){
   populateSubjects()
   closeInscribeModal()
   renderGrid()
-  showToast('Tome inscribed to your archive, Marshal.')
+  showToast(isAdmin() ? 'Tome inscribed and promoted to the catalogue.' : 'Tome inscribed to your archive, Marshal.')
 }
 
 // Load user's custom tomes from Supabase
@@ -2509,7 +2565,7 @@ async function approveCustomTome(ci, promote){
     .update({status: newStatus, approved_by: currentUser.id, approved_at: new Date().toISOString()})
     .eq('id', t._customId)
 
-  if(error){ console.error(error); showToast('Failed to update tome status.'); return }
+  if(error){ console.error('approveCustomTome error:', JSON.stringify(error)); showToast('Failed: ' + (error.message || error.code || 'check console')); return }
 
   // Update local
   const bookEntry = BOOKS.find(b => b.id === t.id)
@@ -2612,20 +2668,36 @@ async function rejectCustomTome(ci){
         <div class="mfield">
           <span class="mfield-label">Title</span>
           <div class="mfield-val title" id="mTitle"></div>
+          <input class="inscribe-input modal-edit-field" id="mTitleEdit" style="display:none;font-family:Cinzel,serif;font-size:.9rem" placeholder="Title"/>
         </div>
         <div class="mfield">
           <span class="mfield-label">Author</span>
           <div class="mfield-val" id="mAuthor"></div>
+          <input class="inscribe-input modal-edit-field" id="mAuthorEdit" style="display:none" placeholder="Author"/>
         </div>
         <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
           <div class="mfield">
             <span class="mfield-label">Published</span>
             <div class="mfield-val meta" id="mYear"></div>
+            <input class="inscribe-input modal-edit-field" id="mYearEdit" type="number" style="display:none;width:80px" placeholder="Year"/>
           </div>
           <div class="mfield">
             <span class="mfield-label">Format</span>
             <div class="mfield-val" id="mFormat"></div>
+            <select class="inscribe-select modal-edit-field" id="mTypeEdit" style="display:none">
+              <option value="Novel">Novel</option>
+              <option value="Novella">Novella</option>
+              <option value="Anthology">Anthology</option>
+              <option value="Omnibus">Omnibus</option>
+              <option value="Audio Drama">Audio Drama</option>
+              <option value="eBook">eBook</option>
+            </select>
           </div>
+        </div>
+        <div class="mfield">
+          <span class="mfield-label">Subject</span>
+          <div class="mfield-val meta" id="mSubject"></div>
+          <input class="inscribe-input modal-edit-field" id="mSubjectEdit" style="display:none" placeholder="Subject / Series"/>
         </div>
         <div class="bindings-section">
           <span class="bindings-label">Bindings Owned</span>
