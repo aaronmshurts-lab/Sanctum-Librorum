@@ -353,6 +353,36 @@
     .card-format.t-AudioDrama{background:rgba(200,80,80,.15);border-color:rgba(200,80,80,.4);color:#f0a0a0}
     .card-format.t-eBook{background:rgba(80,160,180,.15);border-color:rgba(80,160,180,.4);color:#90dcf0}
     .card-format.t-Series{background:rgba(180,150,50,.18);border-color:rgba(180,150,50,.4);color:#f0d070}
+  
+    /* ── BINDINGS ──────────────────────────────────────────── */
+    .bindings-section{margin-top:.5rem}
+    .bindings-label{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.16em;
+      text-transform:uppercase;color:var(--gold);opacity:.7;margin-bottom:.4rem;display:block}
+    .bindings-pills{display:flex;flex-wrap:wrap;gap:.3rem}
+    .binding-pill{padding:.25rem .55rem;border:1px solid #3a3650;background:none;
+      color:#9a94a2;font-family:'Cinzel',serif;font-size:.54rem;letter-spacing:.08em;
+      text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .18s;
+      white-space:nowrap}
+    .binding-pill:hover{border-color:rgba(232,201,106,.4);color:#cec8be}
+    .binding-pill.active{background:var(--gold-dim);border-color:var(--gold);
+      color:var(--gold-bright)}
+    .binding-pill.ltd.active{background:rgba(232,201,106,.2);border-color:var(--gold-bright);
+      color:var(--gold-bright);box-shadow:0 0 8px rgba(232,201,106,.5)}
+
+    /* Limited Edition glow on card thumbnail */
+    .card-thumb.ltd-ed{
+      border-color:var(--gold-bright);
+      box-shadow:0 0 10px rgba(232,201,106,.6),0 0 20px rgba(232,201,106,.25);
+      animation:ltdPulse 2.5s ease-in-out infinite}
+    @keyframes ltdPulse{
+      0%,100%{box-shadow:0 0 8px rgba(232,201,106,.5),0 0 16px rgba(232,201,106,.2)}
+      50%{box-shadow:0 0 14px rgba(232,201,106,.8),0 0 28px rgba(232,201,106,.4)}}
+
+    /* Limited Edition glow on modal cover */
+    .modal-cover.ltd-ed{
+      border-color:var(--gold-bright);
+      box-shadow:0 0 14px rgba(232,201,106,.7),0 0 30px rgba(232,201,106,.3);
+      animation:ltdPulse 2.5s ease-in-out infinite}
   </style>
 </head>
 <body>
@@ -469,7 +499,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 // ── ADMIN CONFIG ─────────────────────────────────────────────────────────
 // Replace with your Supabase user ID. Find it:
 // Supabase → Authentication → Users → click your email → copy UUID
-const ADMIN_USER_ID = 'YOUR-ADMIN-USER-ID-HERE'
+const ADMIN_USER_ID = '4e172dbd-4716-4fcb-9773-d2c7c0b00706'
 
 // Global book data (covers + summaries) — loaded once, shared by all users
 let globalBooks = {}   // { book_id: { cover_image, summary } }
@@ -1054,12 +1084,12 @@ async function loadUserBooks(){
   if(error){console.error(error);return}
   userBooks={}
   for(const r of (data||[])){
-    userBooks[r.book_id]={db_id:r.id,owned:r.owned,read:r.read,wishlisted:r.wishlisted,cover_image:r.cover_image||null,summary:r.summary||''}
+    userBooks[r.book_id]={db_id:r.id,owned:r.owned,read:r.read,wishlisted:r.wishlisted,cover_image:r.cover_image||null,summary:r.summary||'',bindings:r.bindings||[]}
   }
 }
 
 async function saveBook(bookId,updated,prevDbId){
-  const payload={user_id:currentUser.id,book_id:bookId,owned:updated.owned,read:updated.read,wishlisted:updated.wishlisted}
+  const payload={user_id:currentUser.id,book_id:bookId,owned:updated.owned,read:updated.read,wishlisted:updated.wishlisted,bindings:updated.bindings||[]}
   if(prevDbId)payload.id=prevDbId
   const {data,error}=await supabase.from('user_books').upsert(payload,{onConflict:'user_id,book_id'}).select().single()
   if(!error&&data){if(userBooks[bookId])userBooks[bookId].db_id=data.id}
@@ -1243,6 +1273,9 @@ function renderCard(b){
   const rIcon = ub.read       ? '&#10003;'  : '&#9675;'
   const wIcon = ub.wishlisted ? '&#9733;'   : '&#9734;'
   const gb2       = globalBooks[b.id] || {}
+  const ub2      = userBooks[b.id] || {}
+  const isLtd    = (ub2.bindings||[]).includes('Limited Edition')
+  const thumbCls = 'card-thumb' + (isLtd ? ' ltd-ed' : '')
   const coverHtml = gb2.cover_image
     ? '<img src="' + gb2.cover_image + '" alt="" style="width:100%;height:100%;object-fit:contain"/>'
     : '<span class="ct-ph">&#9869;</span>'
@@ -1259,7 +1292,7 @@ function renderCard(b){
     +     cascade
     +   '</div>'
     +   '<div class="card-cover-col">'
-    +     '<div class="card-thumb">' + coverHtml + '</div>'
+    +     '<div class="' + thumbCls + '">' + coverHtml + '</div>'
     +   '</div>'
     + '</div>'
     + '<div class="c-actions">'
@@ -1371,6 +1404,10 @@ function openModal(bookId){
 
   // Status buttons
   refreshModalStatus()
+
+  // Bindings
+  const ubForBindings = userBooks[bookId] || {}
+  refreshBindingPills(ubForBindings.bindings || [])
 
   // Lock mode
   applyEditMode(false)
@@ -1697,6 +1734,59 @@ function rteKeydown(e){
     if(e.key==='u'){e.preventDefault();rteCmd('underline')}
   }
 }
+
+// ── BINDINGS ─────────────────────────────────────────────────────────────
+window.toggleBinding = toggleBinding
+
+async function toggleBinding(binding){
+  if(!modalBookId) return
+  const ub = userBooks[modalBookId] || {owned:false,read:false,wishlisted:false,bindings:[]}
+  const current = ub.bindings || []
+  const idx = current.indexOf(binding)
+  const updated = idx >= 0
+    ? current.filter(b => b !== binding)
+    : [...current, binding]
+
+  // Optimistic update
+  userBooks[modalBookId] = {...ub, bindings: updated}
+  refreshBindingPills(updated)
+  refreshCardBindings(modalBookId)
+
+  // Save to DB
+  const payload = {
+    user_id:    currentUser.id,
+    book_id:    modalBookId,
+    owned:      ub.owned,
+    read:       ub.read,
+    wishlisted: ub.wishlisted,
+    bindings:   updated
+  }
+  if(ub.db_id) payload.id = ub.db_id
+  const {data, error} = await supabase.from('user_books')
+    .upsert(payload, {onConflict:'user_id,book_id'}).select().single()
+  if(error){ console.error(error); return }
+  if(data) userBooks[modalBookId].db_id = data.id
+}
+
+function refreshBindingPills(bindings){
+  const pills = document.querySelectorAll('#bindingsPills .binding-pill')
+  pills.forEach(pill => {
+    const b = pill.dataset.binding
+    pill.classList.toggle('active', bindings.includes(b))
+  })
+  // Update modal cover glow
+  const cover = document.getElementById('modalCoverWrap')
+  if(cover) cover.classList.toggle('ltd-ed', bindings.includes('Limited Edition'))
+}
+
+function refreshCardBindings(bookId){
+  const thumb = document.querySelector('#card-' + bookId + ' .card-thumb')
+  if(!thumb) return
+  const ub = userBooks[bookId] || {}
+  const bindings = ub.bindings || []
+  thumb.classList.toggle('ltd-ed', bindings.includes('Limited Edition'))
+}
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -1756,6 +1846,17 @@ function rteKeydown(e){
           <div class="mfield">
             <span class="mfield-label">Format</span>
             <div class="mfield-val" id="mFormat"></div>
+          </div>
+        </div>
+        <div class="bindings-section">
+          <span class="bindings-label">Bindings Owned</span>
+          <div class="bindings-pills" id="bindingsPills">
+            <button class="binding-pill" data-binding="Hardcover"      onclick="toggleBinding('Hardcover')">Hardcover</button>
+            <button class="binding-pill" data-binding="Paperback"      onclick="toggleBinding('Paperback')">Paperback</button>
+            <button class="binding-pill" data-binding="eBook"          onclick="toggleBinding('eBook')">eBook</button>
+            <button class="binding-pill" data-binding="Audio Book"     onclick="toggleBinding('Audio Book')">Audio Book</button>
+            <button class="binding-pill" data-binding="Graphic Novel"  onclick="toggleBinding('Graphic Novel')">Graphic Novel</button>
+            <button class="binding-pill ltd" data-binding="Limited Edition" onclick="toggleBinding('Limited Edition')">Ltd Edition</button>
           </div>
         </div>
       </div>
