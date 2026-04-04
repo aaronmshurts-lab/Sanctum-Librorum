@@ -432,15 +432,15 @@
       </div>
     </div>
     <div class="ctrl-row">
-      <span class="rl">Format</span>
-      <button class="pill active" data-type="all"         onclick="setType('all')">All Formats</button>
+      <span class="rl">Tome Classification</span>
+      <button class="pill active" data-type="all"         onclick="setType('all')">All Tomes</button>
       <button class="pill"        data-type="Series"      onclick="setType('Series')">Series</button>
       <button class="pill"        data-type="Novel"       onclick="setType('Novel')">Novel</button>
       <button class="pill"        data-type="Novella"     onclick="setType('Novella')">Novella</button>
       <button class="pill"        data-type="Anthology"   onclick="setType('Anthology')">Anthology</button>
       <button class="pill"        data-type="Omnibus"     onclick="setType('Omnibus')">Omnibus</button>
       <button class="pill"        data-type="Audio Drama" onclick="setType('Audio Drama')">Audio Drama</button>
-      <button class="pill"        data-type="eBook"       onclick="setType('eBook')">eBook</button>
+      <button class="pill"        data-type="eBook"       onclick="setType('eBook')">eBOOK ONLY</button>
       <div class="ctrl-right">
         <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)">
           <option value="all">&mdash; All Subjects &mdash;</option>
@@ -469,7 +469,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 // ── ADMIN CONFIG ─────────────────────────────────────────────────────────
 // Replace with your Supabase user ID. Find it:
 // Supabase → Authentication → Users → click your email → copy UUID
-const ADMIN_USER_ID = '4e172dbd-4716-4fcb-9773-d2c7c0b00706'
+const ADMIN_USER_ID = 'YOUR-ADMIN-USER-ID-HERE'
 
 // Global book data (covers + summaries) — loaded once, shared by all users
 let globalBooks = {}   // { book_id: { cover_image, summary } }
