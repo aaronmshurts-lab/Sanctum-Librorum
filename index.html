@@ -446,6 +446,46 @@
     .btn-reject:hover{background:rgba(180,60,60,.25)}
     .review-empty{text-align:center;padding:3rem;color:var(--text-muted);
       font-style:italic}
+  
+    /* ── INSCRIBE TOME ────────────────────────────────────────── */
+    .inscribe-btn{margin-left:auto;padding:.38rem 1rem;background:none;
+      border:1px solid var(--border-gold);color:var(--gold-bright);
+      font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.14em;
+      text-transform:uppercase;cursor:pointer;border-radius:2px;
+      transition:all .18s;white-space:nowrap;display:flex;align-items:center;gap:.4rem}
+    .inscribe-btn:hover{background:var(--gold-dim);box-shadow:0 0 12px rgba(232,201,106,.15)}
+    .inscribe-btn::before{content:'✦';font-size:.7rem;opacity:.7}
+
+    /* inscribe modal — reuses .modal-overlay / .modal-panel */
+    .inscribe-field{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.9rem}
+    .inscribe-label{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.16em;
+      text-transform:uppercase;color:var(--gold);opacity:.75}
+    .inscribe-input,.inscribe-select,.inscribe-textarea{
+      width:100%;padding:.55rem .8rem;background:var(--bg);
+      border:1px solid var(--border);color:var(--text);
+      font-family:'EB Garamond',serif;font-size:.98rem;outline:none;
+      border-radius:var(--radius);transition:border-color .2s}
+    .inscribe-input:focus,.inscribe-select:focus,.inscribe-textarea:focus{
+      border-color:rgba(232,201,106,.5)}
+    .inscribe-select{font-family:'Cinzel',serif;font-size:.7rem;
+      letter-spacing:.05em;cursor:pointer}
+    .inscribe-select option{background:#0d0d18;font-family:sans-serif;
+      text-transform:none;font-size:.9rem}
+    .inscribe-textarea{resize:vertical;min-height:100px;line-height:1.6}
+    .inscribe-row{display:flex;gap:.8rem}
+    .inscribe-row .inscribe-field{flex:1}
+    .inscribe-submit{width:100%;padding:.8rem;
+      background:linear-gradient(135deg,#d4a93c 0%,#b08830 100%);
+      color:#0a0808;border:none;font-family:'Cinzel',serif;font-size:.72rem;
+      font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+      cursor:pointer;border-radius:var(--radius);transition:opacity .2s;margin-top:.4rem}
+    .inscribe-submit:hover{opacity:.88}
+    .inscribe-submit:disabled{opacity:.4;cursor:not-allowed}
+    .custom-badge{display:inline-flex;align-items:center;gap:.2rem;
+      font-family:'Cinzel',serif;font-size:.44rem;letter-spacing:.08em;
+      text-transform:uppercase;padding:.12rem .35rem;border-radius:2px;
+      background:rgba(232,201,106,.12);border:1px solid rgba(232,201,106,.3);
+      color:var(--gold);margin-left:.3rem;vertical-align:middle}
   </style>
 </head>
 <body>
@@ -511,6 +551,7 @@
     <div class="stat"><div class="sv" id="sNovels">0</div><div class="sl">Novels</div></div>
     <div class="sdiv"></div>
     <div class="stat"><div class="sv" id="sAudio">0</div><div class="sl">Audio</div></div>
+    <button class="inscribe-btn" onclick="openInscribeModal()">Inscribe Tome</button>
   </div>
 
   <div class="ctrl-wrap">
@@ -563,7 +604,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 // ── ADMIN CONFIG ─────────────────────────────────────────────────────────
 // Replace with your Supabase user ID. Find it:
 // Supabase → Authentication → Users → click your email → copy UUID
-const ADMIN_USER_ID = 'YOUR-ADMIN-USER-ID-HERE'
+const ADMIN_USER_ID = '4e172dbd-4716-4fcb-9773-d2c7c0b00706'
 
 // Global book data (covers + summaries) — loaded once, shared by all users
 let globalBooks = {}   // { book_id: { cover_image, summary } }
@@ -1513,6 +1554,10 @@ function typeClass(t){return t.replace(' ','')}
 
 function renderCard(b){
   const ub    = userBooks[b.id] || {}
+  // Custom tome: use stored cover/notes from local object
+  if(b._isCustom && b._coverImage && !globalBooks[b.id]){
+    globalBooks[b.id] = {cover_image: b._coverImage, summary: b._notes || '', db_id: null}
+  }
   const tc    = b.type.replace(' ','')
   const idx   = BOOKS.indexOf(b)
   const owned = ub.owned      ? ' owned'    : ''
@@ -1533,7 +1578,7 @@ function renderCard(b){
   return '<div class="card" id="card-' + esc(b.id) + '" onclick="OC(' + idx + ')">'
     + '<div class="card-body">'
     +   '<div class="card-meta-col">'
-    +     '<div class="card-subject">' + esc(b.subject) + '</div>'
+    +     '<div class="card-subject">' + esc(b.subject) + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
     +     '<div class="card-format t-' + tc + '">' + esc(b.type) + '</div>'
     +     '<div style="flex:1;min-height:.4rem"></div>'
     +     '<div class="c-title">' + esc(b.title) + '</div>'
@@ -1592,7 +1637,7 @@ async function showApp(user){
   document.getElementById('app').classList.add('visible')
   document.getElementById('hEmail').textContent=user.email
   document.getElementById('grid').innerHTML='<div class="loading"><div class="spinner"></div><p>Loading your archive…</p></div>'
-  await Promise.all([loadGlobalBooks(), loadUserBooks()])
+  await Promise.all([loadGlobalBooks(), loadUserBooks(), loadCustomTomes()])
   await loadSubmissions()
   populateSubjects()
   updateStats()
@@ -2078,7 +2123,8 @@ async function submitForReview(){
     user_email:  currentUser.email,
     cover_image: coverToSave,
     summary:     summary || null,
-    status:      'pending'
+    status:      'pending',
+    approved_by: null
   })
 
   if(error){
@@ -2104,10 +2150,12 @@ async function loadSubmissions(){
     .order('submitted_at', {ascending: true})
   if(error){ console.error(error); return }
   pendingSubmissions = data || []
+  const pendingCustomCount = customTomes.filter(t => t.status === 'pending').length
+  const totalBadge = pendingSubmissions.length + pendingCustomCount
   const badge = document.getElementById('subBadge')
   const count = document.getElementById('subCount')
-  badge.classList.toggle('hidden', pendingSubmissions.length === 0)
-  count.textContent = pendingSubmissions.length
+  badge.classList.toggle('hidden', totalBadge === 0)
+  count.textContent = totalBadge
 }
 
 function openReviewPanel(){
@@ -2123,11 +2171,42 @@ function closeReviewPanel(){
 
 function renderReviewList(){
   const list = document.getElementById('reviewList')
-  if(!pendingSubmissions.length){
+  const pendingCustom = customTomes.filter(t => t.status === 'pending')
+
+  if(!pendingSubmissions.length && !pendingCustom.length){
     list.innerHTML = '<div class="review-empty">No pending submissions. The archive is pure.</div>'
     return
   }
-  list.innerHTML = pendingSubmissions.map((sub, idx) => {
+
+  let html = ''
+
+  // ── Custom tome submissions ───────────────────────────────────────────
+  if(pendingCustom.length){
+    html += '<div style="font-family:Cinzel,serif;font-size:.65rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);opacity:.7;padding:.3rem .2rem .6rem;border-bottom:1px solid var(--border);margin-bottom:.7rem">✦ Custom Tomes Awaiting Review (' + pendingCustom.length + ')</div>'
+    html += pendingCustom.map((t, ci) => {
+      const coverHtml = t._coverImage
+        ? '<img src="' + t._coverImage + '" alt=""/>'
+        : '<span style="color:var(--gold);opacity:.2;font-size:1.5rem">&#9869;</span>'
+      return '<div class="review-item" id="ctome-' + ci + '">'
+        + '<div class="review-cover">' + coverHtml + '</div>'
+        + '<div class="review-info">'
+        +   '<div class="review-title">✦ ' + esc(t.title) + '</div>'
+        +   '<div class="review-meta">' + esc(t.author) + ' &middot; ' + t.year + ' &middot; ' + esc(t.type) + ' &middot; ' + esc(t.subject) + '</div>'
+        +   (t._notes ? '<div class="review-summary">' + esc(t._notes) + '</div>' : '<div class="review-summary" style="color:var(--text-muted);font-style:italic">No notes.</div>')
+        +   '<div class="review-actions">'
+        +     '<button class="btn-approve" onclick="approveCustomTome(' + ci + ',false)">&#10003; Approve (Shared)</button>'
+        +     '<button class="btn-approve" style="background:rgba(80,110,180,.2);border-color:#4178c8;color:#8abbff" onclick="approveCustomTome(' + ci + ',true)">&#8679; Promote to Catalogue</button>'
+        +     '<button class="btn-reject" onclick="rejectCustomTome(' + ci + ')">&#10005; Reject</button>'
+        +   '</div>'
+        + '</div>'
+        + '</div>'
+    }).join('')
+  }
+
+  // ── Content submissions (summary/cover) ────────────────────────────────
+  if(pendingSubmissions.length){
+    if(pendingCustom.length) html += '<div style="font-family:Cinzel,serif;font-size:.65rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);opacity:.7;padding:.8rem .2rem .6rem;border-bottom:1px solid var(--border);margin-bottom:.7rem;margin-top:.5rem">Content Submissions (' + pendingSubmissions.length + ')</div>'
+    html += pendingSubmissions.map((sub, idx) => {
     const book = BOOKS.find(b => b.id === sub.book_id)
     const title = book ? book.title : sub.book_id
     const author = book ? book.author : ''
@@ -2152,6 +2231,8 @@ function renderReviewList(){
       + '</div>'
       + '</div>'
   }).join('')
+  }
+  list.innerHTML = html
 }
 
 Object.assign(window, {approveSubmission, rejectSubmission})
@@ -2194,10 +2275,12 @@ async function approveSubmission(idx){
   updateCard(sub.book_id)
   renderReviewList()
 
+  const pendingCustomCount = customTomes.filter(t => t.status === 'pending').length
+  const totalBadge = pendingSubmissions.length + pendingCustomCount
   const badge = document.getElementById('subBadge')
   const count = document.getElementById('subCount')
-  badge.classList.toggle('hidden', pendingSubmissions.length === 0)
-  count.textContent = pendingSubmissions.length
+  badge.classList.toggle('hidden', totalBadge === 0)
+  count.textContent = totalBadge
 
   showToast('Submission approved and published!')
 }
@@ -2214,10 +2297,12 @@ async function rejectSubmission(idx){
   pendingSubmissions.splice(idx, 1)
   renderReviewList()
 
+  const pendingCustomCount = customTomes.filter(t => t.status === 'pending').length
+  const totalBadge = pendingSubmissions.length + pendingCustomCount
   const badge = document.getElementById('subBadge')
   const count = document.getElementById('subCount')
-  badge.classList.toggle('hidden', pendingSubmissions.length === 0)
-  count.textContent = pendingSubmissions.length
+  badge.classList.toggle('hidden', totalBadge === 0)
+  count.textContent = totalBadge
 
   showToast('Submission rejected.')
 }
@@ -2239,6 +2324,246 @@ function showToast(msg){
   t.style.opacity = '1'
   clearTimeout(t._timer)
   t._timer = setTimeout(() => t.style.opacity = '0', 3000)
+}
+
+
+// ════════════════════════════════════════════════════════════════════════
+//  INSCRIBE TOME — Custom book entry
+// ════════════════════════════════════════════════════════════════════════
+let inscribePendingCover = null
+let customTomes = []   // loaded from Supabase custom_tomes table
+
+Object.assign(window, {
+  openInscribeModal, closeInscribeModal, closeInscribeBg,
+  handleInscribeCover, saveInscribedTome
+})
+
+function openInscribeModal(){
+  // Reset form
+  document.getElementById('itTitle').value   = ''
+  document.getElementById('itAuthor').value  = ''
+  document.getElementById('itYear').value    = new Date().getFullYear()
+  document.getElementById('itType').value    = 'Novel'
+  document.getElementById('itSubject').value = 'Standalone'
+  document.getElementById('itNotes').value   = ''
+  document.getElementById('inscribeMsg').style.display = 'none'
+  const img = document.getElementById('inscribeCoverImg')
+  img.src = ''; img.classList.remove('loaded')
+  inscribePendingCover = null
+  document.getElementById('inscribeSubmitBtn').disabled = false
+  document.getElementById('inscribeSubmitBtn').textContent = '✦ Inscribe to Your Archive'
+  document.getElementById('inscribeModal').style.display = 'flex'
+  document.body.style.overflow = 'hidden'
+  setTimeout(() => document.getElementById('itTitle').focus(), 80)
+}
+
+function closeInscribeModal(){
+  document.getElementById('inscribeModal').style.display = 'none'
+  document.body.style.overflow = ''
+}
+
+function closeInscribeBg(e){
+  if(e.target === document.getElementById('inscribeModal')) closeInscribeModal()
+}
+
+function handleInscribeCover(input){
+  const file = input.files[0]
+  if(!file) return
+  compressImage(file, 280, 0.78).then(data => {
+    inscribePendingCover = data
+    const img = document.getElementById('inscribeCoverImg')
+    img.onload = () => img.classList.add('loaded')
+    img.src = data
+  })
+}
+
+function inscribeMsg(msg, isErr=true){
+  const el = document.getElementById('inscribeMsg')
+  el.style.display = ''
+  el.style.background = isErr ? 'rgba(180,60,60,.12)' : 'rgba(61,139,110,.12)'
+  el.style.border = isErr ? '1px solid rgba(180,60,60,.35)' : '1px solid rgba(61,139,110,.35)'
+  el.style.color  = isErr ? '#e07070' : '#6dcfa6'
+  el.textContent  = msg
+}
+
+async function saveInscribedTome(){
+  const title   = document.getElementById('itTitle').value.trim()
+  const author  = document.getElementById('itAuthor').value.trim()
+  const year    = parseInt(document.getElementById('itYear').value) || new Date().getFullYear()
+  const type    = document.getElementById('itType').value
+  const subject = document.getElementById('itSubject').value
+  const notes   = document.getElementById('itNotes').value.trim()
+
+  if(!title){ inscribeMsg('A tome without a name is just a mystery. Please add a title.'); return }
+
+  const btn = document.getElementById('inscribeSubmitBtn')
+  btn.disabled = true; btn.textContent = 'Inscribing…'
+
+  const payload = {
+    user_id:     currentUser.id,
+    title,
+    author:      author || 'Unknown',
+    year,
+    type,
+    subject,
+    notes:       notes || null,
+    cover_image: inscribePendingCover || null
+  }
+
+  const {data, error} = await supabase
+    .from('custom_tomes')
+    .insert(payload)
+    .select().single()
+
+  if(error){
+    console.error('Inscribe error:', error)
+    inscribeMsg('The scriptorium is unavailable. Try again shortly.')
+    btn.disabled = false; btn.textContent = '✦ Inscribe to Your Archive'
+    return
+  }
+
+  // Add to local custom tomes and merge into display
+  const localTome = {
+    id:          'custom-' + data.id,
+    _customId:   data.id,
+    title,
+    author:      author || 'Unknown',
+    year,
+    type,
+    subject,
+    _notes:      notes,
+    _coverImage: inscribePendingCover || null,
+    _isCustom:   true
+  }
+  customTomes.push(localTome)
+  BOOKS.push(localTome)
+
+  // Register in userBooks as owned by default
+  userBooks[localTome.id] = {owned: true, read: false, wishlisted: false, bindings: []}
+  await saveBook(localTome.id, userBooks[localTome.id], null)
+
+  updateStats()
+  populateSubjects()
+  closeInscribeModal()
+  renderGrid()
+  showToast('Tome inscribed to your archive, Marshal.')
+}
+
+// Load user's custom tomes from Supabase
+async function loadCustomTomes(){
+  // Fetch: approved/promoted (all users) + pending/rejected (own only)
+  // We do this with an OR filter: status in approved/promoted OR user_id = me
+  const {data, error} = await supabase
+    .from('custom_tomes')
+    .select('*')
+    .order('created_at', {ascending: true})
+  if(error){ console.error('loadCustomTomes:', error); return }
+
+  customTomes = data || []
+  for(const t of customTomes){
+    // Only show pending/rejected to the creator
+    if((t.status === 'pending' || t.status === 'rejected') && t.user_id !== currentUser.id) continue
+    // Don't add duplicates
+    if(BOOKS.find(b => b.id === 'custom-' + t.id)) continue
+
+    const isPromoted = t.status === 'promoted'
+    const local = {
+      id:          'custom-' + t.id,
+      _customId:   t.id,
+      title:       t.title,
+      author:      t.author || 'Unknown',
+      year:        t.year,
+      type:        t.type,
+      subject:     t.subject,
+      _notes:      t.notes,
+      _coverImage: t.cover_image,
+      _isCustom:   !isPromoted,   // promoted tomes look like catalogue entries
+      _status:     t.status,
+      _ownerId:    t.user_id
+    }
+    BOOKS.push(local)
+
+    // Populate globalBooks with cover/notes so modal works
+    if(t.cover_image || t.notes){
+      globalBooks[local.id] = {
+        cover_image: t.cover_image || null,
+        summary:     t.notes       || '',
+        db_id:       null
+      }
+    }
+  }
+}
+
+
+Object.assign(window, {approveCustomTome, rejectCustomTome})
+
+async function approveCustomTome(ci, promote){
+  const pendingCustom = customTomes.filter(t => t.status === 'pending')
+  const t = pendingCustom[ci]
+  if(!t) return
+
+  const newStatus = promote ? 'promoted' : 'approved'
+
+  const {error} = await supabase
+    .from('custom_tomes')
+    .update({status: newStatus, approved_by: currentUser.id, approved_at: new Date().toISOString()})
+    .eq('id', t._customId)
+
+  if(error){ console.error(error); showToast('Failed to update tome status.'); return }
+
+  // Update local
+  const bookEntry = BOOKS.find(b => b.id === t.id)
+  if(bookEntry){
+    bookEntry._isCustom = !promote   // promoted = no custom badge
+    bookEntry._status   = newStatus
+  }
+  const ct = customTomes.find(x => x._customId === t._customId)
+  if(ct) ct.status = newStatus
+
+  // Update badge count
+  const stillPendingCustom = customTomes.filter(x => x.status === 'pending')
+  const totalPending = pendingSubmissions.length + stillPendingCustom.length
+  const badge = document.getElementById('subBadge')
+  const count = document.getElementById('subCount')
+  badge.classList.toggle('hidden', totalPending === 0)
+  count.textContent = totalPending
+
+  renderGrid()
+  renderReviewList()
+  showToast(promote ? 'Tome promoted to the main catalogue!' : 'Tome approved — now visible to all users.')
+}
+
+async function rejectCustomTome(ci){
+  const pendingCustom = customTomes.filter(t => t.status === 'pending')
+  const t = pendingCustom[ci]
+  if(!t) return
+
+  const {error} = await supabase
+    .from('custom_tomes')
+    .update({status: 'rejected'})
+    .eq('id', t._customId)
+
+  if(error){ console.error(error); showToast('Failed to reject tome.'); return }
+
+  const ct = customTomes.find(x => x._customId === t._customId)
+  if(ct) ct.status = 'rejected'
+
+  // Remove from BOOKS if not the owner
+  if(t._ownerId !== currentUser.id){
+    const idx = BOOKS.findIndex(b => b.id === t.id)
+    if(idx >= 0) BOOKS.splice(idx, 1)
+  }
+
+  const stillPendingCustom = customTomes.filter(x => x.status === 'pending')
+  const totalPending = pendingSubmissions.length + stillPendingCustom.length
+  const badge = document.getElementById('subBadge')
+  const count = document.getElementById('subCount')
+  badge.classList.toggle('hidden', totalPending === 0)
+  count.textContent = totalPending
+
+  renderGrid()
+  renderReviewList()
+  showToast('Custom tome rejected.')
 }
 
 </script>
@@ -2366,6 +2691,152 @@ function showToast(msg){
     </div>
     <div class="review-list" id="reviewList">
       <div class="review-empty">No pending submissions.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ INSCRIBE TOME MODAL ═══════════════════════════════════ -->
+<div class="modal-overlay" id="inscribeModal" style="display:none;" onclick="closeInscribeBg(event)">
+  <div class="modal-panel" style="max-width:680px;height:auto;max-height:92vh;" onclick="event.stopPropagation()">
+    <span class="modal-corner mc-tl"></span><span class="modal-corner mc-tr"></span>
+    <span class="modal-corner mc-bl"></span><span class="modal-corner mc-br"></span>
+
+    <div class="modal-top">
+      <span style="font-family:'Cinzel',serif;font-size:.82rem;letter-spacing:.16em;
+        text-transform:uppercase;color:var(--gold-bright)">✦ Inscribe Tome</span>
+      <div class="modal-ctrl">
+        <button class="modal-close-btn" onclick="closeInscribeModal()">&#10005;</button>
+      </div>
+    </div>
+
+    <div class="modal-body" style="flex-direction:column;overflow-y:auto;gap:.4rem">
+
+      <!-- cover + core fields row -->
+      <div style="display:flex;gap:1.2rem;align-items:flex-start">
+
+        <!-- cover -->
+        <div style="flex-shrink:0;display:flex;flex-direction:column;gap:.5rem">
+          <div class="modal-cover" id="inscribeCoverWrap" style="width:130px">
+            <img class="modal-cover-img" id="inscribeCoverImg" alt=""/>
+            <div class="modal-cover-ph">
+              <span class="mcp-aquila">&#9869;</span>
+              <span class="mcp-text">Upload Cover</span>
+            </div>
+          </div>
+          <button class="modal-upload-btn" onclick="document.getElementById('inscribeFileInput').click()">
+            &#8593; Upload Cover
+          </button>
+          <input type="file" id="inscribeFileInput" accept="image/*" style="display:none"
+            onchange="handleInscribeCover(this)"/>
+        </div>
+
+        <!-- fields -->
+        <div style="flex:1;min-width:0">
+          <div class="inscribe-field">
+            <label class="inscribe-label">Title *</label>
+            <input class="inscribe-input" id="itTitle" placeholder="e.g. The Renegade's Oath" />
+          </div>
+          <div class="inscribe-field">
+            <label class="inscribe-label">Author</label>
+            <input class="inscribe-input" id="itAuthor" placeholder="e.g. Dan Abnett" />
+          </div>
+          <div class="inscribe-row">
+            <div class="inscribe-field">
+              <label class="inscribe-label">Year</label>
+              <input class="inscribe-input" id="itYear" type="number" placeholder="2024" min="1990" max="2030"/>
+            </div>
+            <div class="inscribe-field">
+              <label class="inscribe-label">Tome Classification</label>
+              <select class="inscribe-select" id="itType">
+                <option value="Novel">Novel</option>
+                <option value="Novella">Novella</option>
+                <option value="Anthology">Anthology</option>
+                <option value="Omnibus">Omnibus</option>
+                <option value="Audio Drama">Audio Drama</option>
+                <option value="eBook">eBook</option>
+              </select>
+            </div>
+          </div>
+          <div class="inscribe-field">
+            <label class="inscribe-label">Subject / Series</label>
+            <select class="inscribe-select" id="itSubject">
+              <option value="Standalone">Standalone</option>
+              <option value="Adepta Sororitas">Adepta Sororitas</option>
+              <option value="Adeptus Mechanicus">Adeptus Mechanicus</option>
+              <option value="Ahriman">Ahriman</option>
+              <option value="Alpha Legion">Alpha Legion</option>
+              <option value="Astra Militarum">Astra Militarum</option>
+              <option value="Bequin">Bequin</option>
+              <option value="Black Legion">Black Legion</option>
+              <option value="Black Templars">Black Templars</option>
+              <option value="Blackstone Fortress">Blackstone Fortress</option>
+              <option value="Blood Angels">Blood Angels</option>
+              <option value="Carcharodons">Carcharodons</option>
+              <option value="Ciaphas Cain">Ciaphas Cain</option>
+              <option value="Dark Angels">Dark Angels</option>
+              <option value="Dark Imperium">Dark Imperium</option>
+              <option value="Dawn of Fire">Dawn of Fire</option>
+              <option value="Dawn of War">Dawn of War</option>
+              <option value="Death Guard">Death Guard</option>
+              <option value="Deathwatch">Deathwatch</option>
+              <option value="Drukhari">Drukhari</option>
+              <option value="Eisenhorn">Eisenhorn</option>
+              <option value="Eldar Path">Eldar Path</option>
+              <option value="Gaunt's Ghosts">Gaunt's Ghosts</option>
+              <option value="Genestealer Cults">Genestealer Cults</option>
+              <option value="Grey Knights">Grey Knights</option>
+              <option value="Horus Heresy">Horus Heresy</option>
+              <option value="Inquisition">Inquisition</option>
+              <option value="Iron Hands">Iron Hands</option>
+              <option value="Iron Warriors">Iron Warriors</option>
+              <option value="Last Chancers">Last Chancers</option>
+              <option value="League of Votann">League of Votann</option>
+              <option value="Macharian Crusade">Macharian Crusade</option>
+              <option value="Mephiston">Mephiston</option>
+              <option value="Necromunda">Necromunda</option>
+              <option value="Necrons">Necrons</option>
+              <option value="Night Lords">Night Lords</option>
+              <option value="Orks">Orks</option>
+              <option value="Primarchs">Primarchs</option>
+              <option value="Raven Guard">Raven Guard</option>
+              <option value="Ravenor">Ravenor</option>
+              <option value="Rogue Trader">Rogue Trader</option>
+              <option value="Salamanders">Salamanders</option>
+              <option value="Scythes of the Emperor">Scythes of the Emperor</option>
+              <option value="Shira Calpurnia">Shira Calpurnia</option>
+              <option value="Siege of Terra">Siege of Terra</option>
+              <option value="Soul Drinkers">Soul Drinkers</option>
+              <option value="Space Marine Legends">Space Marine Legends</option>
+              <option value="Space Marines Battles">Space Marines Battles</option>
+              <option value="Space Wolf">Space Wolf</option>
+              <option value="Standalone">Standalone</option>
+              <option value="Tau">Tau</option>
+              <option value="The Beast Arises">The Beast Arises</option>
+              <option value="Ultramarines">Ultramarines</option>
+              <option value="Vaults of Terra">Vaults of Terra</option>
+              <option value="Watchers of the Throne">Watchers of the Throne</option>
+              <option value="White Scars">White Scars</option>
+              <option value="Word Bearers">Word Bearers</option>
+              <option value="Yarrick">Yarrick</option>
+              <option value="Ynnari">Ynnari</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- notes -->
+      <div class="inscribe-field" style="margin-top:.4rem">
+        <label class="inscribe-label">Notes / Summary</label>
+        <textarea class="inscribe-textarea" id="itNotes"
+          placeholder="Add your own notes, synopsis, or thoughts on this tome…"></textarea>
+      </div>
+
+      <div id="inscribeMsg" style="display:none;font-size:.85rem;padding:.5rem .8rem;
+        border-radius:var(--radius);margin-bottom:.4rem"></div>
+
+      <button class="inscribe-submit" id="inscribeSubmitBtn" onclick="saveInscribedTome()">
+        ✦ Inscribe to Your Archive
+      </button>
     </div>
   </div>
 </div>
