@@ -508,13 +508,13 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 // ── ADMIN CONFIG ─────────────────────────────────────────────────────────
 // Replace with your Supabase user ID. Find it:
 // Supabase → Authentication → Users → click your email → copy UUID
-const ADMIN_USER_ID = 'YOUR-ADMIN-USER-ID-HERE'
+const sb_publishable_MZpvQ3ySRm8l_saadAeKFw_GAKYPPa6 = 'YOUR-ADMIN-USER-ID-HERE'
 
 // Global book data (covers + summaries) — loaded once, shared by all users
 let globalBooks = {}   // { book_id: { cover_image, summary } }
 
 function isAdmin(){
-  return currentUser && currentUser.id === ADMIN_USER_ID
+  return currentUser && currentUser.id === sb_publishable_MZpvQ3ySRm8l_saadAeKFw_GAKYPPa6
 }
 
 // Card click handlers — use integer index into BOOKS array
