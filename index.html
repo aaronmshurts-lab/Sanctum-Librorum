@@ -604,7 +604,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 // ── ADMIN CONFIG ─────────────────────────────────────────────────────────
 // Replace with your Supabase user ID. Find it:
 // Supabase → Authentication → Users → click your email → copy UUID
-const ADMIN_USER_ID = 'YOUR-ADMIN-USER-ID-HERE'
+const ADMIN_USER_ID = '4e172dbd-4716-4fcb-9773-d2c7c0b00706'
 
 // Global book data (covers + summaries) — loaded once, shared by all users
 let globalBooks = {}   // { book_id: { cover_image, summary } }
@@ -1790,18 +1790,19 @@ function applyEditMode(on){
   if(saveBtn) saveBtn.textContent = isAdmin() ? 'Save Changes' : 'Submit for Review'
   // Summary toggle
   document.getElementById('mSummaryView').classList.toggle('hidden',on)
-  // Show/hide editable metadata fields (admin + custom tome only)
+  // Show/hide editable metadata fields
+  // Available when: book is a custom tome (creator or admin can edit metadata)
   const b = BOOKS.find(x=>x.id===modalBookId)
-  const canEditMeta = isAdmin() && b && b._isCustom !== undefined  // any book admin can edit meta if custom
-  const isCustom = b && b._customId
+  const isCustomTome = b && !!b._customId
+  const canEditMeta = isCustomTome && on
   document.querySelectorAll('.modal-edit-field').forEach(el => {
-    el.style.display = (on && isAdmin()) ? '' : 'none'
+    el.style.display = canEditMeta ? '' : 'none'
   })
-  // In view mode show static fields; in edit mode hide them
+  // In edit mode hide static labels; in view mode show them
   const staticFields = ['mTitle','mAuthor','mYear','mFormat','mSubject']
   staticFields.forEach(id => {
     const el = document.getElementById(id)
-    if(el) el.style.display = (on && isAdmin()) ? 'none' : ''
+    if(el) el.style.display = canEditMeta ? 'none' : ''
   })
   document.getElementById('rteWrap').classList.toggle('visible',on)
   if(on){
@@ -1892,7 +1893,7 @@ async function saveModalEdits(){
 
   // Save metadata edits if this is a custom tome and admin
   const bk = BOOKS.find(x=>x.id===modalBookId)
-  if(bk && bk._customId && isAdmin()){
+  if(bk && bk._customId){
     const newTitle   = (document.getElementById('mTitleEdit').value   || '').trim()
     const newAuthor  = (document.getElementById('mAuthorEdit').value  || '').trim()
     const newYear    = parseInt(document.getElementById('mYearEdit').value)   || bk.year
