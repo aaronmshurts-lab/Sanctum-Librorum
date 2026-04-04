@@ -392,6 +392,60 @@
     .t-Tyranids{background:rgba(120,40,160,.15);border-color:rgba(160,60,200,.4);color:#d080ff}
     .t-WhiteScars{background:rgba(220,220,220,.12);border-color:rgba(200,200,200,.4);color:#e8e8e8}
     .t-Ynnari{background:rgba(160,80,180,.15);border-color:rgba(180,100,200,.4);color:#d0a0e8}
+  
+    /* ── SUBMISSIONS ─────────────────────────────────────────── */
+    .sub-badge{position:relative;display:inline-flex;align-items:center;
+      gap:.35rem;padding:.35rem .85rem;background:none;border:1px solid var(--gold);
+      color:var(--gold-bright);font-family:'Cinzel',serif;font-size:.58rem;
+      letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
+      border-radius:2px;transition:all .15s}
+    .sub-badge:hover{background:var(--gold-dim)}
+    .sub-badge.hidden{display:none}
+    .sub-count{background:var(--gold);color:#0a0808;font-weight:700;
+      font-size:.55rem;padding:.1rem .35rem;border-radius:10px;
+      font-family:'Cinzel',serif;min-width:16px;text-align:center}
+
+    /* review panel overlay */
+    .review-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);
+      z-index:600;display:flex;align-items:center;justify-content:center;
+      padding:1.5rem;backdrop-filter:blur(4px)}
+    .review-panel{background:var(--surface);border:1px solid var(--border-gold);
+      width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;
+      box-shadow:0 0 80px rgba(232,201,106,.08)}
+    .review-header{display:flex;align-items:center;justify-content:space-between;
+      padding:.9rem 1.2rem;border-bottom:1px solid var(--border);flex-shrink:0}
+    .review-header h2{font-family:'Cinzel',serif;font-size:.9rem;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--gold-bright)}
+    .review-close{width:30px;height:30px;border:1px solid #3a3650;background:none;
+      color:#b8b2ac;cursor:pointer;border-radius:2px;font-size:.9rem;
+      display:flex;align-items:center;justify-content:center}
+    .review-close:hover{border-color:#c85050;color:#f09090}
+    .review-list{flex:1;overflow-y:auto;padding:.8rem}
+    .review-item{background:var(--card);border:1px solid var(--border);
+      margin-bottom:.8rem;padding:1rem;display:flex;gap:1rem}
+    .review-cover{width:80px;flex-shrink:0;aspect-ratio:2/3;background:#0a0a14;
+      border:1px solid var(--border);overflow:hidden;display:flex;
+      align-items:center;justify-content:center}
+    .review-cover img{width:100%;height:100%;object-fit:contain}
+    .review-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:.4rem}
+    .review-title{font-family:'Cinzel',serif;font-size:.88rem;color:var(--gold-bright)}
+    .review-meta{font-size:.78rem;color:var(--text-muted);font-style:italic}
+    .review-summary{font-size:.88rem;color:#cec8be;line-height:1.6;
+      max-height:100px;overflow-y:auto;border-top:1px solid var(--border);
+      padding-top:.4rem;margin-top:.2rem}
+    .review-actions{display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap}
+    .btn-approve{padding:.38rem .9rem;background:rgba(61,139,110,.2);
+      border:1px solid var(--owned);color:#6dcfa6;font-family:'Cinzel',serif;
+      font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;
+      border-radius:2px;transition:all .15s}
+    .btn-approve:hover{background:rgba(61,139,110,.35)}
+    .btn-reject{padding:.38rem .9rem;background:rgba(180,60,60,.12);
+      border:1px solid rgba(180,60,60,.4);color:#e07070;font-family:'Cinzel',serif;
+      font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;
+      border-radius:2px;transition:all .15s}
+    .btn-reject:hover{background:rgba(180,60,60,.25)}
+    .review-empty{text-align:center;padding:3rem;color:var(--text-muted);
+      font-style:italic}
   </style>
 </head>
 <body>
@@ -439,6 +493,7 @@
       <span class="h-sub">&middot; Black Library Complete Catalogue</span>
     </div>
     <div class="h-right">
+      <button class="sub-badge hidden" id="subBadge" onclick="openReviewPanel()">&#128236; Submissions <span class="sub-count" id="subCount">0</span></button>
       <span class="h-email" id="hEmail"></span>
       <button class="btn-logout" onclick="doLogout()">Abandon Post</button>
     </div>
@@ -508,13 +563,13 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 // ── ADMIN CONFIG ─────────────────────────────────────────────────────────
 // Replace with your Supabase user ID. Find it:
 // Supabase → Authentication → Users → click your email → copy UUID
-const sb_publishable_MZpvQ3ySRm8l_saadAeKFw_GAKYPPa6 = 'YOUR-ADMIN-USER-ID-HERE'
+const ADMIN_USER_ID = 'YOUR-ADMIN-USER-ID-HERE'
 
 // Global book data (covers + summaries) — loaded once, shared by all users
 let globalBooks = {}   // { book_id: { cover_image, summary } }
 
 function isAdmin(){
-  return currentUser && currentUser.id === sb_publishable_MZpvQ3ySRm8l_saadAeKFw_GAKYPPa6
+  return currentUser && currentUser.id === ADMIN_USER_ID
 }
 
 // Card click handlers — use integer index into BOOKS array
@@ -1538,6 +1593,7 @@ async function showApp(user){
   document.getElementById('hEmail').textContent=user.email
   document.getElementById('grid').innerHTML='<div class="loading"><div class="spinner"></div><p>Loading your archive…</p></div>'
   await Promise.all([loadGlobalBooks(), loadUserBooks()])
+  await loadSubmissions()
   populateSubjects()
   updateStats()
   renderGrid()
@@ -1593,8 +1649,8 @@ function openModal(bookId){
   // Cover — from global store
   refreshModalCover(gb.cover_image || null)
 
-  // Show/hide edit button based on admin status
-  document.getElementById('modalEditBtn').style.display = isAdmin() ? '' : 'none'
+  // Edit button always visible (save is still admin-protected)
+  document.getElementById('modalEditBtn').style.display = ''
 
   // Status buttons
   refreshModalStatus()
@@ -1672,6 +1728,9 @@ function toggleEditMode(){
 
 function applyEditMode(on){
   modalEditMode=on
+  // Update save button label based on role
+  const saveBtn = document.getElementById('modalSaveBtn')
+  if(saveBtn) saveBtn.textContent = isAdmin() ? 'Save Changes' : 'Submit for Review'
   // Summary toggle
   document.getElementById('mSummaryView').classList.toggle('hidden',on)
   document.getElementById('rteWrap').classList.toggle('visible',on)
@@ -1702,7 +1761,11 @@ function cancelEditMode(){
 }
 
 async function saveModalEdits(){
-  if(!modalBookId || !isAdmin()) return
+  if(!modalBookId) return
+  if(!isAdmin()){
+    await submitForReview()
+    return
+  }
   // Normalize bold formatting before saving
   const rawHTML = document.getElementById('rteEditor').innerHTML
   const tempDiv = document.createElement('div')
@@ -1981,6 +2044,203 @@ function refreshCardBindings(bookId){
   thumb.classList.toggle('ltd-ed', bindings.includes('Limited Edition'))
 }
 
+
+// ════════════════════════════════════════════════════════════════════════
+//  SUBMISSIONS & REVIEW SYSTEM
+// ════════════════════════════════════════════════════════════════════════
+let pendingSubmissions = []
+
+Object.assign(window, {openReviewPanel, closeReviewPanel})
+
+// Called when non-admin clicks "Submit for Review"
+async function submitForReview(){
+  if(!modalBookId) return
+  const rawHTML = document.getElementById('rteEditor').innerHTML
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = rawHTML
+  tempDiv.querySelectorAll('[style*="font-weight"]').forEach(el => {
+    if(el.style.fontWeight === 'bold' || el.style.fontWeight === '700'){
+      const strong = document.createElement('strong')
+      strong.innerHTML = el.innerHTML
+      el.replaceWith(strong)
+    } else { el.style.fontWeight = '' }
+  })
+  const summary = tempDiv.innerHTML.trim()
+  const gb = globalBooks[modalBookId] || {}
+  const coverToSave = pendingCover !== null ? pendingCover : null
+
+  const btn = document.getElementById('modalSaveBtn')
+  btn.disabled = true; btn.textContent = 'Submitting…'
+
+  const {error} = await supabase.from('submissions').insert({
+    book_id:     modalBookId,
+    user_id:     currentUser.id,
+    user_email:  currentUser.email,
+    cover_image: coverToSave,
+    summary:     summary || null,
+    status:      'pending'
+  })
+
+  if(error){
+    console.error('Submission error:', error)
+    btn.disabled = false; btn.textContent = 'Submit for Review'
+    showToast('Submission failed. Please try again.')
+    return
+  }
+
+  pendingCover = null
+  btn.disabled = false; btn.textContent = 'Submit for Review'
+  applyEditMode(false)
+  showToast('Submitted for admin review! Thank you.')
+}
+
+// Load pending submissions (admin only)
+async function loadSubmissions(){
+  if(!isAdmin()) return
+  const {data, error} = await supabase
+    .from('submissions')
+    .select('*')
+    .eq('status','pending')
+    .order('submitted_at', {ascending: true})
+  if(error){ console.error(error); return }
+  pendingSubmissions = data || []
+  const badge = document.getElementById('subBadge')
+  const count = document.getElementById('subCount')
+  badge.classList.toggle('hidden', pendingSubmissions.length === 0)
+  count.textContent = pendingSubmissions.length
+}
+
+function openReviewPanel(){
+  renderReviewList()
+  document.getElementById('reviewOverlay').style.display = 'flex'
+  document.body.style.overflow = 'hidden'
+}
+
+function closeReviewPanel(){
+  document.getElementById('reviewOverlay').style.display = 'none'
+  document.body.style.overflow = ''
+}
+
+function renderReviewList(){
+  const list = document.getElementById('reviewList')
+  if(!pendingSubmissions.length){
+    list.innerHTML = '<div class="review-empty">No pending submissions. The archive is pure.</div>'
+    return
+  }
+  list.innerHTML = pendingSubmissions.map((sub, idx) => {
+    const book = BOOKS.find(b => b.id === sub.book_id)
+    const title = book ? book.title : sub.book_id
+    const author = book ? book.author : ''
+    const coverHtml = sub.cover_image
+      ? '<img src="' + sub.cover_image + '" alt=""/>'
+      : '<span style="color:var(--gold);opacity:.2;font-size:1.5rem">&#9869;</span>'
+    const summaryHtml = sub.summary
+      ? '<div class="review-summary">' + sub.summary + '</div>'
+      : '<div class="review-summary" style="color:var(--text-muted);font-style:italic">No summary submitted.</div>'
+    const hasCover = sub.cover_image ? '' : 'style="opacity:.5"'
+    return '<div class="review-item" id="sub-' + idx + '">'
+      + '<div class="review-cover">' + coverHtml + '</div>'
+      + '<div class="review-info">'
+      +   '<div class="review-title">' + esc(title) + '</div>'
+      +   '<div class="review-meta">by ' + esc(author) + ' &nbsp;&middot;&nbsp; submitted by ' + esc(sub.user_email || 'unknown') + '</div>'
+      + summaryHtml
+      +   '<div class="review-actions">'
+      +     (sub.cover_image ? '<span style="font-size:.72rem;color:var(--gold-bright);font-family:Cinzel,serif;opacity:.8">&#128247; Cover included</span>' : '<span style="font-size:.72rem;color:var(--text-muted);font-style:italic">No cover</span>')
+      +     '<button class="btn-approve" onclick="approveSubmission(' + idx + ')">&#10003; Approve</button>'
+      +     '<button class="btn-reject"  onclick="rejectSubmission(' + idx + ')">&#10005; Reject</button>'
+      +   '</div>'
+      + '</div>'
+      + '</div>'
+  }).join('')
+}
+
+Object.assign(window, {approveSubmission, rejectSubmission})
+
+async function approveSubmission(idx){
+  const sub = pendingSubmissions[idx]
+  if(!sub) return
+
+  const gb  = globalBooks[sub.book_id] || {}
+  const payload = {
+    book_id:     sub.book_id,
+    cover_image: sub.cover_image || gb.cover_image || null,
+    summary:     sub.summary     || gb.summary     || '',
+    updated_at:  new Date().toISOString()
+  }
+  if(gb.db_id) payload.id = gb.db_id
+
+  // Write to books_global
+  const {data: gData, error: gErr} = await supabase
+    .from('books_global')
+    .upsert(payload, {onConflict:'book_id'})
+    .select().single()
+
+  if(gErr){ console.error(gErr); showToast('Approval failed.'); return }
+
+  // Mark submission as approved
+  await supabase.from('submissions').update({
+    status: 'approved',
+    reviewed_at: new Date().toISOString()
+  }).eq('id', sub.id)
+
+  // Update local state
+  globalBooks[sub.book_id] = {
+    db_id: gData.id,
+    cover_image: gData.cover_image || null,
+    summary: gData.summary || ''
+  }
+
+  pendingSubmissions.splice(idx, 1)
+  updateCard(sub.book_id)
+  renderReviewList()
+
+  const badge = document.getElementById('subBadge')
+  const count = document.getElementById('subCount')
+  badge.classList.toggle('hidden', pendingSubmissions.length === 0)
+  count.textContent = pendingSubmissions.length
+
+  showToast('Submission approved and published!')
+}
+
+async function rejectSubmission(idx){
+  const sub = pendingSubmissions[idx]
+  if(!sub) return
+
+  await supabase.from('submissions').update({
+    status: 'rejected',
+    reviewed_at: new Date().toISOString()
+  }).eq('id', sub.id)
+
+  pendingSubmissions.splice(idx, 1)
+  renderReviewList()
+
+  const badge = document.getElementById('subBadge')
+  const count = document.getElementById('subCount')
+  badge.classList.toggle('hidden', pendingSubmissions.length === 0)
+  count.textContent = pendingSubmissions.length
+
+  showToast('Submission rejected.')
+}
+
+// Toast notification
+function showToast(msg){
+  let t = document.getElementById('toastMsg')
+  if(!t){
+    t = document.createElement('div')
+    t.id = 'toastMsg'
+    t.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);' +
+      'background:var(--surface);border:1px solid var(--border-gold);color:var(--gold-bright);' +
+      'font-family:Cinzel,serif;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;' +
+      'padding:.75rem 1.5rem;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5);' +
+      'transition:opacity .4s'
+    document.body.appendChild(t)
+  }
+  t.textContent = msg
+  t.style.opacity = '1'
+  clearTimeout(t._timer)
+  t._timer = setTimeout(() => t.style.opacity = '0', 3000)
+}
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -2091,10 +2351,23 @@ function refreshCardBindings(bookId){
     <!-- save row (edit mode only) -->
     <div class="modal-save-row" id="modalSaveRow">
       <button class="modal-cancel-btn" onclick="cancelEditMode()">Cancel</button>
-      <button class="modal-save-btn" onclick="saveModalEdits()">Save Changes</button>
+      <button class="modal-save-btn" id="modalSaveBtn" onclick="saveModalEdits()">Save Changes</button>
     </div>
   </div>
 </div>
 
+
+<!-- ══ REVIEW PANEL ═══════════════════════════════════════════ -->
+<div class="review-overlay" id="reviewOverlay" style="display:none">
+  <div class="review-panel">
+    <div class="review-header">
+      <h2>&#9998; Pending Submissions</h2>
+      <button class="review-close" onclick="closeReviewPanel()">&#10005;</button>
+    </div>
+    <div class="review-list" id="reviewList">
+      <div class="review-empty">No pending submissions.</div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
