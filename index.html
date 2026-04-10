@@ -658,7 +658,7 @@
       <button class="pill"        data-filter="untracked" onclick="setFilter('untracked')">Untracked</button>
       <div class="ctrl-right">
         <div style="position:relative;display:flex;align-items:center">
-          <input class="srch" type="text" id="srchInput" placeholder="Search title or author&hellip;" oninput="doSearch(this.value)" style="padding-right:1.8rem"/>
+          <input class="srch" type="text" id="srchInput" placeholder="Search title, author or tag…" oninput="doSearch(this.value)" style="padding-right:1.8rem"/>
           <button id="srchClear" onclick="clearSearch()" title="Clear search"
             style="display:none;position:absolute;right:.4rem;background:none;border:none;
             color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
@@ -2080,41 +2080,41 @@ function cancelEditMode(){
 
 async function saveModalEdits(){
   if(!modalBookId) return
-  if(!isAdmin()){
-    await submitForReview()
-    return
-  }
-  // Normalize bold formatting before saving
-  const rawHTML = document.getElementById('rteEditor').innerHTML
-  const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = rawHTML
-  // Convert any inline font-weight styles to <strong> tags
-  tempDiv.querySelectorAll('[style*="font-weight"]').forEach(el => {
-    if(el.style.fontWeight === 'bold' || el.style.fontWeight === '700'){
-      const strong = document.createElement('strong')
-      strong.innerHTML = el.innerHTML
-      el.replaceWith(strong)
-    } else {
-      el.style.fontWeight = ''
-    }
-  })
-  const summary = tempDiv.innerHTML.trim()
-  const gb      = globalBooks[modalBookId] || {}
-  const coverToSave = pendingCover !== null ? pendingCover : (gb.cover_image || null)
+  if(!isAdmin()){ await submitForReview(); return }
 
   const btn = document.getElementById('modalSaveRow').querySelector('.modal-save-btn')
   btn.disabled=true; btn.textContent='Saving…'
 
-  // Save cover + summary to books_global (admin only)
+  const rawHTML = document.getElementById('rteEditor').innerHTML
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = rawHTML
+  tempDiv.querySelectorAll('[style*="font-weight"]').forEach(el => {
+    if(el.style.fontWeight==='bold'||el.style.fontWeight==='700'){
+      const strong=document.createElement('strong'); strong.innerHTML=el.innerHTML; el.replaceWith(strong)
+    } else { el.style.fontWeight='' }
+  })
+  const summary = tempDiv.innerHTML.trim()
   const containedWorks = serializeContainedTags()
+  const gb = globalBooks[modalBookId] || {}
+  const coverToSave = pendingCover !== null ? pendingCover : (gb.cover_image || null)
+
+  // Faction (independent from series) and Tags
+  const factionEl  = document.getElementById('mFactionEdit')
+  const newFaction = factionEl ? factionEl.value.trim() : (gb.faction || '')
+  const tagsEl  = document.getElementById('mTagsEdit')
+  const newTags = tagsEl ? tagsEl.value.trim() : (gb.tags || '')
+
+  // Save to books_global — includes faction and tags as separate fields
   const globalPayload = {
     book_id:         modalBookId,
     cover_image:     coverToSave,
     summary:         summary,
     contained_works: containedWorks || null,
+    faction:         newFaction || null,
+    tags:            newTags    || null,
     updated_at:      new Date().toISOString()
   }
-  if(gb.db_id) globalPayload.id = gb.db_id
+  if(gb.db_id && typeof gb.db_id==='string' && gb.db_id.length>10) globalPayload.id = gb.db_id
 
   const {data:gData, error:gError} = await supabase
     .from('books_global')
@@ -2127,7 +2127,6 @@ async function saveModalEdits(){
     return
   }
 
-  // Update local global store
   globalBooks[modalBookId] = {
     db_id:           gData.id,
     cover_image:     gData.cover_image     || null,
@@ -2136,80 +2135,87 @@ async function saveModalEdits(){
     faction:         gData.faction         || '',
     tags:            gData.tags            || ''
   }
-  // Refresh displayed faction and tags
-  document.getElementById('mSubject').textContent = gData.faction || '—'
-  const mTagsView = document.getElementById('mTagsView')
-  if(mTagsView) mTagsView.textContent = gData.tags || ''
   pendingCover = null
 
-  // Refresh display
   document.getElementById('mSummaryView').innerHTML = summary ||
     '<em style="color:var(--text-muted);font-style:italic">No summary added yet.</em>'
   refreshModalCover(gData.cover_image)
-  // Refresh contained works view
+
+  // Faction display — mSubject shows faction, NEVER the series/subject
+  const mSubjectEl = document.getElementById('mSubject')
+  if(mSubjectEl) mSubjectEl.textContent = gData.faction || '—'
+
+  // Tags display with clickable chips
+  const mTagsView = document.getElementById('mTagsView')
+  if(mTagsView){
+    const savedTags = gData.tags || ''
+    if(savedTags){
+      const chips = savedTags.split(',').map(t=>t.trim()).filter(Boolean)
+        .map(t=>'<span class="tag-chip" onclick="doSearch(\'' + esc(t) + '\')">' + esc(t) + '</span>')
+        .join('')
+      mTagsView.innerHTML = chips
+    } else {
+      mTagsView.innerHTML = '<em style="opacity:.4">No tags</em>'
+    }
+  }
+
+  // Contained works view
   const cvEl = document.getElementById('mContainedView')
   if(cvEl){
     cvEl.innerHTML = containedTags.length
-      ? '<ul>' + containedTags.map(t=>'<li>' + esc(t.title) + '</li>').join('') + '</ul>'
+      ? '<ul>' + containedTags.map(t=>'<li>'+esc(t.title)+'</li>').join('') + '</ul>'
       : '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet.</em>'
   }
 
-  // Save metadata edits if this is a custom tome and admin
+  // Metadata: Series/Title/Author/Year/Type (series = mSubjectEdit, NOT faction)
   const bk = BOOKS.find(x=>x.id===modalBookId)
-  if(bk && isAdmin()){
+  if(bk){
     const newTitle   = (document.getElementById('mTitleEdit').value   || '').trim()
     const newAuthor  = (document.getElementById('mAuthorEdit').value  || '').trim()
-    const newYear    = parseInt(document.getElementById('mYearEdit').value)   || bk.year
-    const newType    = document.getElementById('mTypeEdit').value    || bk.type
-    // Subject can be edited via Series field OR Faction field — faction takes precedence if changed
+    const newYear    = parseInt(document.getElementById('mYearEdit').value) || bk.year
+    const newType    = document.getElementById('mTypeEdit').value || bk.type
     const newSubject = (document.getElementById('mSubjectEdit').value || '').trim() || bk.subject
-    const newFaction = (document.getElementById('mFactionEdit') ? (document.getElementById('mFactionEdit').value || '').trim() : '')
 
-    if(newTitle){
-      const metaPayload = {}
-      if(newTitle   !== bk.title)   metaPayload.title   = newTitle
-      if(newAuthor  !== bk.author)  metaPayload.author  = newAuthor
-      if(newYear    !== bk.year)    metaPayload.year    = newYear
-      if(newType    !== bk.type)    metaPayload.type    = newType
-      if(newSubject !== bk.subject) metaPayload.subject = newSubject
+    const metaPayload = {}
+    if(newTitle   && newTitle   !== bk.title)   metaPayload.title   = newTitle
+    if(newAuthor  && newAuthor  !== bk.author)  metaPayload.author  = newAuthor
+    if(newYear    && newYear    !== bk.year)    metaPayload.year    = newYear
+    if(newType    && newType    !== bk.type)    metaPayload.type    = newType
+    if(newSubject && newSubject !== bk.subject) metaPayload.subject = newSubject
 
-      if(Object.keys(metaPayload).length > 0){
-        if(bk._customId){
-          await supabase.from('custom_tomes').update(metaPayload).eq('id', bk._customId)
-        } else {
-          // Catalogue book — store metadata overrides in books_global
-          const gbEntry = globalBooks[bk.id] || {}
-          const overridePayload = {
-            book_id: bk.id,
-            cover_image:     gbEntry.cover_image     || null,
-            summary:         gbEntry.summary         || '',
-            contained_works: gbEntry.contained_works || null,
-            title_override:   metaPayload.title   || null,
-            author_override:  metaPayload.author  || null,
-            year_override:    metaPayload.year    || null,
-            type_override:    metaPayload.type    || null,
-            subject_override: metaPayload.subject || null,
-            updated_at: new Date().toISOString()
-          }
-          if(gbEntry.db_id) overridePayload.id = gbEntry.db_id
-          const {data:ovData} = await supabase.from('books_global')
-            .upsert(overridePayload, {onConflict:'book_id'}).select().single()
-          if(ovData){
-            globalBooks[bk.id] = {...globalBooks[bk.id], ...ovData}
-          }
+    if(Object.keys(metaPayload).length > 0){
+      if(bk._customId){
+        await supabase.from('custom_tomes').update(metaPayload).eq('id', bk._customId)
+      } else {
+        const gbEntry = globalBooks[bk.id] || {}
+        const overridePayload = {
+          book_id:          bk.id,
+          cover_image:      gbEntry.cover_image     || null,
+          summary:          gbEntry.summary         || '',
+          contained_works:  gbEntry.contained_works || null,
+          faction:          gbEntry.faction         || null,
+          tags:             gbEntry.tags            || null,
+          title_override:   metaPayload.title       || null,
+          author_override:  metaPayload.author      || null,
+          year_override:    metaPayload.year        || null,
+          type_override:    metaPayload.type        || null,
+          subject_override: metaPayload.subject     || null,
+          updated_at:       new Date().toISOString()
         }
-        // Update local BOOKS entry
-        Object.assign(bk, metaPayload)
-        // Refresh static display fields
-        document.getElementById('mTitle').textContent   = bk.title
-        document.getElementById('mAuthor').textContent  = bk.author
-        document.getElementById('mYear').textContent    = bk.year
-        document.getElementById('mSubject').textContent = bk.subject
-        const mSEl = document.getElementById('mSeries')
-        if(mSEl) mSEl.textContent = bk.subject || 'Standalone'
-        document.getElementById('mSubject').textContent = bk.subject || 'Standalone'
-        document.getElementById('mFormat').innerHTML    = '<span class="tbadge t-' + bk.type.replace(' ','') + '">' + bk.type + '</span>'
+        if(gbEntry.db_id && typeof gbEntry.db_id==='string') overridePayload.id = gbEntry.db_id
+        const {data:ovData} = await supabase.from('books_global')
+          .upsert(overridePayload,{onConflict:'book_id'}).select().single()
+        if(ovData) globalBooks[bk.id] = {...globalBooks[bk.id], ...ovData}
       }
+      Object.assign(bk, metaPayload)
+      // Refresh Series/Title/Author/Year/Format — mSubject left alone (shows faction)
+      document.getElementById('mTitle').textContent  = bk.title
+      document.getElementById('mAuthor').textContent = bk.author
+      document.getElementById('mYear').textContent   = bk.year
+      const mSeriesEl = document.getElementById('mSeries')
+      if(mSeriesEl) mSeriesEl.textContent = bk.subject || 'Standalone'
+      document.getElementById('mFormat').innerHTML =
+        '<span class="tbadge t-'+bk.type.replace(' ','')+'">' + bk.type + '</span>'
     }
   }
 
@@ -2217,6 +2223,7 @@ async function saveModalEdits(){
   applyEditMode(false)
   updateCard(modalBookId)
 }
+
 
 async function handleCoverUpload(input){
   const file=input.files[0]
