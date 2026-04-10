@@ -109,6 +109,7 @@
     .pill[data-type="Omnibus"].active{background:rgba(200,140,50,.15);border-color:#c88c32;color:#f0c070}
     .pill[data-type="Audio Drama"].active{background:rgba(200,80,80,.15);border-color:#c85050;color:#f0a0a0}
     .pill[data-type="eBook"].active{background:rgba(80,160,180,.15);border-color:#50a0b4;color:#90dcf0}
+    .pill[data-type="Short Story"].active{background:rgba(180,130,60,.15);border-color:#b48232;color:#f0c870}
     .pill[data-type="Series"].active{background:rgba(180,150,50,.18);border-color:#b49632;color:#f0d070}
     .ctrl-right{margin-left:auto;display:flex;gap:.5rem}
     .srch{padding:.38rem .82rem;background:var(--surface);border:1px solid var(--border);color:var(--text);
@@ -353,6 +354,7 @@
     .card-format.t-AudioDrama{background:rgba(200,80,80,.15);border-color:rgba(200,80,80,.4);color:#f0a0a0}
     .card-format.t-eBook{background:rgba(80,160,180,.15);border-color:rgba(80,160,180,.4);color:#90dcf0}
     .card-format.t-Series{background:rgba(180,150,50,.18);border-color:rgba(180,150,50,.4);color:#f0d070}
+    .card-format.t-ShortStory{background:rgba(180,130,60,.15);border-color:rgba(180,130,60,.4);color:#f0c870}
   
     /* ── BINDINGS ──────────────────────────────────────────── */
     .bindings-section{margin-top:.5rem}
@@ -529,6 +531,28 @@
     .t-WarhammerHorror{background:rgba(80,20,20,.18);border-color:rgba(140,40,40,.45);color:#d08080}
   
     .t-HorusHeresyTheScouring{background:rgba(180,120,40,.15);border-color:rgba(220,160,60,.4);color:#f0c870}
+  
+    /* ── BINDING QUICK-SELECT MINI MODAL ─────────────────────── */
+    .binding-quick{position:fixed;z-index:400;background:var(--surface);
+      border:1px solid var(--border-gold);padding:.9rem 1rem 1rem;
+      box-shadow:0 8px 32px rgba(0,0,0,.7);min-width:220px;
+      animation:fadeIn .12s ease}
+    .binding-quick-title{font-family:'Cinzel',serif;font-size:.62rem;
+      letter-spacing:.16em;text-transform:uppercase;color:var(--gold);
+      margin-bottom:.55rem;display:block}
+    .binding-quick-pills{display:flex;flex-wrap:wrap;gap:.25rem}
+    .binding-quick-pill{padding:.22rem .5rem;border:1px solid #3a3650;
+      background:none;color:#9a94a2;font-family:'Cinzel',serif;font-size:.52rem;
+      letter-spacing:.07em;text-transform:uppercase;cursor:pointer;
+      border-radius:2px;transition:all .15s;white-space:nowrap}
+    .binding-quick-pill:hover{border-color:rgba(232,201,106,.4);color:#cec8be}
+    .binding-quick-pill.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-bright)}
+    .binding-quick-pill.ltd.active{box-shadow:0 0 6px rgba(232,201,106,.4)}
+    .binding-quick-close{margin-top:.6rem;width:100%;padding:.3rem;
+      background:none;border:1px solid #3a3650;color:#9a94a2;
+      font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.1em;
+      text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .15s}
+    .binding-quick-close:hover{border-color:#666;color:var(--text)}
   </style>
 </head>
 <body>
@@ -624,6 +648,7 @@
       <button class="pill"        data-type="Omnibus"     onclick="setType('Omnibus')">Omnibus</button>
       <button class="pill"        data-type="Audio Drama" onclick="setType('Audio Drama')">Audio Drama</button>
       <button class="pill"        data-type="eBook"       onclick="setType('eBook')">eBOOK ONLY</button>
+      <button class="pill"        data-type="Short Story" onclick="setType('Short Story')">Short Story</button>
       <div class="ctrl-right">
         <div style="display:flex;align-items:center;gap:.35rem">
           <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)">
@@ -671,7 +696,20 @@ function isAdmin(){
 // Plain integers need NO quoting in onclick attributes
 const FIELDS = ['owned','read','wishlisted']
 window.OC = function(n){ if(BOOKS[n]) openModal(BOOKS[n].id) }
-window.SC = function(n,f){ if(BOOKS[n]) toggleStatus(BOOKS[n].id, FIELDS[f]) }
+window.SC = function(n,f,el){
+  if(!BOOKS[n]) return
+  const bookId = BOOKS[n].id
+  const ub = userBooks[bookId] || {}
+  // If marking Owned ON → show binding quick-select
+  if(f===0 && !ub.owned){
+    toggleStatus(bookId, 'owned')
+    if(el) setTimeout(()=>openBQ(bookId, el), 80)
+  } else {
+    toggleStatus(bookId, FIELDS[f])
+    // If un-owning, close BQ if open
+    if(f===0) closeBQ()
+  }
+}
 
 // ════════════════════════════════════════════════════════════
 //  CATALOGUE  (453 entries)
@@ -1728,7 +1766,7 @@ function renderCard(b){
     +   '</div>'
     + '</div>'
     + '<div class="c-actions">'
-    +   '<button class="sbtn' + owned + '" onclick="event.stopPropagation();SC(' + idx + ',0)">' + oIcon + '&nbsp;Owned</button>'
+    +   '<button class="sbtn' + owned + '" onclick="event.stopPropagation();SC(' + idx + ',0,this)">' + oIcon + '&nbsp;Owned</button>'
     +   '<button class="sbtn' + read  + '" onclick="event.stopPropagation();SC(' + idx + ',1)">' + rIcon + '&nbsp;Read</button>'
     +   '<button class="sbtn' + wish  + '" onclick="event.stopPropagation();SC(' + idx + ',2)">' + wIcon + '&nbsp;Want</button>'
     + '</div>'
@@ -1813,6 +1851,11 @@ function openModal(bookId){
   modalEditMode = false
   pendingCover  = null
   containedTags = []  // clear previous modal's tags
+  // Also reset the tag input UI immediately
+  const tagWrap = document.getElementById('containedTagWrap')
+  if(tagWrap){ const inp = tagWrap.querySelector('.tag-input-field'); tagWrap.querySelectorAll('.tag-pill').forEach(p=>p.remove()); if(inp) inp.value='' }
+  const acList = document.getElementById('containedAcList')
+  if(acList) acList.style.display = 'none'
   const b  = BOOKS.find(x=>x.id===bookId)
   const ub = userBooks[bookId]||{}
   if(!b) return
@@ -1869,7 +1912,7 @@ function openModal(bookId){
   if(typeEdit)    typeEdit.value    = b.type    || 'Novel'
   if(subjectEdit) subjectEdit.value = b.subject || ''
   const factionEdit = document.getElementById('mFactionEdit')
-  if(factionEdit) factionEdit.value = b.subject || ''
+  if(factionEdit) factionEdit.value = ''  // leave blank; user fills if they want faction override
 
   // Edit button always visible (save is still admin-protected)
   document.getElementById('modalEditBtn').style.display = ''
@@ -1908,16 +1951,8 @@ function closeModal(){
 }
 
 function closeModalBg(e){
-  if(e.target!==document.getElementById('bookModal')) return
-  if(modalEditMode){
-    const cur=document.getElementById('rteEditor').innerHTML
-    const saved=globalBooks[modalBookId]?.summary||''
-    if(pendingCover!==null||cur!==saved){
-      if(!confirm('You have unsaved changes. Discard them and close?')) return
-    }
-    cancelEditMode()
-  }
-  closeModal()
+  // Do nothing — modal only closes via Save, Cancel, or X button
+  return
 }
 
 function refreshModalCover(src){
@@ -2082,9 +2117,8 @@ async function saveModalEdits(){
     // Subject can be edited via Series field OR Faction field — faction takes precedence if changed
     const subjectFromSeries  = (document.getElementById('mSubjectEdit').value  || '').trim()
     const subjectFromFaction = (document.getElementById('mFactionEdit') ? (document.getElementById('mFactionEdit').value || '').trim() : '')
-    const newSubject = (subjectFromFaction && subjectFromFaction !== bk.subject)
-      ? subjectFromFaction
-      : (subjectFromSeries || bk.subject)
+    // Faction overrides Series only if explicitly filled in; Series used otherwise
+    const newSubject = subjectFromFaction || subjectFromSeries || bk.subject
 
     if(newTitle){
       const metaPayload = {}
@@ -2318,16 +2352,21 @@ async function toggleBinding(binding){
     ? current.filter(b => b !== binding)
     : [...current, binding]
 
+  // If adding a binding and not yet owned → auto-mark owned
+  const addingBinding = idx < 0  // idx < 0 means we're adding (not removing)
+  const newOwned = (addingBinding && !ub.owned) ? true : ub.owned
+
   // Optimistic update
-  userBooks[modalBookId] = {...ub, bindings: updated}
+  userBooks[modalBookId] = {...ub, bindings: updated, owned: newOwned}
   refreshBindingPills(updated)
   refreshCardBindings(modalBookId)
+  if(newOwned && !ub.owned) refreshModalStatus()
 
   // Save to DB
   const payload = {
     user_id:    currentUser.id,
     book_id:    modalBookId,
-    owned:      ub.owned,
+    owned:      newOwned,
     read:       ub.read,
     wishlisted: ub.wishlisted,
     bindings:   updated
@@ -3077,6 +3116,84 @@ document.addEventListener('click', function(e){
   }
 })
 
+
+// ── BINDING QUICK-SELECT MINI MODAL ──────────────────────────────────────
+const BINDING_TYPES = ['Hardcover','Paperback','eBook','Audio Book','Graphic Novel','Limited Edition','In Omnibus']
+let bqBookId = null
+
+Object.assign(window, {openBQ, closeBQ, toggleBQ})
+
+function openBQ(bookId, anchorEl){
+  bqBookId = bookId
+  const ub = userBooks[bookId] || {}
+  const active = ub.bindings || []
+
+  // Render pills
+  const pills = document.getElementById('bqPills')
+  pills.innerHTML = BINDING_TYPES.map(b => {
+    const isActive = active.includes(b)
+    const isLtd = b === 'Limited Edition'
+    return '<button class="binding-quick-pill' + (isLtd?' ltd':'') + (isActive?' active':'') + '"'
+      + ' onclick="toggleBQ(\'' + b + '\')">' + b + '</button>'
+  }).join('')
+
+  // Position near the Owned button
+  const rect = anchorEl.getBoundingClientRect()
+  const bq = document.getElementById('bindingQuick')
+  bq.style.display = ''
+  // Position below the card, aligned left
+  const top = Math.min(rect.bottom + 6, window.innerHeight - 200)
+  const left = Math.min(rect.left, window.innerWidth - 240)
+  bq.style.top  = top + 'px'
+  bq.style.left = left + 'px'
+  bq.style.position = 'fixed'
+}
+
+function closeBQ(){
+  document.getElementById('bindingQuick').style.display = 'none'
+  bqBookId = null
+}
+
+async function toggleBQ(binding){
+  if(!bqBookId) return
+  const ub = userBooks[bqBookId] || {owned:true,read:false,wishlisted:false,bindings:[]}
+  const current = ub.bindings || []
+  const idx = current.indexOf(binding)
+  const updated = idx >= 0 ? current.filter(b=>b!==binding) : [...current, binding]
+
+  // Adding a binding → ensure owned
+  const newOwned = (idx < 0) ? true : ub.owned
+  userBooks[bqBookId] = {...ub, bindings: updated, owned: newOwned}
+  refreshCardBindings(bqBookId)
+  updateCard(bqBookId)
+  updateStats()
+
+  // Re-render pills
+  const pills = document.getElementById('bqPills')
+  pills.innerHTML = BINDING_TYPES.map(b => {
+    const isActive = updated.includes(b)
+    const isLtd = b === 'Limited Edition'
+    return '<button class="binding-quick-pill' + (isLtd?' ltd':'') + (isActive?' active':'') + '"'
+      + ' onclick="toggleBQ(\'' + b + '\')">' + b + '</button>'
+  }).join('')
+
+  // Save
+  const payload = {user_id:currentUser.id, book_id:bqBookId, owned:newOwned,
+    read:ub.read, wishlisted:ub.wishlisted, bindings:updated}
+  if(ub.db_id) payload.id = ub.db_id
+  const {data,error} = await supabase.from('user_books')
+    .upsert(payload,{onConflict:'user_id,book_id'}).select().single()
+  if(!error&&data) userBooks[bqBookId].db_id = data.id
+}
+
+// Close BQ on outside click
+document.addEventListener('click', function(e){
+  const bq = document.getElementById('bindingQuick')
+  if(bq && bq.style.display !== 'none' && !bq.contains(e.target)){
+    closeBQ()
+  }
+})
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -3143,6 +3260,7 @@ document.addEventListener('click', function(e){
               <option value="Omnibus">Omnibus</option>
               <option value="Audio Drama">Audio Drama</option>
               <option value="eBook">eBook</option>
+              <option value="Short Story">Short Story</option>
             </select>
           </div>
         </div>
@@ -3388,6 +3506,13 @@ document.addEventListener('click', function(e){
       </button>
     </div>
   </div>
+</div>
+
+<!-- ══ BINDING QUICK-SELECT ══════════════════════════════════════ -->
+<div id="bindingQuick" class="binding-quick" style="display:none" onclick="event.stopPropagation()">
+  <span class="binding-quick-title">&#128214; Binding Type</span>
+  <div class="binding-quick-pills" id="bqPills"></div>
+  <button class="binding-quick-close" onclick="closeBQ()">Done</button>
 </div>
 </body>
 </html>
