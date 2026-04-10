@@ -533,10 +533,13 @@
     .t-HorusHeresyTheScouring{background:rgba(180,120,40,.15);border-color:rgba(220,160,60,.4);color:#f0c870}
   
     /* ── BINDING QUICK-SELECT MINI MODAL ─────────────────────── */
+    .bq-overlay{position:fixed;inset:0;z-index:399;background:rgba(0,0,0,.45)}
     .binding-quick{position:fixed;z-index:400;background:var(--surface);
-      border:1px solid var(--border-gold);padding:.9rem 1rem 1rem;
-      box-shadow:0 8px 32px rgba(0,0,0,.7);min-width:220px;
-      animation:fadeIn .12s ease}
+      border:1px solid var(--border-gold);padding:1.2rem 1.4rem 1.2rem;
+      box-shadow:0 0 60px rgba(232,201,106,.1),0 20px 50px rgba(0,0,0,.7);
+      width:320px;
+      top:50%;left:50%;transform:translate(-50%,-50%);
+      animation:slideUp .15s ease}
     .binding-quick-title{font-family:'Cinzel',serif;font-size:.62rem;
       letter-spacing:.16em;text-transform:uppercase;color:var(--gold);
       margin-bottom:.55rem;display:block}
@@ -553,6 +556,30 @@
       font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.1em;
       text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .15s}
     .binding-quick-close:hover{border-color:#666;color:var(--text)}
+  
+    /* ── TAGS ────────────────────────────────────────────────── */
+    .tags-footer{padding:.7rem 1.2rem;border-top:1px solid var(--border);
+      display:flex;align-items:baseline;gap:.6rem;flex-shrink:0;flex-wrap:wrap}
+    .tags-label{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.16em;
+      text-transform:uppercase;color:var(--gold);opacity:.7;white-space:nowrap;
+      flex-shrink:0}
+    .tags-view{font-size:.82rem;color:var(--text-muted);font-style:italic;
+      flex:1;line-height:1.5}
+    .tags-view .tag-chip{display:inline-block;background:rgba(232,201,106,.08);
+      border:1px solid rgba(232,201,106,.22);color:#c8b870;font-family:'Cinzel',serif;
+      font-size:.5rem;letter-spacing:.07em;text-transform:uppercase;
+      padding:.1rem .4rem;border-radius:2px;margin:.1rem .15rem;cursor:pointer;
+      transition:background .15s}
+    .tags-view .tag-chip:hover{background:rgba(232,201,106,.18)}
+    .tags-edit{display:none;flex:1}
+    .tags-edit.visible{display:block}
+    .tags-input{width:100%;background:var(--bg);border:1px solid var(--border);
+      color:var(--text);font-family:'EB Garamond',serif;font-size:.88rem;
+      padding:.3rem .6rem;outline:none;border-radius:var(--radius);
+      transition:border-color .2s}
+    .tags-input:focus{border-color:rgba(232,201,106,.5)}
+    .tags-hint{font-size:.72rem;color:var(--text-muted);font-style:italic;
+      margin-top:.2rem}
   </style>
 </head>
 <body>
@@ -1516,6 +1543,8 @@ async function loadGlobalBooks(){
       cover_image:     r.cover_image     || null,
       summary:         r.summary         || '',
       contained_works: r.contained_works || '',
+      faction:         r.faction         || '',
+      tags:            r.tags            || '',
       title_override:   r.title_override  || null,
       author_override:  r.author_override || null,
       year_override:    r.year_override   || null,
@@ -1675,7 +1704,11 @@ function getFiltered(){
     if(activeSubject!=='all'      && b.subject!==activeSubject)          return false
     if(searchQuery){
       const q=searchQuery.toLowerCase()
-      if(!b.title.toLowerCase().includes(q)&&!b.author.toLowerCase().includes(q)) return false
+      const tags=(globalBooks[b.id]||{}).tags||''
+      const inTitle  = b.title.toLowerCase().includes(q)
+      const inAuthor = b.author.toLowerCase().includes(q)
+      const inTags   = tags.toLowerCase().includes(q)
+      if(!inTitle && !inAuthor && !inTags) return false
     }
     return true
   })
@@ -1697,6 +1730,8 @@ function setType(t){
 
 function doSearch(v){
   searchQuery=v
+  const inp = document.getElementById('srchInput')
+  if(inp && v) inp.value = v
   const clr = document.getElementById('srchClear')
   if(clr) clr.style.display = v ? '' : 'none'
   renderGrid()
@@ -1864,10 +1899,11 @@ function openModal(bookId){
   document.getElementById('mTitle').textContent   = b.title
   document.getElementById('mAuthor').textContent  = b.author
   document.getElementById('mYear').textContent    = b.year
-  // Series label (same as subject — serves as series identifier)
+  // Series = b.subject (series grouper), Faction = separate field from globalBooks
   const mSeriesEl = document.getElementById('mSeries')
   if(mSeriesEl) mSeriesEl.textContent = b.subject || 'Standalone'
-  document.getElementById('mSubject').textContent = b.subject || 'Standalone'
+  const gbForFaction = globalBooks[bookId] || {}
+  document.getElementById('mSubject').textContent = gbForFaction.faction || '—'
   document.getElementById('mFormat').innerHTML    = `<span class="tbadge t-${b.type.replace(' ','')}">${b.type}</span>`
   document.getElementById('modalCoverPhTitle').textContent = b.title
 
@@ -1912,7 +1948,7 @@ function openModal(bookId){
   if(typeEdit)    typeEdit.value    = b.type    || 'Novel'
   if(subjectEdit) subjectEdit.value = b.subject || ''
   const factionEdit = document.getElementById('mFactionEdit')
-  if(factionEdit) factionEdit.value = ''  // leave blank; user fills if they want faction override
+  if(factionEdit) factionEdit.value = (globalBooks[bookId] || {}).faction || ''
 
   // Edit button always visible (save is still admin-protected)
   document.getElementById('modalEditBtn').style.display = ''
@@ -2020,6 +2056,11 @@ function applyEditMode(on){
   }
   // Upload button
   document.getElementById('modalUploadArea').classList.toggle('visible',on)
+  // Tags edit input
+  const tagsEditWrap = document.getElementById('mTagsEditWrap')
+  const tagsViewEl   = document.getElementById('mTagsView')
+  if(tagsEditWrap) tagsEditWrap.classList.toggle('visible', on && isAdmin())
+  if(tagsViewEl)   tagsViewEl.style.display = (on && isAdmin()) ? 'none' : ''
   // Edit button highlight
   document.getElementById('modalEditBtn').classList.toggle('active',on)
   // Save row
@@ -2091,8 +2132,14 @@ async function saveModalEdits(){
     db_id:           gData.id,
     cover_image:     gData.cover_image     || null,
     summary:         gData.summary         || '',
-    contained_works: gData.contained_works || ''
+    contained_works: gData.contained_works || '',
+    faction:         gData.faction         || '',
+    tags:            gData.tags            || ''
   }
+  // Refresh displayed faction and tags
+  document.getElementById('mSubject').textContent = gData.faction || '—'
+  const mTagsView = document.getElementById('mTagsView')
+  if(mTagsView) mTagsView.textContent = gData.tags || ''
   pendingCover = null
 
   // Refresh display
@@ -2115,10 +2162,8 @@ async function saveModalEdits(){
     const newYear    = parseInt(document.getElementById('mYearEdit').value)   || bk.year
     const newType    = document.getElementById('mTypeEdit').value    || bk.type
     // Subject can be edited via Series field OR Faction field — faction takes precedence if changed
-    const subjectFromSeries  = (document.getElementById('mSubjectEdit').value  || '').trim()
-    const subjectFromFaction = (document.getElementById('mFactionEdit') ? (document.getElementById('mFactionEdit').value || '').trim() : '')
-    // Faction overrides Series only if explicitly filled in; Series used otherwise
-    const newSubject = subjectFromFaction || subjectFromSeries || bk.subject
+    const newSubject = (document.getElementById('mSubjectEdit').value || '').trim() || bk.subject
+    const newFaction = (document.getElementById('mFactionEdit') ? (document.getElementById('mFactionEdit').value || '').trim() : '')
 
     if(newTitle){
       const metaPayload = {}
@@ -3137,20 +3182,17 @@ function openBQ(bookId, anchorEl){
       + ' onclick="toggleBQ(\'' + b + '\')">' + b + '</button>'
   }).join('')
 
-  // Position near the Owned button
-  const rect = anchorEl.getBoundingClientRect()
+  // Show centered
   const bq = document.getElementById('bindingQuick')
   bq.style.display = ''
-  // Position below the card, aligned left
-  const top = Math.min(rect.bottom + 6, window.innerHeight - 200)
-  const left = Math.min(rect.left, window.innerWidth - 240)
-  bq.style.top  = top + 'px'
-  bq.style.left = left + 'px'
-  bq.style.position = 'fixed'
+  const overlay = document.getElementById('bqOverlay')
+  if(overlay) overlay.style.display = ''
 }
 
 function closeBQ(){
   document.getElementById('bindingQuick').style.display = 'none'
+  const overlay = document.getElementById('bqOverlay')
+  if(overlay) overlay.style.display = 'none'
   bqBookId = null
 }
 
@@ -3186,13 +3228,7 @@ async function toggleBQ(binding){
   if(!error&&data) userBooks[bqBookId].db_id = data.id
 }
 
-// Close BQ on outside click
-document.addEventListener('click', function(e){
-  const bq = document.getElementById('bindingQuick')
-  if(bq && bq.style.display !== 'none' && !bq.contains(e.target)){
-    closeBQ()
-  }
-})
+// BQ closes via overlay click or Done button
 
 </script>
 
@@ -3344,6 +3380,15 @@ document.addEventListener('click', function(e){
     <div class="modal-save-row" id="modalSaveRow">
       <button class="modal-cancel-btn" onclick="cancelEditMode()">Cancel</button>
       <button class="modal-save-btn" id="modalSaveBtn" onclick="saveModalEdits()">Save Changes</button>
+    </div>
+    <!-- tags footer — always visible -->
+    <div class="tags-footer" id="tagsFooter">
+      <span class="tags-label">&#127991; Tags</span>
+      <div class="tags-view" id="mTagsView"><em style="opacity:.4">No tags</em></div>
+      <div class="tags-edit" id="mTagsEditWrap">
+        <input class="tags-input" id="mTagsEdit" placeholder="adepta sororitas, faith, saint, celestine…"/>
+        <div class="tags-hint">Comma-separated · searchable across all books</div>
+      </div>
     </div>
   </div>
 </div>
@@ -3509,6 +3554,7 @@ document.addEventListener('click', function(e){
 </div>
 
 <!-- ══ BINDING QUICK-SELECT ══════════════════════════════════════ -->
+<div id="bqOverlay" class="bq-overlay" style="display:none" onclick="closeBQ()"></div>
 <div id="bindingQuick" class="binding-quick" style="display:none" onclick="event.stopPropagation()">
   <span class="binding-quick-title">&#128214; Binding Type</span>
   <div class="binding-quick-pills" id="bqPills"></div>
