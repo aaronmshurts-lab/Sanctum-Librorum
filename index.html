@@ -1584,6 +1584,7 @@ async function loadGlobalBooks(){
       contained_works: r.contained_works || '',
       faction:         r.faction         || '',
       tags:            r.tags            || '',
+      series_position: r.series_position  || null,
       title_override:   r.title_override  || null,
       author_override:  r.author_override || null,
       year_override:    r.year_override   || null,
@@ -2047,6 +2048,11 @@ function openModal(bookId){
   if(subjectEdit) subjectEdit.value = b.subject || ''
   const factionEdit = document.getElementById('mFactionEdit')
   if(factionEdit) factionEdit.value = (globalBooks[bookId] || {}).faction || ''
+  const bookNoEl = document.getElementById('mBookNo')
+  const bookNoEdit = document.getElementById('mBookNoEdit')
+  const gbBookNo = (globalBooks[bookId] || {}).series_position || ''
+  if(bookNoEl) bookNoEl.textContent = gbBookNo ? '#' + gbBookNo : '—'
+  if(bookNoEdit) bookNoEdit.value = gbBookNo
 
   // Edit button always visible (save is still admin-protected)
   document.getElementById('modalEditBtn').style.display = ''
@@ -2082,6 +2088,13 @@ function closeModal(){
   document.getElementById('bookModal').style.display='none'
   document.body.style.overflow=''
   modalBookId=null
+
+  // Return to parent modal if opened from contained works
+  if(modalReturnId){
+    const returnTo = modalReturnId
+    modalReturnId = null
+    setTimeout(() => openModal(returnTo), 120)
+  }
 }
 
 function closeModalBg(e){
@@ -2224,6 +2237,8 @@ async function saveModalEdits(){
   const newTags = tagsEl ? tagsEl.value.trim() : (gb.tags || '')
 
   // Save to books_global — includes faction and tags as separate fields
+  const bookNoEditEl = document.getElementById('mBookNoEdit')
+  const newBookNo = bookNoEditEl ? (parseInt(bookNoEditEl.value) || null) : null
   const globalPayload = {
     book_id:         modalBookId,
     cover_image:     coverToSave,
@@ -2232,6 +2247,7 @@ async function saveModalEdits(){
     contained_works: containedWorks || null,
     faction:         newFaction || null,
     tags:            newTags    || null,
+    series_position: newBookNo,
     updated_at:      new Date().toISOString()
   }
   if(gb.db_id && typeof gb.db_id==='string' && gb.db_id.length>10) globalPayload.id = gb.db_id
@@ -2254,7 +2270,8 @@ async function saveModalEdits(){
     spoiler:         gData.spoiler         || '',
     contained_works: gData.contained_works || '',
     faction:         gData.faction         || '',
-    tags:            gData.tags            || ''
+    tags:            gData.tags            || '',
+    series_position: gData.series_position  || null
   }
   pendingCover = null
 
@@ -2265,6 +2282,9 @@ async function saveModalEdits(){
   // Faction display — mSubject shows faction, NEVER the series/subject
   const mSubjectEl = document.getElementById('mSubject')
   if(mSubjectEl) mSubjectEl.textContent = gData.faction || '—'
+  // Book number
+  const mBookNoDisp = document.getElementById('mBookNo')
+  if(mBookNoDisp) mBookNoDisp.textContent = gData.series_position ? '#' + gData.series_position : '—'
 
   // Refresh spoiler view
   const mSpoilerView = document.getElementById('mSpoilerView')
@@ -3522,6 +3542,17 @@ function rteCmdS(cmd){
 }
 
 
+
+// ── MODAL RETURN (contained works jump) ──────────────────────────────────
+let modalReturnId = null
+
+function openModalFromContained(targetId, returnId){
+  modalReturnId = returnId
+  closeModal()
+  setTimeout(() => openModal(targetId), 130)
+}
+Object.assign(window, {openModalFromContained})
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -3593,10 +3624,16 @@ function rteCmdS(cmd){
           </div>
         </div>
         <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
-          <div class="mfield">
+          <div class="mfield" style="flex:2">
             <span class="mfield-label">Series</span>
             <div class="mfield-val meta" id="mSeries"></div>
             <input class="inscribe-input modal-edit-field" id="mSubjectEdit" style="display:none" placeholder="Series"/>
+          </div>
+          <div class="mfield" style="flex:1;min-width:70px">
+            <span class="mfield-label">Book #</span>
+            <div class="mfield-val meta" id="mBookNo"></div>
+            <input class="inscribe-input modal-edit-field" id="mBookNoEdit" type="number" min="1"
+              style="display:none;width:70px" placeholder="#"/>
           </div>
           <div class="mfield">
             <span class="mfield-label">Faction / Subject</span>
