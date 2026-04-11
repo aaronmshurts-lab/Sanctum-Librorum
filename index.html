@@ -606,6 +606,15 @@
     .spoiler-content.revealed{display:block}
     .rte-wrap-spoiler{display:none;border-top:none}
     .rte-wrap-spoiler.visible{display:flex;flex-direction:column;flex:1;min-height:0}
+  
+    /* contained works clickable links */
+    #mContainedView ul li .contained-link{
+      color:var(--gold-bright);cursor:pointer;font-family:'Cinzel',serif;
+      font-size:.78rem;letter-spacing:.04em;transition:color .15s;
+      display:inline-flex;align-items:baseline;gap:.3rem}
+    #mContainedView ul li .contained-link:hover{color:var(--gold);text-decoration:underline;text-underline-offset:3px}
+    #mContainedView ul li .contained-link-arrow{font-size:.65rem;opacity:.6}
+    #mContainedView ul li::before{content:'❧ ';color:var(--gold);opacity:.5;font-size:.8rem}
   </style>
 </head>
 <body>
@@ -2001,16 +2010,24 @@ function openModal(bookId){
   const containedView    = document.getElementById('mContainedView')
   const containedEdit    = document.getElementById('mContainedEdit')
   if(containedSection){
-    // Show for Omnibus in view mode; always show for admin in edit mode
-    const showContained = (b.type === 'Omnibus') || isAdmin()
-    containedSection.style.display = showContained ? '' : 'none'
-    // Load tags
+    // Load tags first so we know if there's anything to show
     loadContainedTags(bookId)
-    // Render view list from tags
-    const works = (globalBooks[bookId]||{}).contained_works || ''
+    // Show if: has contained works (any book), OR admin (can edit)
+    const hasContained = containedTags.length > 0
+    const showContained = hasContained || isAdmin()
+    containedSection.style.display = showContained ? '' : 'none'
+    // Render view list — each title is a clickable link to that book's modal
     let viewHtml = ''
     if(containedTags.length){
-      viewHtml = '<ul>' + containedTags.map(t=>'<li>' + esc(t.title) + '</li>').join('') + '</ul>'
+      viewHtml = '<ul>' + containedTags.map(t => {
+        const target = BOOKS.find(bk => bk.id === t.id)
+        const clickable = !!target
+        return '<li>' + (clickable
+          ? '<span class="contained-link" onclick="closeModal();setTimeout(()=>openModal(\'' + t.id + '\'),120)" title="Open ' + esc(t.title) + '">'
+            + esc(t.title) + ' <span class="contained-link-arrow">&#8599;</span></span>'
+          : esc(t.title))
+        + '</li>'
+      }).join('') + '</ul>'
     } else {
       viewHtml = '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet.</em>'
     }
@@ -2278,9 +2295,17 @@ async function saveModalEdits(){
   // Contained works view
   const cvEl = document.getElementById('mContainedView')
   if(cvEl){
-    cvEl.innerHTML = containedTags.length
-      ? '<ul>' + containedTags.map(t=>'<li>'+esc(t.title)+'</li>').join('') + '</ul>'
-      : '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet.</em>'
+    if(containedTags.length){
+      cvEl.innerHTML = '<ul>' + containedTags.map(t => {
+        const target = BOOKS.find(bk => bk.id === t.id)
+        return '<li>' + (target
+          ? '<span class="contained-link" onclick="closeModal();setTimeout(()=>openModal(\'' + t.id + '\'),120)" title="Open ' + esc(t.title) + '">'
+            + esc(t.title) + ' <span class="contained-link-arrow">&#8599;</span></span>'
+          : esc(t.title)) + '</li>'
+      }).join('') + '</ul>'
+    } else {
+      cvEl.innerHTML = '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet.</em>'
+    }
   }
 
   // Metadata: Series/Title/Author/Year/Type (series = mSubjectEdit, NOT faction)
