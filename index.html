@@ -615,6 +615,10 @@
     #mContainedView ul li .contained-link:hover{color:var(--gold);text-decoration:underline;text-underline-offset:3px}
     #mContainedView ul li .contained-link-arrow{font-size:.65rem;opacity:.6}
     #mContainedView ul li::before{content:'❧ ';color:var(--gold);opacity:.5;font-size:.8rem}
+  
+    .card-book-no{display:block;font-family:'Cinzel',serif;font-size:.52rem;
+      letter-spacing:.1em;text-transform:uppercase;color:var(--gold);
+      opacity:.65;margin-bottom:.1rem}
   </style>
 </head>
 <body>
@@ -1832,7 +1836,7 @@ function renderCard(b){
     +     '<div class="card-subject">' + esc(b.subject) + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
     +     '<div class="card-format t-' + tc + '">' + esc(b.type) + '</div>'
     +     '<div style="flex:1;min-height:.4rem"></div>'
-    +     '<div class="c-title">' + esc(b.title) + '</div>'
+    +     '<div class="c-title">' + (gb2.series_position ? '<span class="card-book-no">Book #' + gb2.series_position + '</span>' : '') + esc(b.title) + '</div>'
     +     '<div class="c-meta">' + esc(b.author) + ' &middot; ' + b.year + '</div>'
     +     cascade
     +   '</div>'
@@ -3559,14 +3563,13 @@ function openModalFromContained(targetId, returnId){
   modalBookId = null
   setTimeout(() => openModal(targetId), 120)
 }
-Object.assign(window, {openModalFromContained, closeAndReturn})
+Object.assign(window, {openModalFromContained, closeAndReturn, smartClose})
 
 
 function smartClose(){
   if(modalReturnId) closeAndReturn()
   else closeModal()
 }
-Object.assign(window, {smartClose})
 
 </script>
 
@@ -3645,11 +3648,13 @@ Object.assign(window, {smartClose})
               <div class="mfield-val meta" id="mSeries"></div>
               <input class="inscribe-input modal-edit-field" id="mSubjectEdit" style="display:none;width:100%" placeholder="Series"/>
             </div>
-            <div class="mfield" style="flex:0 0 72px">
-              <span class="mfield-label">Book #</span>
-              <div class="mfield-val meta" id="mBookNo"></div>
-              <input class="inscribe-input modal-edit-field" id="mBookNoEdit" type="number" min="1"
-                style="display:none;width:68px;text-align:center" placeholder="#"/>
+            <div class="mfield" style="flex:0 0 64px">
+              <span class="mfield-label" style="display:block;margin-bottom:.3rem">Book #</span>
+              <div class="mfield-val meta" id="mBookNo" style="text-align:center"></div>
+              <input class="inscribe-input modal-edit-field" id="mBookNoEdit"
+                type="text" inputmode="numeric" pattern="[0-9]*"
+                style="display:none;width:56px;text-align:center;padding:.35rem .4rem"
+                placeholder="#"/>
             </div>
           </div>
           <div class="mfield">
@@ -3759,7 +3764,7 @@ Object.assign(window, {smartClose})
 
     <!-- save row (edit mode only) -->
     <div class="modal-save-row" id="modalSaveRow">
-      <button class="modal-cancel-btn" onclick="cancelEditMode();setTimeout(smartClose,50)">Cancel</button>
+      <button class="modal-cancel-btn" onclick="cancelEditMode();smartClose()">Cancel</button>
       <button class="modal-save-btn" id="modalSaveBtn" onclick="saveModalEdits()">Save Changes</button>
     </div>
     <!-- tags footer — always visible -->
