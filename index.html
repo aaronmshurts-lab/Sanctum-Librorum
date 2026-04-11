@@ -1824,7 +1824,7 @@ function renderCard(b){
   const coverHtml = gb2.cover_image
     ? '<img src="' + gb2.cover_image + '" alt="" style="width:100%;height:100%;object-fit:contain"/>'
     : '<span class="ct-ph">&#9869;</span>'
-  const cascade = b.type === 'Omnibus'
+  const cascade = b.type === 'Omnibus' || b.type === 'Anthology'
     ? '<div class="cascade-note">&#8627; Owned/Read updates included titles</div>' : ''
   return '<div class="card" id="card-' + esc(b.id) + '" onclick="OC(' + idx + ')">'
     + '<div class="card-body">'
@@ -2089,12 +2089,16 @@ function closeModal(){
   document.body.style.overflow=''
   modalBookId=null
 
-  // Return to parent modal if opened from contained works
-  if(modalReturnId){
-    const returnTo = modalReturnId
-    modalReturnId = null
-    setTimeout(() => openModal(returnTo), 120)
-  }
+  // modalReturnId is consumed by closeAndReturn(), not auto-triggered here
+}
+
+function closeAndReturn(){
+  const returnTo = modalReturnId
+  modalReturnId = null
+  document.getElementById('bookModal').style.display='none'
+  document.body.style.overflow=''
+  modalBookId=null
+  if(returnTo) setTimeout(() => openModal(returnTo), 120)
 }
 
 function closeModalBg(e){
@@ -2156,7 +2160,7 @@ function applyEditMode(on){
   })
   // Contained works section — show in edit mode for admin (omnibus or not)
   const containedSection = document.getElementById('mContainedSection')
-  if(containedSection && isAdmin()) containedSection.style.display = on ? '' : (b && b.type==='Omnibus' ? '' : 'none')
+  if(containedSection && isAdmin()) containedSection.style.display = on ? '' : (b && (b.type==='Omnibus'||b.type==='Anthology') ? '' : 'none')
   // Hide view panels in edit mode (RTE takes their place flush under tabs)
   const panelSum = document.getElementById('panelSummary')
   const panelSpo = document.getElementById('panelSpoiler')
@@ -2383,6 +2387,7 @@ async function saveModalEdits(){
   btn.disabled=false; btn.textContent='Save Changes'
   applyEditMode(false)
   updateCard(modalBookId)
+  if(modalReturnId) setTimeout(closeAndReturn, 200)
 }
 
 
@@ -3548,10 +3553,20 @@ let modalReturnId = null
 
 function openModalFromContained(targetId, returnId){
   modalReturnId = returnId
-  closeModal()
-  setTimeout(() => openModal(targetId), 130)
+  // Close current modal without triggering auto-return
+  document.getElementById('bookModal').style.display='none'
+  document.body.style.overflow=''
+  modalBookId = null
+  setTimeout(() => openModal(targetId), 120)
 }
-Object.assign(window, {openModalFromContained})
+Object.assign(window, {openModalFromContained, closeAndReturn})
+
+
+function smartClose(){
+  if(modalReturnId) closeAndReturn()
+  else closeModal()
+}
+Object.assign(window, {smartClose})
 
 </script>
 
@@ -3571,7 +3586,7 @@ Object.assign(window, {openModalFromContained})
       <div class="modal-ctrl">
         <button class="modal-edit-btn" id="modalEditBtn" title="Edit" onclick="toggleEditMode()">&#9998;</button>
         <button class="modal-edit-btn" id="modalDeleteBtn" title="Delete Entry" style="display:none;border-color:rgba(180,60,60,.4);color:#e07070" onclick="deleteCustomTome()">&#128465;</button>
-        <button class="modal-close-btn" title="Close" onclick="closeModal()">&#10005;</button>
+        <button class="modal-close-btn" title="Close" onclick="smartClose()">&#10005;</button>
       </div>
     </div>
 
@@ -3624,16 +3639,18 @@ Object.assign(window, {openModalFromContained})
           </div>
         </div>
         <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
-          <div class="mfield" style="flex:2">
-            <span class="mfield-label">Series</span>
-            <div class="mfield-val meta" id="mSeries"></div>
-            <input class="inscribe-input modal-edit-field" id="mSubjectEdit" style="display:none" placeholder="Series"/>
-          </div>
-          <div class="mfield" style="flex:1;min-width:70px">
-            <span class="mfield-label">Book #</span>
-            <div class="mfield-val meta" id="mBookNo"></div>
-            <input class="inscribe-input modal-edit-field" id="mBookNoEdit" type="number" min="1"
-              style="display:none;width:70px" placeholder="#"/>
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div class="mfield" style="flex:3;min-width:0">
+              <span class="mfield-label">Series</span>
+              <div class="mfield-val meta" id="mSeries"></div>
+              <input class="inscribe-input modal-edit-field" id="mSubjectEdit" style="display:none;width:100%" placeholder="Series"/>
+            </div>
+            <div class="mfield" style="flex:0 0 72px">
+              <span class="mfield-label">Book #</span>
+              <div class="mfield-val meta" id="mBookNo"></div>
+              <input class="inscribe-input modal-edit-field" id="mBookNoEdit" type="number" min="1"
+                style="display:none;width:68px;text-align:center" placeholder="#"/>
+            </div>
           </div>
           <div class="mfield">
             <span class="mfield-label">Faction / Subject</span>
@@ -3742,7 +3759,7 @@ Object.assign(window, {openModalFromContained})
 
     <!-- save row (edit mode only) -->
     <div class="modal-save-row" id="modalSaveRow">
-      <button class="modal-cancel-btn" onclick="cancelEditMode()">Cancel</button>
+      <button class="modal-cancel-btn" onclick="cancelEditMode();setTimeout(smartClose,50)">Cancel</button>
       <button class="modal-save-btn" id="modalSaveBtn" onclick="saveModalEdits()">Save Changes</button>
     </div>
     <!-- tags footer — always visible -->
