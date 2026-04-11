@@ -685,6 +685,9 @@
             style="display:none;padding:.32rem .5rem;background:none;border:1px solid #3a3650;
             border-radius:2px;color:var(--text-muted);cursor:pointer;font-size:.75rem;
             transition:all .15s;white-space:nowrap">&#10005;</button>
+          <button id="manageSubjectsBtn" onclick="openManageSubjects()" title="Manage Subjects (Admin)"
+            style="display:none;padding:.32rem .5rem;background:none;border:1px solid var(--border-gold);
+            border-radius:2px;color:var(--gold);cursor:pointer;font-size:.75rem">&#9881;</button>
         </div>
       </div>
     </div>
@@ -1145,19 +1148,19 @@ const BOOKS = [
   {id:'rt-03',title:'Rites of Passage',subject:'Rogue Trader',type:'Novel',author:'Mike Brooks',year:2019},
   {id:'rt-04',title:'Void King',subject:'Rogue Trader',type:'Novel',author:'Marc Collins',year:2023},
   {id:'rta-01',title:'Corsair: The Face of the Void',subject:'Rogue Trader',type:'Audio Drama',author:'James Swallow',year:2018},
-  {id:'smb-01',title:'Rynn\'s World',subject:'Space Marines Battles',type:'Novel',author:'Steve Parker',year:2010},
-  {id:'smb-02',title:'The Hunt for Voldorius',subject:'Space Marines Battles',type:'Novel',author:'Andy Hoare',year:2010},
-  {id:'smb-03',title:'The Fall of Damnos',subject:'Space Marines Battles',type:'Novel',author:'Nick Kyme',year:2011},
-  {id:'smb-04',title:'Battle of the Fang',subject:'Space Marines Battles',type:'Novel',author:'Chris Wraight',year:2011},
-  {id:'smb-05',title:'The Purging of Kadillus',subject:'Space Marines Battles',type:'Novel',author:'Gav Thorpe',year:2011},
-  {id:'smb-06',title:'The Gildar Rift',subject:'Space Marines Battles',type:'Novel',author:'Sarah Cawkwell',year:2011},
-  {id:'smb-07',title:'Legion of the Damned',subject:'Space Marines Battles',type:'Novel',author:'Rob Sanders',year:2012},
-  {id:'smb-08',title:'Wrath of Iron',subject:'Space Marines Battles',type:'Novel',author:'Chris Wraight',year:2012},
-  {id:'smb-09',title:'The Death of Antagonis',subject:'Space Marines Battles',type:'Novel',author:'David Annandale',year:2013},
-  {id:'smb-10',title:'The Death of Integrity',subject:'Space Marines Battles',type:'Novel',author:'Guy Haley',year:2013},
-  {id:'smb-11',title:'Malodrax',subject:'Space Marines Battles',type:'Novel',author:'Ben Counter',year:2014},
-  {id:'smb-12',title:'Blades of Damocles',subject:'Space Marines Battles',type:'Novel',author:'Phil Kelly',year:2016},
-  {id:'smb-13',title:'Calgar\'s Siege',subject:'Space Marines Battles',type:'Novel',author:'Paul Kearney',year:2016},
+  {id:'smb-01',title:'Rynn\'s World',subject:'Space Marine Battles',type:'Novel',author:'Steve Parker',year:2010},
+  {id:'smb-02',title:'The Hunt for Voldorius',subject:'Space Marine Battles',type:'Novel',author:'Andy Hoare',year:2010},
+  {id:'smb-03',title:'The Fall of Damnos',subject:'Space Marine Battles',type:'Novel',author:'Nick Kyme',year:2011},
+  {id:'smb-04',title:'Battle of the Fang',subject:'Space Marine Battles',type:'Novel',author:'Chris Wraight',year:2011},
+  {id:'smb-05',title:'The Purging of Kadillus',subject:'Space Marine Battles',type:'Novel',author:'Gav Thorpe',year:2011},
+  {id:'smb-06',title:'The Gildar Rift',subject:'Space Marine Battles',type:'Novel',author:'Sarah Cawkwell',year:2011},
+  {id:'smb-07',title:'Legion of the Damned',subject:'Space Marine Battles',type:'Novel',author:'Rob Sanders',year:2012},
+  {id:'smb-08',title:'Wrath of Iron',subject:'Space Marine Battles',type:'Novel',author:'Chris Wraight',year:2012},
+  {id:'smb-09',title:'The Death of Antagonis',subject:'Space Marine Battles',type:'Novel',author:'David Annandale',year:2013},
+  {id:'smb-10',title:'The Death of Integrity',subject:'Space Marine Battles',type:'Novel',author:'Guy Haley',year:2013},
+  {id:'smb-11',title:'Malodrax',subject:'Space Marine Battles',type:'Novel',author:'Ben Counter',year:2014},
+  {id:'smb-12',title:'Blades of Damocles',subject:'Space Marine Battles',type:'Novel',author:'Phil Kelly',year:2016},
+  {id:'smb-13',title:'Calgar\'s Siege',subject:'Space Marine Battles',type:'Novel',author:'Paul Kearney',year:2016},
   {id:'tau-01',title:'Farsight',subject:'Tau',type:'Novel',author:'Phil Kelly',year:2015},
   {id:'gc-01',title:'Cult of the Warmason',subject:'Genestealer Cults',type:'Novel',author:'C.L. Werner',year:2017},
   {id:'gc-02',title:'Cult of the Spiral Dawn',subject:'Genestealer Cults',type:'Novel',author:'Peter Fehervari',year:2018},
@@ -1235,7 +1238,7 @@ const BOOKS = [
   {id:'new-34', title:'Galaxy of Horrors',              subject:'Standalone',            type:'Anthology', author:'Various',               year:2023},
   {id:'new-35', title:'Genefather',                     subject:'Alpha Legion',          type:'Novel',     author:'Mike Brooks',           year:2023},
   {id:'new-36', title:'Creed: Ashes of Cadia',          subject:'Astra Militarum',       type:'Novel',     author:'Jude Reid',             year:2023},
-  {id:'new-37', title:'For Glory and Honour',           subject:'Space Marines Battles', type:'Novel',     author:'Various',               year:2023},
+  {id:'new-37', title:'For Glory and Honour',           subject:'Space Marine Battles', type:'Novel',     author:'Various',               year:2023},
   {id:'new-38', title:'Shadow of the Eighth',           subject:'Astra Militarum',       type:'Novel',     author:'Justin D. Hill',        year:2023},
   {id:'new-39', title:'Lords of Blood',                 subject:'Blood Angels',          type:'Anthology', author:'Various',               year:2023},
   {id:'new-40', title:'Leviathan',                      subject:'Standalone',            type:'Novel',     author:'Darius Hinks',          year:2023},
@@ -1299,7 +1302,7 @@ const BOOKS = [
   {id:'es-14',  title:'Da Kaper Krew',                                 subject:'Orks',             type:'eBook',       author:'Various',               year:2024},
   {id:'es-15',  title:'Irreplaceable',                                 subject:'Standalone',       type:'eBook',       author:'Various',               year:2024},
   // ── PAGES 4-6 ADDITIONS ───────────────────────────────────────────────────
-  {id:'pg-300', title:'Crimson Fists: The Omnibus', subject:'Space Marines Battles', type:'Omnibus', author:'Steve Parker', year:2021},
+  {id:'pg-300', title:'Crimson Fists: The Omnibus', subject:'Space Marine Battles', type:'Omnibus', author:'Steve Parker', year:2021},
   {id:'pg-301', title:'Volpone Glory', subject:'Gaunt\'s Ghosts', type:'Novel', author:'Dan Abnett', year:2021},
   {id:'pg-302', title:'Deliverance and Damnation', subject:'Standalone', type:'Anthology', author:'Various', year:2021},
   {id:'pg-303', title:'Urdesh: The Magister and the Martyr', subject:'Gaunt\'s Ghosts', type:'Novel', author:'Matthew Farrer', year:2021},
@@ -1340,19 +1343,19 @@ const BOOKS = [
   {id:'pg-338', title:'Inferno! Volume 2', subject:'Standalone', type:'Anthology', author:'Various', year:2018},
   {id:'pg-339', title:'Blood of Iax', subject:'Standalone', type:'Novel', author:'Robbie MacNiven', year:2018},
   {id:'pg-340', title:'Saviour of the Imperium', subject:'Ciaphas Cain', type:'Omnibus', author:'Sandy Mitchell', year:2018},
-  {id:'pg-341', title:'Of Honour and Iron', subject:'Space Marines Battles', type:'Novel', author:'Ian St. Martin', year:2017},
+  {id:'pg-341', title:'Of Honour and Iron', subject:'Space Marine Battles', type:'Novel', author:'Ian St. Martin', year:2017},
   {id:'pg-342', title:'Uriel Ventris Chronicles: Volume 1', subject:'Ultramarines', type:'Omnibus', author:'Graham McNeill', year:2018},
   // ── PAGES 7-14 ADDITIONS ───────────────────────────────────────────────────
   {id:'bl-500', title:'Lucius: The Faultless Blade', subject:'Space Marine Legends', type:'Novel', author:'Ian St. Martin', year:2017},
   {id:'bl-501', title:'Scythes of the Emperor', subject:'Scythes of the Emperor', type:'Novel', author:'L.J. Goulding', year:2017},
   {id:'bl-502', title:'Crusade and Other Stories', subject:'Standalone', type:'Anthology', author:'Various', year:2017},
-  {id:'bl-503', title:'Tyrant of the Hollow Worlds', subject:'Space Marines Battles', type:'Novel', author:'Mark Clapham', year:2012},
+  {id:'bl-503', title:'Tyrant of the Hollow Worlds', subject:'Space Marine Battles', type:'Novel', author:'Mark Clapham', year:2012},
   {id:'bl-504', title:'Legacy of Russ', subject:'Space Wolf', type:'Novel', author:'Various', year:2016},
   {id:'bl-505', title:'Sons of Corax', subject:'Raven Guard', type:'Novel', author:'Various', year:2016},
   {id:'bl-506', title:'Storm of Damocles', subject:'Tau', type:'Novel', author:'Justin D. Hill', year:2016},
-  {id:'bl-507', title:'War of the Fang', subject:'Space Marines Battles', type:'Novel', author:'Chris Wraight', year:2012},
+  {id:'bl-507', title:'War of the Fang', subject:'Space Marine Battles', type:'Novel', author:'Chris Wraight', year:2012},
   {id:'bl-508', title:'Arjac Rockfist: Anvil of Fenris', subject:'Space Wolf', type:'Novel', author:'Various', year:2016},
-  {id:'bl-509', title:'Sanctus Reach', subject:'Space Marines Battles', type:'Anthology', author:'Various', year:2014},
+  {id:'bl-509', title:'Sanctus Reach', subject:'Space Marine Battles', type:'Anthology', author:'Various', year:2014},
   {id:'bl-510', title:'Shas O', subject:'Tau', type:'Novel', author:'Various', year:2012},
   {id:'bl-511', title:'Defenders of Mankind', subject:'Standalone', type:'Omnibus', author:'Various', year:2017},
   {id:'bl-512', title:'The Carnac Campaign', subject:'Necrons', type:'Novel', author:'Josh Reynolds', year:2014},
@@ -1361,9 +1364,9 @@ const BOOKS = [
   {id:'bl-515', title:'Sons of Wrath', subject:'Blood Angels', type:'Novel', author:'Andy Smillie', year:2015},
   {id:'bl-516', title:'Deathstorm', subject:'Blood Angels', type:'Novel', author:'Various', year:2014},
   {id:'bl-517', title:'Sin of Damnation', subject:'Standalone', type:'Novel', author:'Various', year:2014},
-  {id:'bl-518', title:'Blood on the Mountain', subject:'Space Marines Battles', type:'Novel', author:'Tim Pryor', year:2014},
+  {id:'bl-518', title:'Blood on the Mountain', subject:'Space Marine Battles', type:'Novel', author:'Tim Pryor', year:2014},
   {id:'bl-519', title:'There is Only War', subject:'Standalone', type:'Anthology', author:'Various', year:2013},
-  {id:'bl-520', title:'Pandorax', subject:'Space Marines Battles', type:'Novel', author:'C.Z. Dunn', year:2013},
+  {id:'bl-520', title:'Pandorax', subject:'Space Marine Battles', type:'Novel', author:'C.Z. Dunn', year:2013},
   {id:'bl-521', title:'Seventh Retribution', subject:'Standalone', type:'Novel', author:'Ben Counter', year:2014},
   {id:'bl-522', title:'Shadowsun: Last of the Kiru Line', subject:'Tau', type:'Novel', author:'Braden Campbell', year:2013},
   {id:'bl-523', title:'Fire Caste', subject:'Tau', type:'Novel', author:'Peter Fehervari', year:2013},
@@ -1442,7 +1445,7 @@ const BOOKS = [
 ]
 
 // Subjects treated as "named series" for the Series filter
-const SERIES_SUBJECTS = new Set(['Ahriman','Adepta Sororitas','Alpha Legion','Adeptus Mechanicus','Bequin','Black Legion','Black Templars','Blood Angels','Carcharodons','Ciaphas Cain','Dark Angels','Dark Imperium','Dawn of Fire','Dawn of War','Death Guard','Deathwatch','Drukhari','Eisenhorn','Eldar Path','Gaunt\'s Ghosts','Genestealer Cults','Grey Knights','Horus Heresy','Inquisition','Iron Hands','Iron Warriors','Macharian Crusade','Necromunda','Necrons','Night Lords','Orks','Primarchs','Ravenor','Rogue Trader','Salamanders','Shira Calpurnia','Siege of Terra','Soul Drinkers','Space Marines Battles','Space Wolf','The Beast Arises','Ultramarines','Vaults of Terra','Watchers of the Throne','Word Bearers','Yarrick'])
+const SERIES_SUBJECTS = new Set(['Ahriman','Adepta Sororitas','Alpha Legion','Adeptus Mechanicus','Bequin','Black Legion','Black Templars','Blood Angels','Carcharodons','Ciaphas Cain','Dark Angels','Dark Imperium','Dawn of Fire','Dawn of War','Death Guard','Deathwatch','Drukhari','Eisenhorn','Eldar Path','Gaunt\'s Ghosts','Genestealer Cults','Grey Knights','Horus Heresy','Inquisition','Iron Hands','Iron Warriors','Macharian Crusade','Necromunda','Necrons','Night Lords','Orks','Primarchs','Ravenor','Rogue Trader','Salamanders','Shira Calpurnia','Siege of Terra','Soul Drinkers','Space Marine Battles','Space Wolf','The Beast Arises','Ultramarines','Vaults of Terra','Watchers of the Throne','Word Bearers','Yarrick'])
 
 // Omnibus → contained book IDs (cascade on owned/read toggle)
 const OMNIBUS_CONTENTS = {
@@ -1831,7 +1834,8 @@ function populateSubjects(){
   let pool=BOOKS
   if(activeType==='Series')     pool=pool.filter(b=>SERIES_SUBJECTS.has(b.subject))
   else if(activeType!=='all')   pool=pool.filter(b=>b.type===activeType)
-  const subjects=[...new Set(pool.map(b=>b.subject))].sort()
+  const fromBooks = [...new Set(pool.map(b=>b.subject))]
+  const subjects = [...new Set([...fromBooks, ...customSubjects])].sort()
   const sel=document.getElementById('subjSel')
   sel.innerHTML=`<option value="all">&mdash; All Subjects &mdash;</option>`
     +subjects.map(s=>`<option value="${esc(s)}"${s===activeSubject?' selected':''}>${esc(s)}</option>`).join('')
@@ -1848,11 +1852,14 @@ async function showApp(user){
   document.getElementById('app').classList.add('visible')
   document.getElementById('hEmail').textContent=user.email
   document.getElementById('grid').innerHTML='<div class="loading"><div class="spinner"></div><p>Loading your archive…</p></div>'
-  await Promise.all([loadGlobalBooks(), loadUserBooks(), loadCustomTomes(), loadHiddenBooks()])
+  await Promise.all([loadGlobalBooks(), loadUserBooks(), loadCustomTomes(), loadHiddenBooks(), loadCustomSubjects()])
   await loadSubmissions()
   populateSubjects()
   updateStats()
   renderGrid()
+  // Show manage subjects button for admin
+  const msBtn = document.getElementById('manageSubjectsBtn')
+  if(msBtn) msBtn.style.display = isAdmin() ? '' : 'none'
 }
 
 function showAuth(){
@@ -1886,6 +1893,11 @@ function openModal(bookId){
   modalEditMode = false
   pendingCover  = null
   containedTags = []  // clear previous modal's tags
+  // Clear tags edit field
+  const tagsEditField = document.getElementById('mTagsEdit')
+  if(tagsEditField) tagsEditField.value = ''
+  const tagsViewField = document.getElementById('mTagsView')
+  if(tagsViewField) tagsViewField.innerHTML = '<em style="opacity:.4">No tags</em>'
   // Also reset the tag input UI immediately
   const tagWrap = document.getElementById('containedTagWrap')
   if(tagWrap){ const inp = tagWrap.querySelector('.tag-input-field'); tagWrap.querySelectorAll('.tag-pill').forEach(p=>p.remove()); if(inp) inp.value='' }
@@ -2710,7 +2722,12 @@ function openInscribeModal(){
   document.getElementById('itAuthor').value  = ''
   document.getElementById('itYear').value    = new Date().getFullYear()
   document.getElementById('itType').value    = 'Novel'
-  document.getElementById('itSubject').value = 'Standalone'
+  // Populate subject dropdown dynamically from current BOOKS subjects
+  const itSubjectEl = document.getElementById('itSubject')
+  const allSubjects = getAllSubjects()
+  itSubjectEl.innerHTML = allSubjects
+    .map(s=>'<option value="'+esc(s)+'">'+esc(s)+'</option>').join('')
+  itSubjectEl.value = 'Standalone'
   document.getElementById('itNotes').value   = ''
   document.getElementById('inscribeMsg').style.display = 'none'
   const img = document.getElementById('inscribeCoverImg')
@@ -3237,6 +3254,86 @@ async function toggleBQ(binding){
 
 // BQ closes via overlay click or Done button
 
+
+// ════════════════════════════════════════════════════════════════════════
+//  MANAGE SUBJECTS — Admin only
+//  Lets admin add/remove subjects from the dropdown
+// ════════════════════════════════════════════════════════════════════════
+// Custom subjects stored in books_global as a special record
+const CUSTOM_SUBJECTS_KEY = '__custom_subjects__'
+let customSubjects = []  // admin-added subjects not in BOOKS
+
+Object.assign(window, {openManageSubjects, closeManageSubjects, addCustomSubject, removeCustomSubject})
+
+async function loadCustomSubjects(){
+  const {data} = await supabase.from('books_global')
+    .select('summary').eq('book_id', CUSTOM_SUBJECTS_KEY).single()
+  if(data && data.summary){
+    try{ customSubjects = JSON.parse(data.summary) } catch(e){ customSubjects = [] }
+  }
+}
+
+async function saveCustomSubjects(){
+  const existing = (await supabase.from('books_global')
+    .select('id').eq('book_id', CUSTOM_SUBJECTS_KEY).single()).data
+  const payload = {book_id: CUSTOM_SUBJECTS_KEY, summary: JSON.stringify(customSubjects), updated_at: new Date().toISOString()}
+  if(existing) payload.id = existing.id
+  await supabase.from('books_global').upsert(payload, {onConflict:'book_id'})
+}
+
+function getAllSubjects(){
+  const fromBooks = [...new Set(BOOKS.map(b=>b.subject))]
+  return [...new Set([...fromBooks, ...customSubjects])].sort()
+}
+
+function openManageSubjects(){
+  renderManageSubjectsList()
+  document.getElementById('manageSubjectsModal').style.display = 'flex'
+  document.body.style.overflow = 'hidden'
+}
+
+function closeManageSubjects(){
+  document.getElementById('manageSubjectsModal').style.display = 'none'
+  document.body.style.overflow = ''
+  // Refresh both dropdowns
+  populateSubjects()
+}
+
+function renderManageSubjectsList(){
+  const all = getAllSubjects()
+  const fromBooks = new Set(BOOKS.map(b=>b.subject))
+  const list = document.getElementById('manageSubjectsList')
+  list.innerHTML = all.map(s => {
+    const isCustom = !fromBooks.has(s)
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid var(--border)">'
+      + '<span style="font-family:Cinzel,serif;font-size:.72rem;color:'+(isCustom?'var(--gold-bright)':'var(--text)') + '">' + esc(s) + (isCustom?' <span style="font-size:.55rem;opacity:.6">(custom)</span>':'') + '</span>'
+      + (isCustom ? '<button onclick="removeCustomSubject(\''+esc(s)+'\')" style="background:none;border:none;color:#e07070;cursor:pointer;font-size:.8rem" title="Remove">&#10005;</button>' : '')
+      + '</div>'
+  }).join('')
+}
+
+async function addCustomSubject(){
+  const inp = document.getElementById('newSubjectInput')
+  const val = inp.value.trim()
+  if(!val) return
+  if(getAllSubjects().map(s=>s.toLowerCase()).includes(val.toLowerCase())){
+    showToast('Subject already exists.'); return
+  }
+  customSubjects.push(val)
+  customSubjects.sort()
+  await saveCustomSubjects()
+  inp.value = ''
+  renderManageSubjectsList()
+  showToast('Subject added: ' + val)
+}
+
+async function removeCustomSubject(s){
+  customSubjects = customSubjects.filter(x=>x!==s)
+  await saveCustomSubjects()
+  renderManageSubjectsList()
+  showToast('Subject removed: ' + s)
+}
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -3480,67 +3577,7 @@ async function toggleBQ(binding){
           </div>
           <div class="inscribe-field">
             <label class="inscribe-label">Subject / Series</label>
-            <select class="inscribe-select" id="itSubject">
-              <option value="Standalone">Standalone</option>
-              <option value="Adepta Sororitas">Adepta Sororitas</option>
-              <option value="Adeptus Mechanicus">Adeptus Mechanicus</option>
-              <option value="Ahriman">Ahriman</option>
-              <option value="Alpha Legion">Alpha Legion</option>
-              <option value="Astra Militarum">Astra Militarum</option>
-              <option value="Bequin">Bequin</option>
-              <option value="Black Legion">Black Legion</option>
-              <option value="Black Templars">Black Templars</option>
-              <option value="Blackstone Fortress">Blackstone Fortress</option>
-              <option value="Blood Angels">Blood Angels</option>
-              <option value="Carcharodons">Carcharodons</option>
-              <option value="Ciaphas Cain">Ciaphas Cain</option>
-              <option value="Dark Angels">Dark Angels</option>
-              <option value="Dark Imperium">Dark Imperium</option>
-              <option value="Dawn of Fire">Dawn of Fire</option>
-              <option value="Dawn of War">Dawn of War</option>
-              <option value="Death Guard">Death Guard</option>
-              <option value="Deathwatch">Deathwatch</option>
-              <option value="Drukhari">Drukhari</option>
-              <option value="Eisenhorn">Eisenhorn</option>
-              <option value="Eldar Path">Eldar Path</option>
-              <option value="Gaunt's Ghosts">Gaunt's Ghosts</option>
-              <option value="Genestealer Cults">Genestealer Cults</option>
-              <option value="Grey Knights">Grey Knights</option>
-              <option value="Horus Heresy">Horus Heresy</option>
-              <option value="Inquisition">Inquisition</option>
-              <option value="Iron Hands">Iron Hands</option>
-              <option value="Iron Warriors">Iron Warriors</option>
-              <option value="Last Chancers">Last Chancers</option>
-              <option value="League of Votann">League of Votann</option>
-              <option value="Macharian Crusade">Macharian Crusade</option>
-              <option value="Mephiston">Mephiston</option>
-              <option value="Necromunda">Necromunda</option>
-              <option value="Necrons">Necrons</option>
-              <option value="Night Lords">Night Lords</option>
-              <option value="Orks">Orks</option>
-              <option value="Primarchs">Primarchs</option>
-              <option value="Raven Guard">Raven Guard</option>
-              <option value="Ravenor">Ravenor</option>
-              <option value="Rogue Trader">Rogue Trader</option>
-              <option value="Salamanders">Salamanders</option>
-              <option value="Scythes of the Emperor">Scythes of the Emperor</option>
-              <option value="Shira Calpurnia">Shira Calpurnia</option>
-              <option value="Siege of Terra">Siege of Terra</option>
-              <option value="Soul Drinkers">Soul Drinkers</option>
-              <option value="Space Marine Legends">Space Marine Legends</option>
-              <option value="Space Marines Battles">Space Marines Battles</option>
-              <option value="Space Wolf">Space Wolf</option>
-              <option value="Standalone">Standalone</option>
-              <option value="Tau">Tau</option>
-              <option value="The Beast Arises">The Beast Arises</option>
-              <option value="Ultramarines">Ultramarines</option>
-              <option value="Vaults of Terra">Vaults of Terra</option>
-              <option value="Watchers of the Throne">Watchers of the Throne</option>
-              <option value="White Scars">White Scars</option>
-              <option value="Word Bearers">Word Bearers</option>
-              <option value="Yarrick">Yarrick</option>
-              <option value="Ynnari">Ynnari</option>
-            </select>
+            <select class="inscribe-select" id="itSubject"><option value="Standalone">Standalone</option></select>
           </div>
         </div>
       </div>
@@ -3568,6 +3605,29 @@ async function toggleBQ(binding){
   <span class="binding-quick-title">&#128214; Binding Type</span>
   <div class="binding-quick-pills" id="bqPills"></div>
   <button class="binding-quick-close" onclick="closeBQ()">Done</button>
+</div>
+
+<!-- ══ MANAGE SUBJECTS MODAL ══════════════════════════════════════ -->
+<div class="modal-overlay" id="manageSubjectsModal" style="display:none" onclick="if(event.target===this)closeManageSubjects()">
+  <div class="modal-panel" style="max-width:480px;height:auto;max-height:80vh;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+    <span class="modal-corner mc-tl"></span><span class="modal-corner mc-tr"></span>
+    <span class="modal-corner mc-bl"></span><span class="modal-corner mc-br"></span>
+    <div class="modal-top">
+      <span style="font-family:Cinzel,serif;font-size:.82rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-bright)">&#9881; Manage Subjects</span>
+      <div class="modal-ctrl">
+        <button class="modal-close-btn" onclick="closeManageSubjects()">&#10005;</button>
+      </div>
+    </div>
+    <div style="padding:.8rem 1.2rem;border-bottom:1px solid var(--border);display:flex;gap:.5rem">
+      <input id="newSubjectInput" class="inscribe-input" placeholder="New subject name…"
+        style="flex:1" onkeydown="if(event.key==='Enter')addCustomSubject()"/>
+      <button class="modal-save-btn" onclick="addCustomSubject()" style="width:auto;padding:.45rem .9rem">Add</button>
+    </div>
+    <div id="manageSubjectsList" style="flex:1;overflow-y:auto;padding:.6rem 1.2rem"></div>
+    <div style="padding:.7rem 1.2rem;border-top:1px solid var(--border);font-size:.78rem;color:var(--text-muted);font-style:italic">
+      Built-in subjects (from catalogue) cannot be removed here.
+    </div>
+  </div>
 </div>
 </body>
 </html>
