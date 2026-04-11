@@ -710,11 +710,11 @@
       <button class="pill"        data-type="Series"      onclick="setType('Series')">Series</button>
       <button class="pill"        data-type="Novel"       onclick="setType('Novel')">Novel</button>
       <button class="pill"        data-type="Novella"     onclick="setType('Novella')">Novella</button>
+      <button class="pill"        data-type="Short Story" onclick="setType('Short Story')">Short Story</button>
       <button class="pill"        data-type="Anthology"   onclick="setType('Anthology')">Anthology</button>
       <button class="pill"        data-type="Omnibus"     onclick="setType('Omnibus')">Omnibus</button>
       <button class="pill"        data-type="Audio Drama" onclick="setType('Audio Drama')">Audio Drama</button>
       <button class="pill"        data-type="eBook"       onclick="setType('eBook')">eBOOK ONLY</button>
-      <button class="pill"        data-type="Short Story" onclick="setType('Short Story')">Short Story</button>
       <div class="ctrl-right">
         <div style="display:flex;align-items:center;gap:.35rem">
           <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)">
@@ -1483,6 +1483,19 @@ const BOOKS = [
   // The Scouring (new series)
 ]
 
+// Tome type sort order — matches Classification pill order
+const TYPE_ORDER = {
+  'Novel':       1,
+  'Novella':     2,
+  'Short Story': 3,
+  'Anthology':   4,
+  'Omnibus':     5,
+  'Audio Drama': 6,
+  'eBook':       7,
+  'Series':      8
+}
+
+
 // Subjects treated as "named series" for the Series filter
 const SERIES_SUBJECTS = new Set(['Ahriman','Adepta Sororitas','Alpha Legion','Adeptus Mechanicus','Bequin','Black Legion','Black Templars','Blood Angels','Carcharodons','Ciaphas Cain','Dark Angels','Dark Imperium','Dawn of Fire','Dawn of War','Death Guard','Deathwatch','Drukhari','Eisenhorn','Eldar Path','Gaunt\'s Ghosts','Genestealer Cults','Grey Knights','Horus Heresy','Inquisition','Iron Hands','Iron Warriors','Macharian Crusade','Necromunda','Necrons','Night Lords','Orks','Primarchs','Ravenor','Rogue Trader','Salamanders','Shira Calpurnia','Siege of Terra','Soul Drinkers','Space Marine Battles','Space Wolf','The Beast Arises','Ultramarines','Vaults of Terra','Watchers of the Throne','Word Bearers','Yarrick'])
 
@@ -1807,18 +1820,22 @@ function renderGrid(){
   // Otherwise sort alphabetically by title.
   const subjectHasOrder = {}
   for(const b of books){
-    const pos = (globalBooks[b.id]||{}).series_position
-    if(pos) subjectHasOrder[b.subject] = true
+    if((globalBooks[b.id]||{}).series_position) subjectHasOrder[b.subject] = true
   }
-  const sorted = [...books].sort((a,b) => {
-    // Group by subject first only if viewing all or series filter active
+  const sorted = [...books].sort((a, b) => {
     if(activeSubject === 'all'){
       const subjCmp = a.subject.localeCompare(b.subject)
       if(subjCmp !== 0) return subjCmp
     }
+    // 1. Series position (books with no number sort after numbered ones)
     const posA = subjectHasOrder[a.subject] ? ((globalBooks[a.id]||{}).series_position || 99999) : 99999
     const posB = subjectHasOrder[b.subject] ? ((globalBooks[b.id]||{}).series_position || 99999) : 99999
     if(posA !== posB) return posA - posB
+    // 2. Tome Classification order (Novel → Novella → Short Story → Anthology → Omnibus → Audio → eBook)
+    const typeA = TYPE_ORDER[a.type] || 99
+    const typeB = TYPE_ORDER[b.type] || 99
+    if(typeA !== typeB) return typeA - typeB
+    // 3. Alphabetical by title
     return a.title.localeCompare(b.title)
   })
 
