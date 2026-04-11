@@ -1802,7 +1802,27 @@ function renderGrid(){
     grid.innerHTML='<div class="no-res"><p>No tomes match your current filter, Inquisitor.</p></div>'
     return
   }
-  grid.innerHTML=books.map(renderCard).join('')
+
+  // Sort: within a subject, if ANY book has a series_position, sort numerically then alpha.
+  // Otherwise sort alphabetically by title.
+  const subjectHasOrder = {}
+  for(const b of books){
+    const pos = (globalBooks[b.id]||{}).series_position
+    if(pos) subjectHasOrder[b.subject] = true
+  }
+  const sorted = [...books].sort((a,b) => {
+    // Group by subject first only if viewing all or series filter active
+    if(activeSubject === 'all'){
+      const subjCmp = a.subject.localeCompare(b.subject)
+      if(subjCmp !== 0) return subjCmp
+    }
+    const posA = subjectHasOrder[a.subject] ? ((globalBooks[a.id]||{}).series_position || 99999) : 99999
+    const posB = subjectHasOrder[b.subject] ? ((globalBooks[b.id]||{}).series_position || 99999) : 99999
+    if(posA !== posB) return posA - posB
+    return a.title.localeCompare(b.title)
+  })
+
+  grid.innerHTML=sorted.map(renderCard).join('')
 }
 
 function typeClass(t){return t.replace(' ','')}
@@ -2028,7 +2048,7 @@ function openModal(bookId){
         const target = BOOKS.find(bk => bk.id === t.id)
         const clickable = !!target
         return '<li>' + (clickable
-          ? '<span class="contained-link" onclick="closeModal();setTimeout(()=>openModal(\'' + t.id + '\'),120)" title="Open ' + esc(t.title) + '">'
+          ? '<span class="contained-link" onclick="openModalFromContained(\'' + t.id + '\',\'' + modalBookId + '\')" title="Open ' + esc(t.title) + '">'
             + esc(t.title) + ' <span class="contained-link-arrow">&#8599;</span></span>'
           : esc(t.title))
         + '</li>'
@@ -2055,7 +2075,7 @@ function openModal(bookId){
   const bookNoEl = document.getElementById('mBookNo')
   const bookNoEdit = document.getElementById('mBookNoEdit')
   const gbBookNo = (globalBooks[bookId] || {}).series_position || ''
-  if(bookNoEl) bookNoEl.textContent = gbBookNo ? '#' + gbBookNo : '—'
+  if(bookNoEl) bookNoEl.textContent = gbBookNo ? '#' + gbBookNo : ''
   if(bookNoEdit) bookNoEdit.value = gbBookNo
 
   // Edit button always visible (save is still admin-protected)
@@ -2292,7 +2312,7 @@ async function saveModalEdits(){
   if(mSubjectEl) mSubjectEl.textContent = gData.faction || '—'
   // Book number
   const mBookNoDisp = document.getElementById('mBookNo')
-  if(mBookNoDisp) mBookNoDisp.textContent = gData.series_position ? '#' + gData.series_position : '—'
+  if(mBookNoDisp) mBookNoDisp.textContent = gData.series_position ? '#' + gData.series_position : ''
 
   // Refresh spoiler view
   const mSpoilerView = document.getElementById('mSpoilerView')
@@ -2327,7 +2347,7 @@ async function saveModalEdits(){
       cvEl.innerHTML = '<ul>' + containedTags.map(t => {
         const target = BOOKS.find(bk => bk.id === t.id)
         return '<li>' + (target
-          ? '<span class="contained-link" onclick="closeModal();setTimeout(()=>openModal(\'' + t.id + '\'),120)" title="Open ' + esc(t.title) + '">'
+          ? '<span class="contained-link" onclick="openModalFromContained(\'' + t.id + '\',\'' + modalBookId + '\')" title="Open ' + esc(t.title) + '">'
             + esc(t.title) + ' <span class="contained-link-arrow">&#8599;</span></span>'
           : esc(t.title)) + '</li>'
       }).join('') + '</ul>'
@@ -3642,7 +3662,7 @@ function smartClose(){
           </div>
         </div>
         <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
-          <div style="display:flex;gap:1rem;align-items:flex-start">
+          <div style="display:flex;gap:1rem;align-items:flex-end">
             <div class="mfield" style="flex:3;min-width:0">
               <span class="mfield-label">Series</span>
               <div class="mfield-val meta" id="mSeries"></div>
