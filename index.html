@@ -1980,6 +1980,22 @@ function openModal(bookId){
   // Cover — from global store
   refreshModalCover(gb.cover_image || null)
 
+  // Tags — populate view and pre-fill edit input (don't clear here; clear happens at top)
+  const mTagsViewEl = document.getElementById('mTagsView')
+  const mTagsEditEl = document.getElementById('mTagsEdit')
+  const gbTags = gb.tags || ''
+  if(mTagsViewEl){
+    if(gbTags){
+      const chips = gbTags.split(',').map(t=>t.trim()).filter(Boolean)
+        .map(t=>'<span class="tag-chip" onclick="doSearch(\'' + esc(t) + '\')">' + esc(t) + '</span>')
+        .join('')
+      mTagsViewEl.innerHTML = chips
+    } else {
+      mTagsViewEl.innerHTML = '<em style="opacity:.4">No tags</em>'
+    }
+  }
+  if(mTagsEditEl) mTagsEditEl.value = gbTags
+
   // Contained Works — show for Omnibus, populate from stored data
   const containedSection = document.getElementById('mContainedSection')
   const containedView    = document.getElementById('mContainedView')
