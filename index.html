@@ -3266,16 +3266,21 @@ let customSubjects = []  // admin-added subjects not in BOOKS
 Object.assign(window, {openManageSubjects, closeManageSubjects, addCustomSubject, removeCustomSubject})
 
 async function loadCustomSubjects(){
-  const {data} = await supabase.from('books_global')
-    .select('summary').eq('book_id', CUSTOM_SUBJECTS_KEY).single()
-  if(data && data.summary){
-    try{ customSubjects = JSON.parse(data.summary) } catch(e){ customSubjects = [] }
+  try {
+    const {data, error} = await supabase.from('books_global')
+      .select('summary').eq('book_id', CUSTOM_SUBJECTS_KEY).maybeSingle()
+    if(data && data.summary){
+      try{ customSubjects = JSON.parse(data.summary) } catch(e){ customSubjects = [] }
+    }
+  } catch(e){
+    // Row doesn't exist yet — fine, start with empty custom subjects
+    customSubjects = []
   }
 }
 
 async function saveCustomSubjects(){
   const existing = (await supabase.from('books_global')
-    .select('id').eq('book_id', CUSTOM_SUBJECTS_KEY).single()).data
+    .select('id').eq('book_id', CUSTOM_SUBJECTS_KEY).maybeSingle()).data
   const payload = {book_id: CUSTOM_SUBJECTS_KEY, summary: JSON.stringify(customSubjects), updated_at: new Date().toISOString()}
   if(existing) payload.id = existing.id
   await supabase.from('books_global').upsert(payload, {onConflict:'book_id'})
