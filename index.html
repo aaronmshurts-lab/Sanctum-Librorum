@@ -1852,8 +1852,18 @@ async function showApp(user){
   document.getElementById('app').classList.add('visible')
   document.getElementById('hEmail').textContent=user.email
   document.getElementById('grid').innerHTML='<div class="loading"><div class="spinner"></div><p>Loading your archive…</p></div>'
-  await Promise.all([loadGlobalBooks(), loadUserBooks(), loadCustomTomes(), loadHiddenBooks(), loadCustomSubjects()])
-  await loadSubmissions()
+  try {
+    await Promise.all([
+      loadGlobalBooks(),
+      loadUserBooks(),
+      loadCustomTomes().catch(e => console.error('loadCustomTomes failed:', e)),
+      loadHiddenBooks().catch(e => console.error('loadHiddenBooks failed:', e)),
+      loadCustomSubjects().catch(e => console.error('loadCustomSubjects failed:', e))
+    ])
+  } catch(e) {
+    console.error('showApp load error:', e)
+  }
+  try { await loadSubmissions() } catch(e) { console.error('loadSubmissions failed:', e) }
   populateSubjects()
   updateStats()
   renderGrid()
@@ -1868,14 +1878,22 @@ function showAuth(){
   document.getElementById('app').classList.remove('visible')
 }
 
-supabase.auth.onAuthStateChange((_e,session)=>{
-  if(session?.user) showApp(session.user)
-  else showAuth()
+let appStarted = false
+supabase.auth.onAuthStateChange((_e, session)=>{
+  if(session?.user){
+    if(!appStarted){ appStarted=true; showApp(session.user) }
+  } else {
+    appStarted = false
+    showAuth()
+  }
 })
 
 const {data:{session}}=await supabase.auth.getSession()
-if(session?.user) showApp(session.user)
-else showAuth()
+if(session?.user){
+  if(!appStarted){ appStarted=true; showApp(session.user) }
+} else {
+  showAuth()
+}
 
 
 // ════════════════════════════════════════════════════════════════════════════
