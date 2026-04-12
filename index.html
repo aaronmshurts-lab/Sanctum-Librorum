@@ -1873,7 +1873,7 @@ function renderCard(b){
     +     '<div class="card-subject">' + esc(b.subject) + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
     +     '<div class="card-format t-' + tc + '">' + esc(b.type) + '</div>'
     +     '<div style="flex:1;min-height:.4rem"></div>'
-    +     '<div class="c-title">' + (gb2.series_position ? '<span class="card-book-no">Book #' + gb2.series_position + '</span>' : '') + esc(b.title) + '</div>'
+    +     '<div class="c-title">' + (gb2.series_position ? '<span class="card-book-no">Book #' + (Number.isInteger(gb2.series_position) ? gb2.series_position : parseFloat(gb2.series_position.toFixed(2))) + '</span>' : '') + esc(b.title) + '</div>'
     +     '<div class="c-meta">' + esc(b.author) + ' &middot; ' + b.year + '</div>'
     +     cascade
     +   '</div>'
@@ -2092,7 +2092,10 @@ function openModal(bookId){
   const bookNoEl = document.getElementById('mBookNo')
   const bookNoEdit = document.getElementById('mBookNoEdit')
   const gbBookNo = (globalBooks[bookId] || {}).series_position || ''
-  if(bookNoEl) bookNoEl.textContent = gbBookNo ? '#' + gbBookNo : ''
+  if(bookNoEl){
+    const displayNo = gbBookNo ? ('#' + (Number.isInteger(parseFloat(gbBookNo)) ? parseInt(gbBookNo) : parseFloat(gbBookNo))) : ''
+    bookNoEl.textContent = displayNo
+  }
   if(bookNoEdit) bookNoEdit.value = gbBookNo
 
   // Edit button always visible (save is still admin-protected)
@@ -2283,7 +2286,7 @@ async function saveModalEdits(){
 
   // Save to books_global — includes faction and tags as separate fields
   const bookNoEditEl = document.getElementById('mBookNoEdit')
-  const newBookNo = bookNoEditEl ? (parseInt(bookNoEditEl.value) || null) : null
+  const newBookNo = bookNoEditEl ? (parseFloat(bookNoEditEl.value) || null) : null
   const globalPayload = {
     book_id:         modalBookId,
     cover_image:     coverToSave,
@@ -2329,7 +2332,11 @@ async function saveModalEdits(){
   if(mSubjectEl) mSubjectEl.textContent = gData.faction || '—'
   // Book number
   const mBookNoDisp = document.getElementById('mBookNo')
-  if(mBookNoDisp) mBookNoDisp.textContent = gData.series_position ? '#' + gData.series_position : ''
+  if(mBookNoDisp){
+    const sp = gData.series_position
+    const dispNo = sp ? ('#' + (Number.isInteger(sp) ? sp : parseFloat(sp.toFixed(2)))) : ''
+    mBookNoDisp.textContent = dispNo
+  }
 
   // Refresh spoiler view
   const mSpoilerView = document.getElementById('mSpoilerView')
@@ -3685,13 +3692,13 @@ function smartClose(){
               <div class="mfield-val meta" id="mSeries"></div>
               <input class="inscribe-input modal-edit-field" id="mSubjectEdit" style="display:none;width:100%" placeholder="Series"/>
             </div>
-            <div class="mfield" style="flex:0 0 64px">
+            <div class="mfield" style="flex:0 0 72px">
               <span class="mfield-label" style="display:block;margin-bottom:.3rem">Book #</span>
               <div class="mfield-val meta" id="mBookNo" style="text-align:center"></div>
               <input class="inscribe-input modal-edit-field" id="mBookNoEdit"
-                type="text" inputmode="numeric" pattern="[0-9]*"
-                style="display:none;width:56px;text-align:center;padding:.35rem .4rem"
-                placeholder="#"/>
+                type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]{0,2}"
+                style="display:none;width:64px;text-align:center;padding:.35rem .4rem"
+                placeholder="e.g. 10.2"/>
             </div>
           </div>
           <div class="mfield">
