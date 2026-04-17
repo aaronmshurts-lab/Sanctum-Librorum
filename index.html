@@ -769,13 +769,12 @@ window.SC = function(n,f,el){
   if(!BOOKS[n]) return
   const bookId = BOOKS[n].id
   const ub = userBooks[bookId] || {}
-  // If marking Owned ON → show binding quick-select
   if(f===0 && !ub.owned){
-    toggleStatus(bookId, 'owned')
-    if(el) setTimeout(()=>openBQ(bookId, el), 80)
+    // Show binding modal FIRST — selecting a binding auto-marks Owned
+    if(el) openBQ(bookId, el)
+    else toggleStatus(bookId, 'owned')
   } else {
     toggleStatus(bookId, FIELDS[f])
-    // If un-owning, close BQ if open
     if(f===0) closeBQ()
   }
 }
@@ -1865,8 +1864,7 @@ function renderCard(b){
   const coverHtml = gb2.cover_image
     ? '<img src="' + gb2.cover_image + '" alt="" style="width:100%;height:100%;object-fit:contain"/>'
     : '<span class="ct-ph">&#9869;</span>'
-  const cascade = b.type === 'Omnibus' || b.type === 'Anthology'
-    ? '<div class="cascade-note">&#8627; Owned/Read updates included titles</div>' : ''
+  const cascade = ''  // cascade note removed
   return '<div class="card" id="card-' + esc(b.id) + '" onclick="OC(' + idx + ')">'
     + '<div class="card-body">'
     +   '<div class="card-meta-col">'
@@ -1875,7 +1873,6 @@ function renderCard(b){
     +     '<div style="flex:1;min-height:.4rem"></div>'
     +     '<div class="c-title">' + (gb2.series_position ? '<span class="card-book-no">Book #' + (Number.isInteger(gb2.series_position) ? gb2.series_position : parseFloat(gb2.series_position.toFixed(2))) + '</span>' : '') + esc(b.title) + '</div>'
     +     '<div class="c-meta">' + esc(b.author) + ' &middot; ' + b.year + '</div>'
-    +     cascade
     +   '</div>'
     +   '<div class="card-cover-col">'
     +     '<div class="' + thumbCls + '">' + coverHtml + '</div>'
