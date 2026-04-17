@@ -622,6 +622,14 @@
   
     .binding-quick-pill.special.active{background:rgba(120,160,220,.18);
       border-color:rgba(120,160,220,.6);color:#90b8f0}
+  
+    .cascade-btn{display:none;margin-top:.5rem;padding:.32rem .75rem;
+      background:none;border:1px solid rgba(232,201,106,.35);
+      color:var(--gold);font-family:'Cinzel',serif;font-size:.55rem;
+      letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
+      border-radius:2px;transition:all .18s;width:100%}
+    .cascade-btn:hover{background:rgba(232,201,106,.1);border-color:var(--gold)}
+    .cascade-btn.visible{display:block}
   </style>
 </head>
 <body>
@@ -2065,6 +2073,9 @@ function openModal(bookId){
     const hasContained = containedTags.length > 0
     const showContained = hasContained || isAdmin()
     containedSection.style.display = showContained ? '' : 'none'
+    // Show cascade button whenever there are contained works
+    const cascadeBtn = document.getElementById('cascadeBtn')
+    if(cascadeBtn) cascadeBtn.classList.toggle('visible', hasContained)
     // Render view list — each title is a clickable link to that book's modal
     let viewHtml = ''
     if(containedTags.length){
@@ -3623,6 +3634,66 @@ function smartClose(){
   else closeModal()
 }
 
+
+// ── FORCE CASCADE ────────────────────────────────────────────────────────
+Object.assign(window, {forceCascade})
+
+async function forceCascade(){
+  if(!modalBookId) return
+  const ub  = userBooks[modalBookId] || {}
+  const bk  = BOOKS.find(b => b.id === modalBookId)
+  const ids = getCascadeIds(modalBookId)
+  if(!ids || !ids.length){ showToast('No contained works linked.'); return }
+
+  const cascadeBinding = bk && bk.type === 'Anthology' ? 'In Anthology' : 'In Omnibus'
+  const btn = document.getElementById('cascadeBtn')
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Syncing…' }
+
+  const saves = []
+  for(const cid of ids){
+    const cp = userBooks[cid] || {owned:false, read:false, wishlisted:false, bindings:[]}
+    const currentBindings = cp.bindings || []
+    // Always push the cascade binding; also push owned/read if parent has them
+    const updatedBindings = currentBindings.includes(cascadeBinding)
+      ? currentBindings
+      : [...currentBindings, cascadeBinding]
+    const newOwned    = ub.owned    ? true : cp.owned
+    const newRead     = ub.read     ? true : cp.read
+    const newWishlisted = cp.wishlisted  // don't cascade wishlist
+
+    userBooks[cid] = {...cp, owned:newOwned, read:newRead, bindings:updatedBindings}
+
+    const payload = {
+      user_id:    currentUser.id,
+      book_id:    cid,
+      owned:      newOwned,
+      read:       newRead,
+      wishlisted: newWishlisted,
+      bindings:   updatedBindings
+    }
+    if(cp.db_id) payload.id = cp.db_id
+    saves.push(
+      supabase.from('user_books')
+        .upsert(payload, {onConflict:'user_id,book_id'})
+        .select().single()
+        .then(({data, error}) => {
+          if(!error && data) userBooks[cid].db_id = data.id
+          updateCard(cid)
+        })
+    )
+  }
+
+  await Promise.all(saves)
+  updateStats()
+
+  if(btn){
+    btn.disabled = false
+    btn.textContent = '✓ Synced!'
+    setTimeout(() => { btn.textContent = '↳ Sync Status to Contained Works' }, 2000)
+  }
+  showToast('Status synced to ' + ids.length + ' contained work' + (ids.length===1?'':'s') + '.')
+}
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -3735,7 +3806,13 @@ function smartClose(){
         <div class="mfield" style="flex:1;min-height:0;display:flex;flex-direction:column">
           <!-- Contained Works (Omnibus only) -->
           <div id="mContainedSection" style="display:none;margin-bottom:.8rem;flex-shrink:0">
-            <span class="mfield-label">Contained Works</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem">
+              <span class="mfield-label">Contained Works</span>
+              <button class="cascade-btn" id="cascadeBtn" onclick="forceCascade()"
+                title="Push Owned/Read/Want and binding status to all contained works">
+                &#8627; Sync Status to Contained Works
+              </button>
+            </div>
             <div id="mContainedView" style="font-size:.85rem;color:#b8b2ac;line-height:1.8;margin-top:.3rem"></div>
             <div class="modal-edit-field" id="mContainedEditWrap" style="display:none;position:relative">
               <div class="tag-input-wrap" id="containedTagWrap" onclick="focusTagInput()">
