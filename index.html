@@ -630,6 +630,21 @@
       border-radius:2px;transition:all .18s;width:100%}
     .cascade-btn:hover{background:rgba(232,201,106,.1);border-color:var(--gold)}
     .cascade-btn.visible{display:block}
+  
+    /* ── STAR RATINGS ───────────────────────────────────────── */
+    .rating-row{display:flex;align-items:center;justify-content:space-between;
+      padding:.45rem 1rem .35rem;border-bottom:1px solid var(--border);
+      gap:.5rem;flex-wrap:wrap;background:rgba(0,0,0,.15)}
+    .rating-block{display:flex;align-items:center;gap:.45rem;flex:1;min-width:140px}
+    .rating-label{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.13em;
+      text-transform:uppercase;color:var(--text-muted);white-space:nowrap;flex-shrink:0}
+    .stars{display:flex;gap:1px;cursor:pointer;position:relative}
+    .stars.readonly{cursor:default;pointer-events:none}
+    .star{font-size:1rem;line-height:1;user-select:none;transition:transform .1s}
+    .star:hover{transform:scale(1.15)}
+    .rating-val{font-family:'Cinzel',serif;font-size:.6rem;color:var(--gold);
+      opacity:.75;min-width:26px}
+    .rating-count{font-size:.6rem;color:var(--text-muted);font-style:italic}
   </style>
 </head>
 <body>
@@ -1611,6 +1626,8 @@ async function loadGlobalBooks(){
       contained_works: r.contained_works || '',
       faction:         r.faction         || '',
       tags:            r.tags            || '',
+      avg_rating:      r.avg_rating      || null,
+      rating_count:    r.rating_count    || 0,
       series_position: r.series_position  || null,
       title_override:   r.title_override  || null,
       author_override:  r.author_override || null,
@@ -2045,6 +2062,9 @@ function openModal(bookId){
 
   // Cover — from global store
   refreshModalCover(gb.cover_image || null)
+
+  // Ratings
+  loadRatings(bookId)
 
   // Tags — populate view and pre-fill edit input (don't clear here; clear happens at top)
   const mTagsViewEl = document.getElementById('mTagsView')
@@ -3692,6 +3712,146 @@ async function forceCascade(){
     setTimeout(() => { btn.textContent = '↳ Sync Status to Contained Works' }, 2000)
   }
   showToast('Status synced to ' + ids.length + ' contained work' + (ids.length===1?'':'s') + '.')
+}
+
+
+// ════════════════════════════════════════════════════════════════════════
+//  STAR RATINGS — My Review + Average User Review
+// ════════════════════════════════════════════════════════════════════════
+let myRating = 0  // current user's rating for open book (0 = unrated)
+
+Object.assign(window, {handleStarClick, handleStarHover, setMyRating})
+
+// ── Render stars into a container (filled/half/empty) ─────────────────
+function renderStars(elId, rating){
+  const el = document.getElementById(elId)
+  if(!el) return
+  let html = ''
+  for(let i=1; i<=5; i++){
+    const full = rating >= i
+    const half = !full && rating >= i - 0.5
+    const color = (full || half) ? '#e8c96a' : '#3a3650'
+    if(half){
+      html += '<span class="star" data-val="' + i + '" style="position:relative;display:inline-block">'
+        + '<span style="color:#3a3650">★</span>'
+        + '<span style="position:absolute;left:0;top:0;width:50%;overflow:hidden;color:#e8c96a">★</span>'
+        + '</span>'
+    } else {
+      html += '<span class="star" data-val="' + i + '" style="color:' + color + '">★</span>'
+    }
+  }
+  el.innerHTML = html
+}
+
+// ── Mouse hover — preview rating ──────────────────────────────────────
+function handleStarHover(e, container){
+  const rect = container.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const starW = rect.width / 5
+  const starIdx = Math.floor(x / starW)  // 0-4
+  const posInStar = (x - starIdx * starW) / starW
+  const previewRating = posInStar < 0.5 ? starIdx + 0.5 : starIdx + 1
+  renderStars('myStars', previewRating)
+}
+
+// ── Click — set rating ────────────────────────────────────────────────
+function handleStarClick(e, container){
+  const rect = container.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const starW = rect.width / 5
+  const starIdx = Math.floor(x / starW)
+  const posInStar = (x - starIdx * starW) / starW
+  const clicked = posInStar < 0.5 ? starIdx + 0.5 : starIdx + 1
+  // Toggle off if clicking same rating
+  myRating = (myRating === clicked) ? 0 : clicked
+  renderStars('myStars', myRating)
+  const valEl = document.getElementById('myRatingVal')
+  if(valEl) valEl.textContent = myRating || '—'
+  saveMyRating()
+}
+
+// ── Save rating to user_books ─────────────────────────────────────────
+async function saveMyRating(){
+  if(!modalBookId || !currentUser) return
+  const ub = userBooks[modalBookId] || {}
+  const payload = {
+    user_id:    currentUser.id,
+    book_id:    modalBookId,
+    owned:      ub.owned      || false,
+    read:       ub.read       || false,
+    wishlisted: ub.wishlisted || false,
+    bindings:   ub.bindings   || [],
+    rating:     myRating || null
+  }
+  if(ub.db_id) payload.id = ub.db_id
+  const {data, error} = await supabase.from('user_books')
+    .upsert(payload, {onConflict:'user_id,book_id'}).select().single()
+  if(!error && data){
+    userBooks[modalBookId].db_id   = data.id
+    userBooks[modalBookId].rating  = myRating || null
+  }
+  // Recompute and save average
+  refreshAvgRating()
+}
+
+// ── Fetch all ratings for book and compute average ────────────────────
+async function refreshAvgRating(){
+  if(!modalBookId) return
+  const {data, error} = await supabase
+    .from('user_books')
+    .select('rating')
+    .eq('book_id', modalBookId)
+    .not('rating', 'is', null)
+  if(error || !data || !data.length) return
+
+  const ratings = data.map(r => parseFloat(r.rating)).filter(r => r > 0)
+  if(!ratings.length) return
+  const avg = ratings.reduce((a,b)=>a+b,0) / ratings.length
+  const rounded = Math.round(avg * 2) / 2  // round to nearest 0.5
+
+  // Save avg to books_global
+  const gb = globalBooks[modalBookId] || {}
+  const globalPayload = {
+    book_id:       modalBookId,
+    avg_rating:    parseFloat(avg.toFixed(2)),
+    rating_count:  ratings.length,
+    updated_at:    new Date().toISOString()
+  }
+  if(gb.db_id && typeof gb.db_id === 'string') globalPayload.id = gb.db_id
+  const {data:gData} = await supabase.from('books_global')
+    .upsert(globalPayload, {onConflict:'book_id'}).select().single()
+  if(gData){
+    globalBooks[modalBookId].avg_rating   = gData.avg_rating
+    globalBooks[modalBookId].rating_count = gData.rating_count
+  }
+
+  // Update display
+  renderStars('avgStars', rounded)
+  const avgVal = document.getElementById('avgRatingVal')
+  const avgCnt = document.getElementById('avgRatingCount')
+  if(avgVal) avgVal.textContent = avg.toFixed(1)
+  if(avgCnt) avgCnt.textContent = '(' + ratings.length + ')'
+}
+
+// ── Load ratings into modal ────────────────────────────────────────────
+function loadRatings(bookId){
+  const ub = userBooks[bookId]  || {}
+  const gb = globalBooks[bookId] || {}
+  myRating = parseFloat(ub.rating) || 0
+
+  renderStars('myStars',  myRating)
+  const myVal = document.getElementById('myRatingVal')
+  if(myVal) myVal.textContent = myRating || '—'
+
+  const avgRaw   = parseFloat(gb.avg_rating)   || 0
+  const avgCount = parseInt(gb.rating_count)   || 0
+  const avgRounded = Math.round(avgRaw * 2) / 2
+
+  renderStars('avgStars', avgRounded)
+  const avgVal = document.getElementById('avgRatingVal')
+  const avgCnt = document.getElementById('avgRatingCount')
+  if(avgVal) avgVal.textContent = avgRaw ? avgRaw.toFixed(1) : '—'
+  if(avgCnt) avgCnt.textContent = avgCount ? '(' + avgCount + ')' : ''
 }
 
 </script>
