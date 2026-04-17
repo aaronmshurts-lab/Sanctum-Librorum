@@ -619,6 +619,9 @@
     .card-book-no{display:block;font-family:'Cinzel',serif;font-size:.52rem;
       letter-spacing:.1em;text-transform:uppercase;color:var(--gold);
       opacity:.65;margin-bottom:.1rem}
+  
+    .binding-quick-pill.special.active{background:rgba(120,160,220,.18);
+      border-color:rgba(120,160,220,.6);color:#90b8f0}
   </style>
 </head>
 <body>
@@ -1653,10 +1656,17 @@ async function toggleStatus(bookId,field){
     const contents=getCascadeIds(bookId)
     if(contents && contents.length){
       for(const cid of contents){
-        const cp=userBooks[cid]||{owned:false,read:false,wishlisted:false}
+        const cp=userBooks[cid]||{owned:false,read:false,wishlisted:false,bindings:[]}
         // only cascade ON (don't auto-remove when omnibus is unticked)
         if(newVal && !cp[field]){
-          userBooks[cid]={...cp,[field]:true}
+          // Determine which binding to mark on the contained work
+          const bk = BOOKS.find(bx=>bx.id===bookId)
+          const cascadeBinding = bk && bk.type==='Anthology' ? 'In Anthology' : 'In Omnibus'
+          const currentBindings = cp.bindings || []
+          const updatedBindings = currentBindings.includes(cascadeBinding)
+            ? currentBindings
+            : [...currentBindings, cascadeBinding]
+          userBooks[cid]={...cp,[field]:true, owned:true, bindings:updatedBindings}
           cascadeIds.push(cid)
         }
       }
@@ -3386,7 +3396,7 @@ document.addEventListener('click', function(e){
 
 
 // ── BINDING QUICK-SELECT MINI MODAL ──────────────────────────────────────
-const BINDING_TYPES = ['Hardcover','Paperback','eBook','Audio Book','Graphic Novel','Limited Edition','In Omnibus']
+const BINDING_TYPES = ['Hardcover','Paperback','eBook','Audio Book','Graphic Novel','Limited Edition','In Omnibus','In Anthology']
 let bqBookId = null
 
 Object.assign(window, {openBQ, closeBQ, toggleBQ})
@@ -3438,7 +3448,8 @@ async function toggleBQ(binding){
   pills.innerHTML = BINDING_TYPES.map(b => {
     const isActive = updated.includes(b)
     const isLtd = b === 'Limited Edition'
-    return '<button class="binding-quick-pill' + (isLtd?' ltd':'') + (isActive?' active':'') + '"'
+    const isSpecial = b === 'In Omnibus' || b === 'In Anthology'
+    return '<button class="binding-quick-pill' + (isLtd?' ltd':'') + (isSpecial?' special':'') + (isActive?' active':'') + '"'
       + ' onclick="toggleBQ(\'' + b + '\')">' + b + '</button>'
   }).join('')
 
@@ -3713,7 +3724,8 @@ function smartClose(){
             <button class="binding-pill" data-binding="Audio Book"     onclick="toggleBinding('Audio Book')">Audio Book</button>
             <button class="binding-pill" data-binding="Graphic Novel"  onclick="toggleBinding('Graphic Novel')">Graphic Novel</button>
             <button class="binding-pill ltd" data-binding="Limited Edition" onclick="toggleBinding('Limited Edition')">Ltd Edition</button>
-            <button class="binding-pill" data-binding="In Omnibus" onclick="toggleBinding('In Omnibus')">In Omnibus</button>
+            <button class="binding-pill" data-binding="In Omnibus"   onclick="toggleBinding('In Omnibus')">In Omnibus</button>
+            <button class="binding-pill" data-binding="In Anthology" onclick="toggleBinding('In Anthology')">In Anthology</button>
           </div>
         </div>
       </div>
