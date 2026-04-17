@@ -3717,60 +3717,75 @@ async function forceCascade(){
 
 // ════════════════════════════════════════════════════════════════════════
 //  STAR RATINGS — My Review + Average User Review
+//  Click mechanic: 1st click = half star, 2nd = full star, 3rd = clear
 // ════════════════════════════════════════════════════════════════════════
-let myRating = 0  // current user's rating for open book (0 = unrated)
+let myRating    = 0   // current user rating (0, 0.5, 1, 1.5 … 5)
+let lastClickedStar = 0  // tracks click state for toggle
 
-Object.assign(window, {handleStarClick, handleStarHover, setMyRating})
+Object.assign(window, {starClick, starHover, starLeave})
 
-// ── Render stars into a container (filled/half/empty) ─────────────────
-function renderStars(elId, rating){
+// ── Render stars (read or interactive) ───────────────────────────────────
+function renderStars(elId, rating, interactive){
   const el = document.getElementById(elId)
   if(!el) return
   let html = ''
-  for(let i=1; i<=5; i++){
-    const full = rating >= i
-    const half = !full && rating >= i - 0.5
-    const color = (full || half) ? '#e8c96a' : '#3a3650'
+  for(let i = 1; i <= 5; i++){
+    const filled = rating >= i
+    const half   = !filled && rating >= i - 0.5
+    let starHtml
     if(half){
-      html += '<span class="star" data-val="' + i + '" style="position:relative;display:inline-block">'
-        + '<span style="color:#3a3650">★</span>'
-        + '<span style="position:absolute;left:0;top:0;width:50%;overflow:hidden;color:#e8c96a">★</span>'
+      starHtml = '<span style="position:relative;display:inline-block;font-size:1.3rem;'
+        + (interactive ? 'cursor:pointer' : '') + '"'
+        + (interactive ? ' onclick="starClick(' + i + ')" onmouseenter="starHover(' + i + ')" onmouseleave="starLeave()"' : '')
+        + ' data-star="' + i + '">'
+        + '<span style="color:#2a2640">★</span>'
+        + '<span style="position:absolute;left:0;top:0;width:50%;overflow:hidden;color:#e8c96a;pointer-events:none">★</span>'
         + '</span>'
     } else {
-      html += '<span class="star" data-val="' + i + '" style="color:' + color + '">★</span>'
+      starHtml = '<span style="font-size:1.3rem;color:' + (filled ? '#e8c96a' : '#2a2640') + ';'
+        + (interactive ? 'cursor:pointer' : '') + '"'
+        + (interactive ? ' onclick="starClick(' + i + ')" onmouseenter="starHover(' + i + ')" onmouseleave="starLeave()"' : '')
+        + ' data-star="' + i + '">★</span>'
     }
+    html += starHtml
   }
   el.innerHTML = html
 }
 
-// ── Mouse hover — preview rating ──────────────────────────────────────
-function handleStarHover(e, container){
-  const rect = container.getBoundingClientRect()
-  const x = e.clientX - rect.left
-  const starW = rect.width / 5
-  const starIdx = Math.floor(x / starW)  // 0-4
-  const posInStar = (x - starIdx * starW) / starW
-  const previewRating = posInStar < 0.5 ? starIdx + 0.5 : starIdx + 1
-  renderStars('myStars', previewRating)
+// ── Hover preview ─────────────────────────────────────────────────────────
+function starHover(n){
+  // Preview: hover over star n shows n - 0.5 as a hint
+  renderStars('myStars', n - 0.5, true)
 }
 
-// ── Click — set rating ────────────────────────────────────────────────
-function handleStarClick(e, container){
-  const rect = container.getBoundingClientRect()
-  const x = e.clientX - rect.left
-  const starW = rect.width / 5
-  const starIdx = Math.floor(x / starW)
-  const posInStar = (x - starIdx * starW) / starW
-  const clicked = posInStar < 0.5 ? starIdx + 0.5 : starIdx + 1
-  // Toggle off if clicking same rating
-  myRating = (myRating === clicked) ? 0 : clicked
-  renderStars('myStars', myRating)
+function starLeave(){
+  renderStars('myStars', myRating, true)
+}
+
+// ── Click: 1st = half, 2nd = full, 3rd = clear ───────────────────────────
+function starClick(n){
+  if(lastClickedStar !== n){
+    // New star clicked → half star
+    myRating = n - 0.5
+    lastClickedStar = n
+  } else {
+    // Same star clicked again
+    if(myRating === n - 0.5){
+      // Was half → make full
+      myRating = n
+    } else {
+      // Was full → clear
+      myRating = 0
+      lastClickedStar = 0
+    }
+  }
+  renderStars('myStars', myRating, true)
   const valEl = document.getElementById('myRatingVal')
-  if(valEl) valEl.textContent = myRating || '—'
+  if(valEl) valEl.textContent = myRating ? myRating.toString() : '—'
   saveMyRating()
 }
 
-// ── Save rating to user_books ─────────────────────────────────────────
+// ── Save rating to user_books ─────────────────────────────────────────────
 async function saveMyRating(){
   if(!modalBookId || !currentUser) return
   const ub = userBooks[modalBookId] || {}
@@ -3787,72 +3802,69 @@ async function saveMyRating(){
   const {data, error} = await supabase.from('user_books')
     .upsert(payload, {onConflict:'user_id,book_id'}).select().single()
   if(!error && data){
-    userBooks[modalBookId].db_id   = data.id
-    userBooks[modalBookId].rating  = myRating || null
+    userBooks[modalBookId].db_id  = data.id
+    userBooks[modalBookId].rating = myRating || null
   }
-  // Recompute and save average
   refreshAvgRating()
 }
 
-// ── Fetch all ratings for book and compute average ────────────────────
+// ── Compute and save average rating ──────────────────────────────────────
 async function refreshAvgRating(){
   if(!modalBookId) return
-  const {data, error} = await supabase
-    .from('user_books')
-    .select('rating')
-    .eq('book_id', modalBookId)
-    .not('rating', 'is', null)
+  const {data, error} = await supabase.from('user_books')
+    .select('rating').eq('book_id', modalBookId).not('rating','is',null)
   if(error || !data || !data.length) return
 
   const ratings = data.map(r => parseFloat(r.rating)).filter(r => r > 0)
   if(!ratings.length) return
-  const avg = ratings.reduce((a,b)=>a+b,0) / ratings.length
-  const rounded = Math.round(avg * 2) / 2  // round to nearest 0.5
+  const avg = ratings.reduce((a,b) => a+b, 0) / ratings.length
+  const rounded = Math.round(avg * 2) / 2
 
-  // Save avg to books_global
   const gb = globalBooks[modalBookId] || {}
-  const globalPayload = {
-    book_id:       modalBookId,
-    avg_rating:    parseFloat(avg.toFixed(2)),
-    rating_count:  ratings.length,
-    updated_at:    new Date().toISOString()
+  const gPayload = {
+    book_id:      modalBookId,
+    avg_rating:   parseFloat(avg.toFixed(2)),
+    rating_count: ratings.length,
+    updated_at:   new Date().toISOString()
   }
-  if(gb.db_id && typeof gb.db_id === 'string') globalPayload.id = gb.db_id
+  if(gb.db_id && typeof gb.db_id === 'string') gPayload.id = gb.db_id
   const {data:gData} = await supabase.from('books_global')
-    .upsert(globalPayload, {onConflict:'book_id'}).select().single()
+    .upsert(gPayload, {onConflict:'book_id'}).select().single()
   if(gData){
     globalBooks[modalBookId].avg_rating   = gData.avg_rating
     globalBooks[modalBookId].rating_count = gData.rating_count
   }
 
-  // Update display
-  renderStars('avgStars', rounded)
+  renderStars('avgStars', rounded, false)
   const avgVal = document.getElementById('avgRatingVal')
   const avgCnt = document.getElementById('avgRatingCount')
   if(avgVal) avgVal.textContent = avg.toFixed(1)
   if(avgCnt) avgCnt.textContent = '(' + ratings.length + ')'
 }
 
-// ── Load ratings into modal ────────────────────────────────────────────
+// ── Load ratings when modal opens ─────────────────────────────────────────
 function loadRatings(bookId){
-  const ub = userBooks[bookId]  || {}
+  const ub = userBooks[bookId]   || {}
   const gb = globalBooks[bookId] || {}
-  myRating = parseFloat(ub.rating) || 0
+  myRating        = parseFloat(ub.rating) || 0
+  lastClickedStar = myRating % 1 === 0 ? myRating : Math.ceil(myRating)
 
-  renderStars('myStars',  myRating)
+  renderStars('myStars', myRating, true)
   const myVal = document.getElementById('myRatingVal')
-  if(myVal) myVal.textContent = myRating || '—'
+  if(myVal) myVal.textContent = myRating ? myRating.toString() : '—'
 
-  const avgRaw   = parseFloat(gb.avg_rating)   || 0
-  const avgCount = parseInt(gb.rating_count)   || 0
-  const avgRounded = Math.round(avgRaw * 2) / 2
+  const avgRaw   = parseFloat(gb.avg_rating)  || 0
+  const avgCount = parseInt(gb.rating_count)  || 0
+  const avgRound = Math.round(avgRaw * 2) / 2
 
-  renderStars('avgStars', avgRounded)
+  renderStars('avgStars', avgRound, false)
   const avgVal = document.getElementById('avgRatingVal')
   const avgCnt = document.getElementById('avgRatingCount')
   if(avgVal) avgVal.textContent = avgRaw ? avgRaw.toFixed(1) : '—'
   if(avgCnt) avgCnt.textContent = avgCount ? '(' + avgCount + ')' : ''
 }
+
+
 
 </script>
 
@@ -3881,12 +3893,12 @@ function loadRatings(bookId){
     <div class="rating-row" id="ratingRow">
       <div class="rating-block">
         <span class="rating-label">My Review</span>
-        <div class="stars" id="myStars" onclick="handleStarClick(event,this)" onmousemove="handleStarHover(event,this)" onmouseleave="renderStars('myStars', myRating)"></div>
+        <div class="stars" id="myStars"></div>
         <span class="rating-val" id="myRatingVal">&mdash;</span>
       </div>
       <div class="rating-block">
         <span class="rating-label">Avg Rating</span>
-        <div class="stars readonly" id="avgStars"></div>
+        <div class="stars" id="avgStars"></div>
         <span class="rating-val" id="avgRatingVal">&mdash;</span>
         <span class="rating-count" id="avgRatingCount"></span>
       </div>
