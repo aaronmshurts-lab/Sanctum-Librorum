@@ -3876,6 +3876,22 @@ function loadRatings(bookId){
       </div>
     </div>
 
+
+    <!-- Rating row -->
+    <div class="rating-row" id="ratingRow">
+      <div class="rating-block">
+        <span class="rating-label">My Review</span>
+        <div class="stars" id="myStars" onclick="handleStarClick(event,this)" onmousemove="handleStarHover(event,this)" onmouseleave="renderStars('myStars', myRating)"></div>
+        <span class="rating-val" id="myRatingVal">&mdash;</span>
+      </div>
+      <div class="rating-block">
+        <span class="rating-label">Avg Rating</span>
+        <div class="stars readonly" id="avgStars"></div>
+        <span class="rating-val" id="avgRatingVal">&mdash;</span>
+        <span class="rating-count" id="avgRatingCount"></span>
+      </div>
+    </div>
+
     <!-- body -->
     <div class="modal-body">
       <!-- LEFT: cover + metadata -->
