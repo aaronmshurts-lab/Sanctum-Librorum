@@ -110,6 +110,7 @@
     .pill[data-type="Audio Drama"].active{background:rgba(200,80,80,.15);border-color:#c85050;color:#f0a0a0}
     .pill[data-type="eBook"].active{background:rgba(80,160,180,.15);border-color:#50a0b4;color:#90dcf0}
     .pill[data-type="Short Story"].active{background:rgba(180,130,60,.15);border-color:#b48232;color:#f0c870}
+    .pill[data-type="Graphic Novel"].active{background:rgba(120,80,160,.15);border-color:#8855bb;color:#c090f0}
     .pill[data-type="Series"].active{background:rgba(180,150,50,.18);border-color:#b49632;color:#f0d070}
     .ctrl-right{margin-left:auto;display:flex;gap:.5rem}
     .srch{padding:.38rem .82rem;background:var(--surface);border:1px solid var(--border);color:var(--text);
@@ -355,6 +356,7 @@
     .card-format.t-eBook{background:rgba(80,160,180,.15);border-color:rgba(80,160,180,.4);color:#90dcf0}
     .card-format.t-Series{background:rgba(180,150,50,.18);border-color:rgba(180,150,50,.4);color:#f0d070}
     .card-format.t-ShortStory{background:rgba(180,130,60,.15);border-color:rgba(180,130,60,.4);color:#f0c870}
+    .card-format.t-GraphicNovel{background:rgba(120,80,160,.15);border-color:rgba(120,80,160,.4);color:#c090f0}
   
     /* ── BINDINGS ──────────────────────────────────────────── */
     .bindings-section{margin-top:.5rem}
@@ -736,7 +738,8 @@
       <button class="pill"        data-type="Series"      onclick="setType('Series')">Series</button>
       <button class="pill"        data-type="Novel"       onclick="setType('Novel')">Novel</button>
       <button class="pill"        data-type="Novella"     onclick="setType('Novella')">Novella</button>
-      <button class="pill"        data-type="Short Story" onclick="setType('Short Story')">Short Story</button>
+      <button class="pill"        data-type="Short Story"    onclick="setType('Short Story')">Short Story</button>
+      <button class="pill"        data-type="Graphic Novel"  onclick="setType('Graphic Novel')">Graphic Novel</button>
       <button class="pill"        data-type="Anthology"   onclick="setType('Anthology')">Anthology</button>
       <button class="pill"        data-type="Omnibus"     onclick="setType('Omnibus')">Omnibus</button>
       <button class="pill"        data-type="Audio Drama" onclick="setType('Audio Drama')">Audio Drama</button>
@@ -1513,11 +1516,12 @@ const TYPE_ORDER = {
   'Novel':       1,
   'Novella':     2,
   'Short Story': 3,
-  'Anthology':   4,
-  'Omnibus':     5,
-  'Audio Drama': 6,
-  'eBook':       7,
-  'Series':      8
+  'Graphic Novel': 4,
+  'Anthology':   5,
+  'Omnibus':     6,
+  'Audio Drama': 7,
+  'eBook':       8,
+  'Series':      9
 }
 
 
@@ -3427,7 +3431,7 @@ document.addEventListener('click', function(e){
 
 
 // ── BINDING QUICK-SELECT MINI MODAL ──────────────────────────────────────
-const BINDING_TYPES = ['Hardcover','Paperback','eBook','Audio Book','Graphic Novel','Limited Edition','In Omnibus','In Anthology']
+const BINDING_TYPES = ['Hardcover','Paperback','eBook','Audio Book','Limited Edition','In Omnibus','In Anthology']
 let bqBookId = null
 
 Object.assign(window, {openBQ, closeBQ, toggleBQ})
@@ -3952,6 +3956,7 @@ function loadRatings(bookId){
             <select class="inscribe-select modal-edit-field" id="mTypeEdit" style="display:none">
               <option value="Novel">Novel</option>
               <option value="Novella">Novella</option>
+              <option value="Graphic Novel">Graphic Novel</option>
               <option value="Anthology">Anthology</option>
               <option value="Omnibus">Omnibus</option>
               <option value="Audio Drama">Audio Drama</option>
@@ -3989,7 +3994,6 @@ function loadRatings(bookId){
             <button class="binding-pill" data-binding="Paperback"      onclick="toggleBinding('Paperback')">Paperback</button>
             <button class="binding-pill" data-binding="eBook"          onclick="toggleBinding('eBook')">eBook</button>
             <button class="binding-pill" data-binding="Audio Book"     onclick="toggleBinding('Audio Book')">Audio Book</button>
-            <button class="binding-pill" data-binding="Graphic Novel"  onclick="toggleBinding('Graphic Novel')">Graphic Novel</button>
             <button class="binding-pill ltd" data-binding="Limited Edition" onclick="toggleBinding('Limited Edition')">Ltd Edition</button>
             <button class="binding-pill" data-binding="In Omnibus"   onclick="toggleBinding('In Omnibus')">In Omnibus</button>
             <button class="binding-pill" data-binding="In Anthology" onclick="toggleBinding('In Anthology')">In Anthology</button>
@@ -4175,6 +4179,7 @@ function loadRatings(bookId){
                 <option value="Novel">Novel</option>
                 <option value="Novella">Novella</option>
                 <option value="Short Story">Short Story</option>
+                <option value="Graphic Novel">Graphic Novel</option>
                 <option value="Anthology">Anthology</option>
                 <option value="Omnibus">Omnibus</option>
                 <option value="Audio Drama">Audio Drama</option>
