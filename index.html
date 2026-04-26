@@ -2163,6 +2163,22 @@ function openModal(bookId){
   const ubForBindings = userBooks[bookId] || {}
   refreshBindingPills(ubForBindings.bindings || [])
 
+  // Populate spoiler and DP for view mode
+  const gbForRTE = globalBooks[bookId] || {}
+  const spoilerViewEl = document.getElementById('mSpoilerView')
+  if(spoilerViewEl){
+    const hasSpoiler = !!(gbForRTE.spoiler && gbForRTE.spoiler.replace(/<[^>]*>/g,'').trim())
+    spoilerViewEl.innerHTML = gbForRTE.spoiler ||
+      '<em style="color:var(--text-muted);font-style:italic">No spoiler content added yet.</em>'
+    document.getElementById('spoilerShield').style.display = hasSpoiler ? 'flex' : 'none'
+    if(!hasSpoiler) spoilerViewEl.classList.add('revealed')
+  }
+  const dpViewFinal = document.getElementById('mDPView')
+  if(dpViewFinal){
+    dpViewFinal.innerHTML = gbForRTE.dramatis_personae ||
+      '<em style="color:var(--text-muted);font-style:italic">No dramatis personae added yet.</em>'
+  }
+
   // Lock mode
   applyEditMode(false)
 
