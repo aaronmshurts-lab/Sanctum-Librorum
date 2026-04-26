@@ -2395,14 +2395,15 @@ async function saveModalEdits(){
   }
 
   globalBooks[modalBookId] = {
-    db_id:           gData.id,
-    cover_image:     gData.cover_image     || null,
-    summary:         gData.summary         || '',
-    spoiler:         gData.spoiler         || '',
-    contained_works: gData.contained_works || '',
-    faction:         gData.faction         || '',
-    tags:            gData.tags            || '',
-    series_position: gData.series_position  || null
+    db_id:             gData.id,
+    cover_image:       gData.cover_image       || null,
+    summary:           gData.summary           || '',
+    spoiler:           gData.spoiler           || '',
+    dramatis_personae: gData.dramatis_personae || '',
+    contained_works:   gData.contained_works   || '',
+    faction:           gData.faction           || '',
+    tags:              gData.tags              || '',
+    series_position:   gData.series_position   || null
   }
   pendingCover = null
 
