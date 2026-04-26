@@ -2460,6 +2460,9 @@ async function saveModalEdits(){
     mBookNoDisp.textContent = dispNo
   }
 
+  // Re-load extra series from updated globalBooks cache
+  loadExtraSeries(modalBookId)
+
   // Refresh DP view
   const dpViewEl = document.getElementById('mDPView')
   if(dpViewEl) dpViewEl.innerHTML = dpContent ||
