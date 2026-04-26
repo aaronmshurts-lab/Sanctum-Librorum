@@ -1922,6 +1922,8 @@ function renderCard(b){
   const wIcon = ub.wishlisted ? '&#9733;'   : '&#9734;'
   const gb2       = globalBooks[b.id] || {}
   const ub2      = userBooks[b.id] || {}
+  let seriesDisplay = b.subject || ''
+  try{ const sl=gb2.series_list; if(sl){ const ex=JSON.parse(sl); if(Array.isArray(ex)&&ex.length) seriesDisplay+=', '+ex.join(', ') } }catch(e){}
   const isLtd    = (ub2.bindings||[]).includes('Limited Edition')
   const thumbCls = 'card-thumb' + (isLtd ? ' ltd-ed' : '')
   const coverHtml = gb2.cover_image
