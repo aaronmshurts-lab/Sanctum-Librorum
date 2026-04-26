@@ -1929,7 +1929,7 @@ function renderCard(b){
   return '<div class="card" id="card-' + esc(b.id) + '" onclick="OC(' + idx + ')">'
     + '<div class="card-body">'
     +   '<div class="card-meta-col">'
-    +     '<div class="card-subject">' + esc(b.subject) + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
+    +     '<div class="card-subject">' + esc(seriesDisplay) + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
     +     '<div class="card-format t-' + tc + '">' + esc(b.type) + '</div>'
     +     '<div style="flex:1;min-height:.4rem"></div>'
     +     '<div class="c-title">' + (gb2.series_position ? '<span class="card-book-no">Book #' + (Number.isInteger(gb2.series_position) ? gb2.series_position : parseFloat(gb2.series_position.toFixed(2))) + '</span>' : '') + esc(b.title) + '</div>'
@@ -4010,7 +4010,8 @@ function renderExtraSeries(){
   if(!container) return
   const section = document.getElementById('seriesExtraSection')
 
-  if(!extraSeriesList.length && !modalEditMode){
+  const editing = modalEditMode && isAdmin()
+  if(!extraSeriesList.length && !editing){
     if(section) section.style.display = 'none'
     return
   }
@@ -4018,7 +4019,7 @@ function renderExtraSeries(){
 
   container.innerHTML = extraSeriesList.map((s,i) =>
     '<span class="series-extra-pill">' + esc(s.name)
-    + (modalEditMode && isAdmin()
+    + (editing
         ? '<button class="series-extra-pill-rm" onclick="removeExtraSeries(' + i + ')">&#10005;</button>'
         : '')
     + '</span>'
