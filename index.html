@@ -2031,6 +2031,11 @@ function openModal(bookId){
   if(tagsEditField) tagsEditField.value = ''
   const tagsViewField = document.getElementById('mTagsView')
   if(tagsViewField) tagsViewField.innerHTML = '<em style="opacity:.4">No tags</em>'
+  // Clear Dramatis Personae
+  const dpViewClear = document.getElementById('mDPView')
+  if(dpViewClear) dpViewClear.innerHTML = ''
+  const dpEdClear = document.getElementById('rteDPEditor')
+  if(dpEdClear) dpEdClear.innerHTML = ''
   // Reset to Summary tab
   activeContentTab = 'summary'
   document.getElementById('panelSummary').classList.add('active')
