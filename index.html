@@ -1821,7 +1821,15 @@ function getFiltered(){
     if(activeFilter==='untracked' && (ub.owned||ub.read||ub.wishlisted)) return false
     if(activeType==='Series'      && !SERIES_SUBJECTS.has(b.subject))   return false
     if(activeType!=='all' && activeType!=='Series' && b.type!==activeType) return false
-    if(activeSubject!=='all'      && b.subject!==activeSubject)          return false
+    if(activeSubject!=='all'){
+      const gbf = globalBooks[b.id] || {}
+      let extraMatch = false
+      try{
+        const sl = gbf.series_list
+        if(sl){ const ex=JSON.parse(sl); if(Array.isArray(ex)) extraMatch = ex.includes(activeSubject) }
+      } catch(e){}
+      if(b.subject !== activeSubject && !extraMatch) return false
+    }
     if(searchQuery){
       const q=searchQuery.toLowerCase()
       const tags=(globalBooks[b.id]||{}).tags||''
@@ -1976,7 +1984,14 @@ function populateSubjects(){
   if(activeType==='Series')     pool=pool.filter(b=>SERIES_SUBJECTS.has(b.subject))
   else if(activeType!=='all')   pool=pool.filter(b=>b.type===activeType)
   const fromBooks = [...new Set(pool.map(b=>b.subject))]
-  const subjects = [...new Set([...fromBooks, ...customSubjects])].sort()
+  // Also collect any extra series from series_list in globalBooks
+  const extraSubjects = []
+  for(const b of pool){
+    const sl = (globalBooks[b.id]||{}).series_list
+    if(!sl) continue
+    try{ const ex=JSON.parse(sl); if(Array.isArray(ex)) extraSubjects.push(...ex) } catch(e){}
+  }
+  const subjects = [...new Set([...fromBooks, ...extraSubjects, ...customSubjects])].sort()
   const sel=document.getElementById('subjSel')
   sel.innerHTML=`<option value="all">&mdash; All Subjects &mdash;</option>`
     +subjects.map(s=>`<option value="${esc(s)}"${s===activeSubject?' selected':''}>${esc(s)}</option>`).join('')
