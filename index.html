@@ -659,10 +659,11 @@
     .appears-in-type{font-size:.62rem;color:var(--text-muted);font-style:italic}
     /* ── EXTRA SERIES TAGS ───────────────────────────────────── */
     .series-extra-pills{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem}
-    .series-extra-pill{display:inline-flex;align-items:center;gap:.2rem;
-      background:rgba(100,140,180,.1);border:1px solid rgba(100,140,180,.3);
-      color:#90b8e0;font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.06em;
-      padding:.18rem .45rem;border-radius:2px}
+    .series-extra-pill{display:inline-flex;align-items:center;gap:.3rem;
+      background:none;border:none;
+      color:var(--text-muted);font-family:'EB Garamond',serif;font-size:.92rem;
+      font-style:italic;padding:0;letter-spacing:0}
+    .series-extra-pill + .series-extra-pill::before{content:', ';color:var(--text-muted);font-style:italic}
     .series-extra-pill-rm{cursor:pointer;opacity:.6;background:none;border:none;
       color:#90b8e0;padding:0;font-size:.7rem;line-height:1}
     .series-extra-pill-rm:hover{opacity:1}
@@ -4210,7 +4211,7 @@ function loadAppearsIn(bookId){
                 placeholder="e.g. 10.2"/>
             </div>
           </div>
-          <div id="seriesExtraSection" style="display:none;margin-top:.3rem">
+          <div id="seriesExtraSection" style="display:none;margin-top:.15rem">
             <span class="mfield-label" style="font-size:.52rem;letter-spacing:.13em">Also In Series</span>
             <div class="series-extra-pills" id="seriesExtraPills"></div>
             <div class="series-extra-input modal-edit-field" style="display:none;margin-top:.3rem">
