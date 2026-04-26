@@ -647,6 +647,26 @@
     .rating-val{font-family:'Cinzel',serif;font-size:.6rem;color:var(--gold);
       opacity:.75;min-width:26px}
     .rating-count{font-size:.6rem;color:var(--text-muted);font-style:italic}
+  
+    /* ── APPEARS IN TAB ──────────────────────────────────────── */
+    .appears-in-list{list-style:none;padding:0;margin:0}
+    .appears-in-list li{padding:.3rem 0;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:.5rem}
+    .appears-in-list li:last-child{border-bottom:none}
+    .appears-in-link{font-family:'Cinzel',serif;font-size:.75rem;color:var(--gold-bright);
+      cursor:pointer;transition:color .15s;display:inline-flex;align-items:center;gap:.3rem}
+    .appears-in-link:hover{color:var(--gold);text-decoration:underline;text-underline-offset:3px}
+    .appears-in-type{font-size:.62rem;color:var(--text-muted);font-style:italic}
+    /* ── EXTRA SERIES TAGS ───────────────────────────────────── */
+    .series-extra-pills{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem}
+    .series-extra-pill{display:inline-flex;align-items:center;gap:.2rem;
+      background:rgba(100,140,180,.1);border:1px solid rgba(100,140,180,.3);
+      color:#90b8e0;font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.06em;
+      padding:.18rem .45rem;border-radius:2px}
+    .series-extra-pill-rm{cursor:pointer;opacity:.6;background:none;border:none;
+      color:#90b8e0;padding:0;font-size:.7rem;line-height:1}
+    .series-extra-pill-rm:hover{opacity:1}
+    .series-extra-input{margin-top:.3rem}
   </style>
 </head>
 <body>
@@ -1633,6 +1653,7 @@ async function loadGlobalBooks(){
       avg_rating:        r.avg_rating        || null,
       rating_count:      r.rating_count      || 0,
       dramatis_personae: r.dramatis_personae || '',
+      series_list:       r.series_list       || '',
       series_position: r.series_position  || null,
       title_override:   r.title_override  || null,
       author_override:  r.author_override || null,
@@ -2042,6 +2063,10 @@ function openModal(bookId){
   document.getElementById('panelSpoiler').classList.remove('active')
   const panelDP2 = document.getElementById('panelDP')
   if(panelDP2){ panelDP2.classList.remove('active'); panelDP2.style.display='none' }
+  const panelAI4 = document.getElementById('panelAI')
+  if(panelAI4){ panelAI4.classList.remove('active'); panelAI4.style.display='none' }
+  const tabAI4 = document.getElementById('tabAI')
+  if(tabAI4){ tabAI4.classList.remove('active'); tabAI4.style.display='none' }
   document.getElementById('tabSummary').classList.add('active')
   document.getElementById('tabSpoiler').classList.remove('active')
   const tabDP2 = document.getElementById('tabDP')
@@ -2076,6 +2101,8 @@ function openModal(bookId){
 
   // Cover — from global store
   refreshModalCover(gb.cover_image || null)
+  // Extra series
+  loadExtraSeries(bookId)
 
   // Ratings
   loadRatings(bookId)
@@ -2163,6 +2190,8 @@ function openModal(bookId){
   const ubForBindings = userBooks[bookId] || {}
   refreshBindingPills(ubForBindings.bindings || [])
 
+  // Appears In
+  loadAppearsIn(bookId)
   // Populate spoiler and DP for view mode
   const gbForRTE = globalBooks[bookId] || {}
   const spoilerViewEl = document.getElementById('mSpoilerView')
@@ -2280,6 +2309,8 @@ function applyEditMode(on){
   if(panelSum) panelSum.style.display = on ? 'none' : (activeContentTab==='summary' ? 'flex' : 'none')
   if(panelSpo) panelSpo.style.display = on ? 'none' : (activeContentTab==='spoiler' ? 'flex' : 'none')
   if(panelDP3) panelDP3.style.display = on ? 'none' : (activeContentTab==='dp'      ? 'flex' : 'none')
+  const panelAI3 = document.getElementById('panelAI')
+  if(panelAI3) panelAI3.style.display = activeContentTab==='ai' ? 'flex' : 'none'  // always show if active
   document.getElementById('rteWrap').classList.toggle('visible', on && activeContentTab==='summary')
   const rteWrapSpoiler = document.getElementById('rteWrapSpoiler')
   if(rteWrapSpoiler) rteWrapSpoiler.classList.toggle('visible', on && activeContentTab==='spoiler')
@@ -2307,6 +2338,10 @@ function applyEditMode(on){
   const tagsViewEl   = document.getElementById('mTagsView')
   if(tagsEditWrap) tagsEditWrap.classList.toggle('visible', on && isAdmin())
   if(tagsViewEl)   tagsViewEl.style.display = (on && isAdmin()) ? 'none' : ''
+  // Extra series input
+  const seriesExtraInp = document.querySelector('.series-extra-input.modal-edit-field')
+  if(seriesExtraInp) seriesExtraInp.style.display = (on && isAdmin()) ? '' : 'none'
+  renderExtraSeries()
   // Edit button highlight
   document.getElementById('modalEditBtn').classList.toggle('active',on)
   // Save row
@@ -2363,6 +2398,7 @@ async function saveModalEdits(){
   // Faction (independent from series) and Tags
   const factionEl  = document.getElementById('mFactionEdit')
   const newFaction = factionEl ? factionEl.value.trim() : (gb.faction || '')
+  const newSeriesList = serializeExtraSeries()
   const tagsEl  = document.getElementById('mTagsEdit')
   const newTags = tagsEl ? tagsEl.value.trim() : (gb.tags || '')
 
@@ -2376,7 +2412,8 @@ async function saveModalEdits(){
     spoiler:         spoilerContent     || null,
     dramatis_personae: dpContent || null,
     contained_works: containedWorks || null,
-    faction:         newFaction || null,
+    faction:         newFaction  || null,
+    series_list:     newSeriesList || null,
     tags:            newTags    || null,
     series_position: newBookNo,
     updated_at:      new Date().toISOString()
@@ -2403,6 +2440,7 @@ async function saveModalEdits(){
     contained_works:   gData.contained_works   || '',
     faction:           gData.faction           || '',
     tags:              gData.tags              || '',
+    series_list:       gData.series_list       || '',
     series_position:   gData.series_position   || null
   }
   pendingCover = null
@@ -3644,22 +3682,30 @@ function switchContentTab(tab){
   document.getElementById('tabSpoiler').classList.toggle('active', tab==='spoiler')
   const tabDP = document.getElementById('tabDP')
   if(tabDP) tabDP.classList.toggle('active', tab==='dp')
+  const tabAI2 = document.getElementById('tabAI')
+  if(tabAI2) tabAI2.classList.toggle('active', tab==='ai')
 
   if(modalEditMode && isAdmin()){
     document.getElementById('panelSummary').style.display = 'none'
     document.getElementById('panelSpoiler').style.display = 'none'
     const panelDP = document.getElementById('panelDP')
     if(panelDP) panelDP.style.display = 'none'
+    const panelAI2 = document.getElementById('panelAI')
+    if(panelAI2) panelAI2.style.display = 'none'
     document.getElementById('rteWrap').classList.toggle('visible', tab==='summary')
     const rteWrapSpoiler = document.getElementById('rteWrapSpoiler')
     if(rteWrapSpoiler) rteWrapSpoiler.classList.toggle('visible', tab==='spoiler')
     const rteWrapDP = document.getElementById('rteWrapDP')
     if(rteWrapDP) rteWrapDP.classList.toggle('visible', tab==='dp')
+    // Appears In is view-only — show panel even in edit mode
+    if(tab==='ai' && panelAI2) panelAI2.style.display = 'flex'
   } else {
     document.getElementById('panelSummary').style.display = tab==='summary' ? 'flex' : 'none'
     document.getElementById('panelSpoiler').style.display = tab==='spoiler' ? 'flex' : 'none'
     const panelDP = document.getElementById('panelDP')
     if(panelDP) panelDP.style.display = tab==='dp' ? 'flex' : 'none'
+    const panelAI2 = document.getElementById('panelAI')
+    if(panelAI2) panelAI2.style.display = tab==='ai' ? 'flex' : 'none'
   }
 
   // Reset spoiler shield when switching to spoiler tab
@@ -3935,6 +3981,128 @@ function loadRatings(bookId){
 
 
 
+
+// ════════════════════════════════════════════════════════════════════════
+//  APPEARS IN + EXTRA SERIES
+// ════════════════════════════════════════════════════════════════════════
+let extraSeriesList = []  // [{name}] for current modal
+
+Object.assign(window, {seriesExtraKeydown, removeExtraSeries, addExtraSeries})
+
+// ── Extra series ──────────────────────────────────────────────────────────
+function loadExtraSeries(bookId){
+  extraSeriesList = []
+  const gb = globalBooks[bookId] || {}
+  const raw = gb.series_list || ''
+  if(raw){
+    try {
+      const parsed = JSON.parse(raw)
+      if(Array.isArray(parsed)) extraSeriesList = parsed.map(s=>({name:s}))
+    } catch(e){
+      extraSeriesList = raw.split(',').map(s=>s.trim()).filter(Boolean).map(s=>({name:s}))
+    }
+  }
+  renderExtraSeries()
+}
+
+function renderExtraSeries(){
+  const container = document.getElementById('seriesExtraPills')
+  if(!container) return
+  const section = document.getElementById('seriesExtraSection')
+
+  if(!extraSeriesList.length && !modalEditMode){
+    if(section) section.style.display = 'none'
+    return
+  }
+  if(section) section.style.display = ''
+
+  container.innerHTML = extraSeriesList.map((s,i) =>
+    '<span class="series-extra-pill">' + esc(s.name)
+    + (modalEditMode && isAdmin()
+        ? '<button class="series-extra-pill-rm" onclick="removeExtraSeries(' + i + ')">&#10005;</button>'
+        : '')
+    + '</span>'
+  ).join('')
+}
+
+function removeExtraSeries(idx){
+  extraSeriesList.splice(idx, 1)
+  renderExtraSeries()
+}
+
+function addExtraSeries(){
+  const inp = document.getElementById('seriesExtraInput')
+  if(!inp) return
+  const val = inp.value.trim()
+  if(!val) return
+  if(!extraSeriesList.find(s=>s.name.toLowerCase()===val.toLowerCase())){
+    extraSeriesList.push({name:val})
+    renderExtraSeries()
+  }
+  inp.value = ''
+}
+
+function seriesExtraKeydown(e){
+  if(e.key === 'Enter'){ e.preventDefault(); addExtraSeries() }
+}
+
+function serializeExtraSeries(){
+  return extraSeriesList.length ? JSON.stringify(extraSeriesList.map(s=>s.name)) : null
+}
+
+// ── Appears In ────────────────────────────────────────────────────────────
+function computeAppearsIn(bookId){
+  const results = []
+  for(const bk of BOOKS){
+    if(bk.id === bookId) continue
+    const gb = globalBooks[bk.id] || {}
+    const raw = gb.contained_works || ''
+    if(!raw) continue
+    try {
+      const works = JSON.parse(raw)
+      if(Array.isArray(works) && works.find(w => w.id === bookId)){
+        results.push({id: bk.id, title: bk.title, type: bk.type})
+      }
+    } catch(e){}
+  }
+  return results
+}
+
+function loadAppearsIn(bookId){
+  const ub = userBooks[bookId] || {}
+  const bindings = ub.bindings || []
+  const hasCollectionBinding = bindings.includes('In Anthology') || bindings.includes('In Omnibus')
+
+  const tab = document.getElementById('tabAI')
+  const panel = document.getElementById('panelAI')
+
+  const appearsIn = computeAppearsIn(bookId)
+
+  // Show tab if has collection binding OR appears in something
+  const showTab = hasCollectionBinding || appearsIn.length > 0
+  if(tab) tab.style.display = showTab ? '' : 'none'
+
+  // Render list
+  const list = document.getElementById('appearsInList')
+  if(!list) return
+
+  if(!appearsIn.length){
+    list.innerHTML = '<li><em style="color:var(--text-muted);font-style:italic;font-size:.85rem">'
+      + 'Not found in any linked anthology or omnibus.</em></li>'
+    return
+  }
+
+  list.innerHTML = appearsIn.map(entry =>
+    '<li>'
+    + '<span class="appears-in-link" onclick="openModalFromContained(\''
+      + entry.id + '\',\'' + modalBookId + '\')">'
+    + esc(entry.title)
+    + ' <span style="font-size:.65rem;opacity:.6">&#8599;</span></span>'
+    + '<span class="appears-in-type">' + esc(entry.type) + '</span>'
+    + '</li>'
+  ).join('')
+}
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -4038,6 +4206,15 @@ function loadRatings(bookId){
                 placeholder="e.g. 10.2"/>
             </div>
           </div>
+          <div id="seriesExtraSection" style="display:none;margin-top:.3rem">
+            <span class="mfield-label" style="font-size:.52rem;letter-spacing:.13em">Also In Series</span>
+            <div class="series-extra-pills" id="seriesExtraPills"></div>
+            <div class="series-extra-input modal-edit-field" style="display:none;margin-top:.3rem">
+              <input class="inscribe-input" id="seriesExtraInput" placeholder="Add another series…"
+                style="width:100%;font-size:.82rem" autocomplete="off"
+                onkeydown="seriesExtraKeydown(event)"/>
+            </div>
+          </div>
           <div class="mfield">
             <span class="mfield-label">Faction / Subject</span>
             <div class="mfield-val meta" id="mSubject"></div>
@@ -4090,6 +4267,7 @@ function loadRatings(bookId){
             <button class="content-tab active" id="tabSummary" onclick="switchContentTab('summary')">&#128214; Summary</button>
             <button class="content-tab spoiler-tab" id="tabSpoiler" onclick="switchContentTab('spoiler')">&#9888; Spoilers</button>
             <button class="content-tab" id="tabDP" onclick="switchContentTab('dp')">&#9876; Dramatis Personae</button>
+            <button class="content-tab" id="tabAI" style="display:none" onclick="switchContentTab('ai')">&#9654; Appears In</button>
           </div>
 
           <!-- Summary panel -->
@@ -4135,6 +4313,14 @@ function loadRatings(bookId){
           <!-- Dramatis Personae panel (view) -->
           <div class="content-panel" id="panelDP">
             <div class="mfield-val summary dp-view" id="mDPView" style="flex:1;overflow-y:auto;padding-top:.6rem"></div>
+          </div>
+          <!-- Appears In panel (view only) -->
+          <div class="content-panel" id="panelAI" style="display:none">
+            <div style="padding-top:.6rem;flex:1;overflow-y:auto">
+              <ul class="appears-in-list" id="appearsInList">
+                <li><em style="color:var(--text-muted);font-style:italic;font-size:.85rem">Not found in any anthology or omnibus.</em></li>
+              </ul>
+            </div>
           </div>
 
           <!-- Spoiler RTE (edit mode) -->
