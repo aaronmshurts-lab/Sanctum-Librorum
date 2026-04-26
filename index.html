@@ -831,6 +831,8 @@ window.SC = function(n,f,el){
 // ════════════════════════════════════════════════════════════
 //  CATALOGUE  (453 entries)
 // ════════════════════════════════════════════════════════════
+let customSubjects = []  // admin-added subjects not in BOOKS
+
 const BOOKS = [
   {id:'hh-01',title:'Horus Rising',subject:'Horus Heresy',type:'Novel',author:'Dan Abnett',year:2006},
   {id:'hh-02',title:'False Gods',subject:'Horus Heresy',type:'Novel',author:'Graham McNeill',year:2006},
@@ -3032,8 +3034,8 @@ function showToast(msg){
 //  INSCRIBE TOME — Custom book entry
 // ════════════════════════════════════════════════════════════════════════
 let inscribePendingCover = null
-let customTomes  = []   // loaded from Supabase custom_tomes table
-let hiddenBookIds = new Set()  // book IDs hidden by admin
+let customTomes    = []        // loaded from Supabase custom_tomes table
+let hiddenBookIds  = new Set()  // book IDs hidden by admin
 
 Object.assign(window, {
   openInscribeModal, closeInscribeModal, closeInscribeBg,
@@ -3586,7 +3588,7 @@ async function toggleBQ(binding){
 // ════════════════════════════════════════════════════════════════════════
 // Custom subjects stored in books_global as a special record
 const CUSTOM_SUBJECTS_KEY = '__custom_subjects__'
-let customSubjects = []  // admin-added subjects not in BOOKS
+// customSubjects declared with other state vars above
 
 Object.assign(window, {openManageSubjects, closeManageSubjects, addCustomSubject, removeCustomSubject})
 
