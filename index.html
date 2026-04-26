@@ -1630,8 +1630,9 @@ async function loadGlobalBooks(){
       contained_works: r.contained_works || '',
       faction:         r.faction         || '',
       tags:            r.tags            || '',
-      avg_rating:      r.avg_rating      || null,
-      rating_count:    r.rating_count    || 0,
+      avg_rating:        r.avg_rating        || null,
+      rating_count:      r.rating_count      || 0,
+      dramatis_personae: r.dramatis_personae || '',
       series_position: r.series_position  || null,
       title_override:   r.title_override  || null,
       author_override:  r.author_override || null,
@@ -2034,8 +2035,12 @@ function openModal(bookId){
   activeContentTab = 'summary'
   document.getElementById('panelSummary').classList.add('active')
   document.getElementById('panelSpoiler').classList.remove('active')
+  const panelDP2 = document.getElementById('panelDP')
+  if(panelDP2){ panelDP2.classList.remove('active'); panelDP2.style.display='none' }
   document.getElementById('tabSummary').classList.add('active')
   document.getElementById('tabSpoiler').classList.remove('active')
+  const tabDP2 = document.getElementById('tabDP')
+  if(tabDP2) tabDP2.classList.remove('active')
   document.getElementById('spoilerShield').style.display = 'flex'
   document.getElementById('mSpoilerView').classList.remove('revealed')
   // Also reset the tag input UI immediately
@@ -2255,6 +2260,12 @@ function applyEditMode(on){
   document.getElementById('rteWrap').classList.toggle('visible', on && activeContentTab==='summary')
   const rteWrapSpoiler = document.getElementById('rteWrapSpoiler')
   if(rteWrapSpoiler) rteWrapSpoiler.classList.toggle('visible', on && activeContentTab==='spoiler')
+  const rteWrapDP2 = document.getElementById('rteWrapDP')
+  if(rteWrapDP2) rteWrapDP2.classList.toggle('visible', on && activeContentTab==='dp')
+  if(on){
+    const dpEd = document.getElementById('rteDPEditor')
+    if(dpEd) dpEd.innerHTML = (globalBooks[modalBookId]||{}).dramatis_personae || ''
+  }
   if(on){
     const spoilerEd = document.getElementById('rteSpoilerEditor')
     const gb2 = globalBooks[modalBookId] || {}
@@ -2306,6 +2317,12 @@ async function saveModalEdits(){
     } else { el.style.fontWeight='' }
   })
   const summary = tempDiv.innerHTML.trim()
+  // Dramatis Personae
+  const rawDPHTML = document.getElementById('rteDPEditor') ? document.getElementById('rteDPEditor').innerHTML : ''
+  const tempDP = document.createElement('div')
+  tempDP.innerHTML = rawDPHTML
+  const dpContent = tempDP.innerHTML.trim()
+
   // Spoiler content
   const rawSpoilerHTML = document.getElementById('rteSpoilerEditor').innerHTML
   const tempSpoiler = document.createElement('div')
@@ -2333,7 +2350,8 @@ async function saveModalEdits(){
     book_id:         modalBookId,
     cover_image:     coverToSave,
     summary:         summary,
-    spoiler:         spoilerContent || null,
+    spoiler:         spoilerContent     || null,
+    dramatis_personae: dpContent || null,
     contained_works: containedWorks || null,
     faction:         newFaction || null,
     tags:            newTags    || null,
@@ -2380,6 +2398,10 @@ async function saveModalEdits(){
     mBookNoDisp.textContent = dispNo
   }
 
+  // Refresh DP view
+  const dpViewEl = document.getElementById('mDPView')
+  if(dpViewEl) dpViewEl.innerHTML = dpContent ||
+    '<em style="color:var(--text-muted);font-style:italic">No dramatis personae added yet.</em>'
   // Refresh spoiler view
   const mSpoilerView = document.getElementById('mSpoilerView')
   if(mSpoilerView){
@@ -3596,18 +3618,24 @@ function switchContentTab(tab){
   activeContentTab = tab
   document.getElementById('tabSummary').classList.toggle('active', tab==='summary')
   document.getElementById('tabSpoiler').classList.toggle('active', tab==='spoiler')
+  const tabDP = document.getElementById('tabDP')
+  if(tabDP) tabDP.classList.toggle('active', tab==='dp')
 
   if(modalEditMode && isAdmin()){
-    // In edit mode: hide panels, show RTEs
     document.getElementById('panelSummary').style.display = 'none'
     document.getElementById('panelSpoiler').style.display = 'none'
+    const panelDP = document.getElementById('panelDP')
+    if(panelDP) panelDP.style.display = 'none'
     document.getElementById('rteWrap').classList.toggle('visible', tab==='summary')
     const rteWrapSpoiler = document.getElementById('rteWrapSpoiler')
     if(rteWrapSpoiler) rteWrapSpoiler.classList.toggle('visible', tab==='spoiler')
+    const rteWrapDP = document.getElementById('rteWrapDP')
+    if(rteWrapDP) rteWrapDP.classList.toggle('visible', tab==='dp')
   } else {
-    // In view mode: show correct panel
     document.getElementById('panelSummary').style.display = tab==='summary' ? 'flex' : 'none'
     document.getElementById('panelSpoiler').style.display = tab==='spoiler' ? 'flex' : 'none'
+    const panelDP = document.getElementById('panelDP')
+    if(panelDP) panelDP.style.display = tab==='dp' ? 'flex' : 'none'
   }
 
   // Reset spoiler shield when switching to spoiler tab
@@ -3636,6 +3664,11 @@ function rteCmdS(cmd){
   document.getElementById('rteSpoilerEditor').focus()
   document.execCommand(cmd, false, null)
 }
+function rteCmdDP(cmd){
+  document.getElementById('rteDPEditor').focus()
+  document.execCommand(cmd, false, null)
+}
+Object.assign(window, {rteCmdDP})
 
 
 
@@ -4032,6 +4065,7 @@ function loadRatings(bookId){
           <div class="content-tabs" id="contentTabs">
             <button class="content-tab active" id="tabSummary" onclick="switchContentTab('summary')">&#128214; Summary</button>
             <button class="content-tab spoiler-tab" id="tabSpoiler" onclick="switchContentTab('spoiler')">&#9888; Spoilers</button>
+            <button class="content-tab" id="tabDP" onclick="switchContentTab('dp')">&#9876; Dramatis Personae</button>
           </div>
 
           <!-- Summary panel -->
@@ -4073,6 +4107,12 @@ function loadRatings(bookId){
               onkeyup="rteUpdateToolbar()"></div>
           </div>
 
+
+          <!-- Dramatis Personae panel (view) -->
+          <div class="content-panel" id="panelDP">
+            <div class="mfield-val summary dp-view" id="mDPView" style="flex:1;overflow-y:auto;padding-top:.6rem"></div>
+          </div>
+
           <!-- Spoiler RTE (edit mode) -->
           <div class="rte-wrap-spoiler" id="rteWrapSpoiler">
             <div class="rte-toolbar">
@@ -4088,6 +4128,23 @@ function loadRatings(bookId){
             <div class="rte-editor" id="rteSpoilerEditor" contenteditable
               style="flex:1;min-height:80px;overflow-y:auto"
               placeholder="Enter spoiler content…"></div>
+          </div>
+
+          <!-- Dramatis Personae RTE (edit mode) -->
+          <div class="rte-wrap-spoiler" id="rteWrapDP">
+            <div class="rte-toolbar">
+              <button class="rte-btn" title="Bold" onclick="rteCmdDP('bold')"><b>B</b></button>
+              <button class="rte-btn" title="Italic" onclick="rteCmdDP('italic')"><i>I</i></button>
+              <button class="rte-btn" title="Underline" onclick="rteCmdDP('underline')"><u>U</u></button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn wide" title="Bullet list" onclick="rteCmdDP('insertUnorderedList')">&#8226; List</button>
+              <button class="rte-btn wide" title="Numbered list" onclick="rteCmdDP('insertOrderedList')">1. List</button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn" title="Clear formatting" onclick="rteCmdDP('removeFormat')">&#10007;</button>
+            </div>
+            <div class="rte-editor" id="rteDPEditor" contenteditable
+              style="flex:1;min-height:80px;overflow-y:auto"
+              placeholder="Enter dramatis personae…"></div>
           </div>
         </div>
       </div></div>
