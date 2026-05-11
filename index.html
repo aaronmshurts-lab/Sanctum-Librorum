@@ -668,6 +668,8 @@
       color:#90b8e0;padding:0;font-size:.7rem;line-height:1}
     .series-extra-pill-rm:hover{opacity:1}
     .series-extra-input{margin-top:.3rem}
+  
+    .rte-btn.sz{font-size:.75rem;letter-spacing:-.02em;min-width:26px}
   </style>
 </head>
 <body>
@@ -4137,6 +4139,33 @@ function loadAppearsIn(bookId){
   ).join('')
 }
 
+
+// ── RTE: font size & indent for all three editors ────────────────────────
+function rteFontSize(editorId, grow){
+  const ed = document.getElementById(editorId)
+  if(!ed) return
+  ed.focus()
+  const sel = window.getSelection()
+  if(!sel || sel.rangeCount === 0) return
+  const range = sel.getRangeAt(0)
+  if(range.collapsed) return
+  // Wrap selection in a span with adjusted font size
+  const span = document.createElement('span')
+  const currentSize = parseFloat(window.getComputedStyle(range.commonAncestorContainer.parentElement || ed).fontSize) || 16
+  const newSize = grow ? Math.min(currentSize + 2, 36) : Math.max(currentSize - 2, 10)
+  span.style.fontSize = newSize + 'px'
+  range.surroundContents(span)
+}
+
+function rteIndent(editorId, increase){
+  const ed = document.getElementById(editorId)
+  if(!ed) return
+  ed.focus()
+  document.execCommand(increase ? 'indent' : 'outdent', false, null)
+}
+
+Object.assign(window, {rteFontSize, rteIndent})
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -4335,6 +4364,12 @@ function loadAppearsIn(bookId){
               <div class="rte-divider"></div>
               <button class="rte-btn" title="Blockquote" onclick="rteBlockquote()">&ldquo;</button>
               <div class="rte-divider"></div>
+              <div class="rte-divider"></div>
+              <button class="rte-btn sz" title="Increase font size" onclick="rteFontSize('rteEditor',true)">A&#8593;</button>
+              <button class="rte-btn sz" title="Decrease font size" onclick="rteFontSize('rteEditor',false)">A&#8595;</button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn wide" title="Indent" onclick="rteIndent('rteEditor',true)">&#8677; In</button>
+              <button class="rte-btn wide" title="Outdent" onclick="rteIndent('rteEditor',false)">&#8676; Out</button>
               <button class="rte-btn" title="Clear formatting" onclick="rteCmd('removeFormat')">&#10007;</button>
             </div>
             <div class="rte-editor" id="rteEditor" contenteditable="true"
@@ -4368,6 +4403,12 @@ function loadAppearsIn(bookId){
               <button class="rte-btn wide" title="Bullet list" onclick="rteCmdS('insertUnorderedList')">&#8226; List</button>
               <button class="rte-btn wide" title="Numbered list" onclick="rteCmdS('insertOrderedList')">1. List</button>
               <div class="rte-divider"></div>
+              <div class="rte-divider"></div>
+              <button class="rte-btn sz" title="Increase font size" onclick="rteFontSize('rteSpoilerEditor',true)">A&#8593;</button>
+              <button class="rte-btn sz" title="Decrease font size" onclick="rteFontSize('rteSpoilerEditor',false)">A&#8595;</button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn wide" title="Indent" onclick="rteIndent('rteSpoilerEditor',true)">&#8677; In</button>
+              <button class="rte-btn wide" title="Outdent" onclick="rteIndent('rteSpoilerEditor',false)">&#8676; Out</button>
               <button class="rte-btn" title="Clear formatting" onclick="rteCmdS('removeFormat')">&#10007;</button>
             </div>
             <div class="rte-editor" id="rteSpoilerEditor" contenteditable
@@ -4385,6 +4426,12 @@ function loadAppearsIn(bookId){
               <button class="rte-btn wide" title="Bullet list" onclick="rteCmdDP('insertUnorderedList')">&#8226; List</button>
               <button class="rte-btn wide" title="Numbered list" onclick="rteCmdDP('insertOrderedList')">1. List</button>
               <div class="rte-divider"></div>
+              <div class="rte-divider"></div>
+              <button class="rte-btn sz" title="Increase font size" onclick="rteFontSize('rteDPEditor',true)">A&#8593;</button>
+              <button class="rte-btn sz" title="Decrease font size" onclick="rteFontSize('rteDPEditor',false)">A&#8595;</button>
+              <div class="rte-divider"></div>
+              <button class="rte-btn wide" title="Indent" onclick="rteIndent('rteDPEditor',true)">&#8677; In</button>
+              <button class="rte-btn wide" title="Outdent" onclick="rteIndent('rteDPEditor',false)">&#8676; Out</button>
               <button class="rte-btn" title="Clear formatting" onclick="rteCmdDP('removeFormat')">&#10007;</button>
             </div>
             <div class="rte-editor" id="rteDPEditor" contenteditable
