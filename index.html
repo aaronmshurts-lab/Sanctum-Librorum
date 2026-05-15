@@ -1887,6 +1887,20 @@ function setSubject(v){
 // ════════════════════════════════════════════════════════════
 //  RENDER
 // ════════════════════════════════════════════════════════════
+// Helper: get all subjects for a book (primary + extras)
+function allSubjects(bk){
+  const extras = []
+  try{
+    const sl = (globalBooks[bk.id]||{}).series_list
+    if(sl){ const ex=JSON.parse(sl); if(Array.isArray(ex)) extras.push(...ex) }
+  } catch(e){}
+  return [bk.subject, ...extras]
+}
+// Sort key: alphabetically earliest subject across primary + extras
+function sortSubject(bk){
+  return allSubjects(bk).sort()[0] || bk.subject
+}
+
 function renderGrid(){
   const grid=document.getElementById('grid')
   const books=getFiltered()
@@ -1908,20 +1922,6 @@ function renderGrid(){
     if(activeSortOrder === 'timeline' ? (gb0.chrono_position||gb0.series_position) : gb0.series_position)
       subjectHasOrder[b.subject] = true
   }
-  // Helper: get all subjects for a book (primary + extras)
-  function allSubjects(bk){
-    const extras = []
-    try{
-      const sl = (globalBooks[bk.id]||{}).series_list
-      if(sl){ const ex=JSON.parse(sl); if(Array.isArray(ex)) extras.push(...ex) }
-    } catch(e){}
-    return [bk.subject, ...extras]
-  }
-  // When in all-subjects view, sort by the alphabetically earliest subject
-  function sortSubject(bk){
-    return allSubjects(bk).sort()[0] || bk.subject
-  }
-
   const sorted = [...books].sort((a, b) => {
     if(activeSubject === 'all'){
       const subjCmp = sortSubject(a).localeCompare(sortSubject(b))
