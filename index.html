@@ -2226,6 +2226,8 @@ function openModal(bookId){
   if(chronoEl){
     const displayChrono = gbChronoNo ? ('⏱ #' + (Number.isInteger(parseFloat(gbChronoNo)) ? parseInt(gbChronoNo) : parseFloat(gbChronoNo))) : ''
     chronoEl.textContent = displayChrono
+    const sepEl = document.getElementById('mOrderSep')
+    if(sepEl) sepEl.style.display = (gbBookNo && gbChronoNo) ? '' : 'none'
   }
   if(chronoEdit) chronoEdit.value = gbChronoNo
 
@@ -4288,15 +4290,24 @@ Object.assign(window, {rteFontSize, rteIndent})
             <!-- Primary series row: name + book number inline -->
             <div style="display:flex;align-items:baseline;gap:.75rem;flex-wrap:nowrap">
               <div class="mfield-val meta" id="mSeries" style="flex:1;min-width:0"></div>
-              <div class="mfield-val meta" id="mBookNo" style="flex-shrink:0;color:var(--gold);font-size:.82rem;opacity:.8"></div>
+              <div style="display:flex;gap:.4rem;align-items:baseline;flex-shrink:0">
+                <div class="mfield-val meta" id="mBookNo" style="color:var(--gold);font-size:.82rem;opacity:.8"></div>
+                <span id="mOrderSep" style="color:var(--text-muted);opacity:.4;font-size:.6rem;display:none">·</span>
+                <div class="mfield-val meta" id="mChronoNo" style="color:#a8aab8;font-size:.82rem;opacity:.8"></div>
+              </div>
             </div>
             <!-- Edit row: series input + book# input inline -->
             <div class="modal-edit-field" style="display:none;gap:.5rem;align-items:center" id="seriesEditRow">
               <input class="inscribe-input" id="mSubjectEdit" style="flex:1" placeholder="Series"/>
               <input class="inscribe-input" id="mBookNoEdit"
                 type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]{0,2}"
-                style="width:64px;text-align:center;flex-shrink:0"
-                placeholder="#"/>
+                style="width:60px;text-align:center;flex-shrink:0"
+                placeholder="Pub #"/>
+              <span style="color:var(--text-muted);opacity:.5;font-size:.8rem">·</span>
+              <input class="inscribe-input" id="mChronoEdit"
+                type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]{0,2}"
+                style="width:60px;text-align:center;flex-shrink:0;border-color:rgba(168,170,184,.3);color:#a8aab8"
+                placeholder="⏱ #"/>
             </div>
             <!-- Extra series: listed below primary, no book# -->
             <div id="seriesExtraSection" style="display:none">
