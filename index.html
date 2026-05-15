@@ -670,6 +670,13 @@
     .series-extra-input{margin-top:.3rem}
   
     .rte-btn.sz{font-size:.75rem;letter-spacing:-.02em;min-width:26px}
+  
+    .card-order-row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.1rem}
+    .card-book-no{display:inline;font-family:'Cinzel',serif;font-size:.52rem;
+      letter-spacing:.1em;text-transform:uppercase;color:var(--gold);opacity:.65}
+    .card-chrono-no{display:inline;font-family:'Cinzel',serif;font-size:.52rem;
+      letter-spacing:.1em;text-transform:uppercase;color:#a8aab8;opacity:.75}
+    .card-order-sep{color:var(--text-muted);opacity:.4;font-size:.5rem}
   </style>
 </head>
 <body>
@@ -1659,7 +1666,8 @@ async function loadGlobalBooks(){
       rating_count:      r.rating_count      || 0,
       dramatis_personae: r.dramatis_personae || '',
       series_list:       r.series_list       || '',
-      series_position: r.series_position  || null,
+      series_position:  r.series_position  || null,
+      chrono_position:  r.chrono_position   || null,
       title_override:   r.title_override  || null,
       author_override:  r.author_override || null,
       year_override:    r.year_override   || null,
@@ -1961,7 +1969,11 @@ function renderCard(b){
     +     '<div class="card-subject">' + esc(seriesDisplay) + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
     +     '<div class="card-format t-' + tc + '">' + esc(b.type) + '</div>'
     +     '<div style="flex:1;min-height:.4rem"></div>'
-    +     '<div class="c-title">' + (gb2.series_position ? '<span class="card-book-no">Book #' + (Number.isInteger(gb2.series_position) ? gb2.series_position : parseFloat(gb2.series_position.toFixed(2))) + '</span>' : '') + esc(b.title) + '</div>'
+    +     '<div class="c-title">' + ((gb2.series_position || gb2.chrono_position) ? '<div class="card-order-row">'
+    + (gb2.series_position ? '<span class="card-book-no">Book #' + (Number.isInteger(gb2.series_position) ? gb2.series_position : parseFloat(gb2.series_position.toFixed(2))) + '</span>' : '')
+    + (gb2.series_position && gb2.chrono_position ? '<span class="card-order-sep">·</span>' : '')
+    + (gb2.chrono_position ? '<span class="card-chrono-no">⏱ #' + (Number.isInteger(gb2.chrono_position) ? gb2.chrono_position : parseFloat(gb2.chrono_position.toFixed(2))) + '</span>' : '')
+    + '</div>' : '') + esc(b.title) + '</div>'
     +     '<div class="c-meta">' + esc(b.author) + ' &middot; ' + b.year + '</div>'
     +   '</div>'
     +   '<div class="card-cover-col">'
@@ -2208,6 +2220,14 @@ function openModal(bookId){
     bookNoEl.textContent = displayNo
   }
   if(bookNoEdit) bookNoEdit.value = gbBookNo
+  const chronoEl   = document.getElementById('mChronoNo')
+  const chronoEdit = document.getElementById('mChronoEdit')
+  const gbChronoNo = (globalBooks[bookId] || {}).chrono_position || ''
+  if(chronoEl){
+    const displayChrono = gbChronoNo ? ('⏱ #' + (Number.isInteger(parseFloat(gbChronoNo)) ? parseInt(gbChronoNo) : parseFloat(gbChronoNo))) : ''
+    chronoEl.textContent = displayChrono
+  }
+  if(chronoEdit) chronoEdit.value = gbChronoNo
 
   // Edit button always visible (save is still admin-protected)
   document.getElementById('modalEditBtn').style.display = ''
@@ -2435,8 +2455,10 @@ async function saveModalEdits(){
   const newTags = tagsEl ? tagsEl.value.trim() : (gb.tags || '')
 
   // Save to books_global — includes faction and tags as separate fields
-  const bookNoEditEl = document.getElementById('mBookNoEdit')
-  const newBookNo = bookNoEditEl ? (parseFloat(bookNoEditEl.value) || null) : null
+  const bookNoEditEl  = document.getElementById('mBookNoEdit')
+  const newBookNo    = bookNoEditEl  ? (parseFloat(bookNoEditEl.value)  || null) : null
+  const chronoEditEl = document.getElementById('mChronoEdit')
+  const newChronoNo  = chronoEditEl  ? (parseFloat(chronoEditEl.value)  || null) : null
   const globalPayload = {
     book_id:         modalBookId,
     cover_image:     coverToSave,
@@ -2448,6 +2470,7 @@ async function saveModalEdits(){
     series_list:     newSeriesList || null,
     tags:            newTags    || null,
     series_position: newBookNo,
+    chrono_position: newChronoNo,
     updated_at:      new Date().toISOString()
   }
   if(gb.db_id && typeof gb.db_id==='string' && gb.db_id.length>10) globalPayload.id = gb.db_id
@@ -2490,6 +2513,12 @@ async function saveModalEdits(){
     const sp = gData.series_position
     const dispNo = sp ? ('#' + (Number.isInteger(sp) ? sp : parseFloat(sp.toFixed(2)))) : ''
     mBookNoDisp.textContent = dispNo
+  }
+  const mChronoDisp = document.getElementById('mChronoNo')
+  if(mChronoDisp){
+    const cp = gData.chrono_position
+    const dispChrono = cp ? ('⏱ #' + (Number.isInteger(cp) ? cp : parseFloat(cp.toFixed(2)))) : ''
+    mChronoDisp.textContent = dispChrono
   }
 
   // Re-load extra series from updated globalBooks cache
