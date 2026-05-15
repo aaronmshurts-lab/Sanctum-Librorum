@@ -118,7 +118,7 @@
       width:190px;transition:border-color .2s}
     .srch:focus{border-color:rgba(232,201,106,.5)}
     .srch::placeholder{color:#9a94a2}
-    .subj-sel{padding:.38rem .82rem;background:var(--surface);border:1px solid #3a3650;
+    .subj-sel{min-width:160px;padding:.38rem .82rem;background:var(--surface);border:1px solid #3a3650;
       color:#cec8be;font-family:'Cinzel',serif;font-size:.57rem;letter-spacing:.05em;
       text-transform:uppercase;outline:none;border-radius:var(--radius);cursor:pointer;
       transition:border-color .2s;max-width:220px}
@@ -774,19 +774,22 @@
       <button class="pill"        data-type="Omnibus"     onclick="setType('Omnibus')">Omnibus</button>
       <button class="pill"        data-type="Audio Drama" onclick="setType('Audio Drama')">Audio Drama</button>
       <button class="pill"        data-type="eBook"       onclick="setType('eBook')">eBOOK ONLY</button>
-      <div class="ctrl-right">
-        <div style="display:flex;align-items:center;gap:.35rem">
-          <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)">
-            <option value="all">&mdash; All Subjects &mdash;</option>
-          </select>
-          <button id="subjClear" onclick="clearSubject()" title="Clear subject filter"
-            style="display:none;padding:.32rem .5rem;background:none;border:1px solid #3a3650;
-            border-radius:2px;color:var(--text-muted);cursor:pointer;font-size:.75rem;
-            transition:all .15s;white-space:nowrap">&#10005;</button>
-          <button id="manageSubjectsBtn" onclick="openManageSubjects()" title="Manage Subjects (Admin)"
-            style="display:none;padding:.32rem .5rem;background:none;border:1px solid var(--border-gold);
-            border-radius:2px;color:var(--gold);cursor:pointer;font-size:.75rem">&#9881;</button>
-        </div>
+      <div class="ctrl-right" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:flex-start">
+        <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)" style="min-width:180px">
+          <option value="all">&mdash; All Subjects &mdash;</option>
+        </select>
+        <button id="subjClear" onclick="clearSubject()" title="Clear subject filter"
+          style="display:none;padding:.32rem .5rem;background:none;border:1px solid #3a3650;
+          border-radius:2px;color:var(--text-muted);cursor:pointer;font-size:.75rem;
+          transition:all .15s;white-space:nowrap">&#10005;</button>
+        <button id="manageSubjectsBtn" onclick="openManageSubjects()" title="Manage Subjects (Admin)"
+          style="display:none;padding:.32rem .5rem;background:none;border:1px solid var(--border-gold);
+          border-radius:2px;color:var(--gold);cursor:pointer;font-size:.75rem">&#9881;</button>
+        <select class="subj-sel" id="sortOrderSel" onchange="setSortOrder(this.value)"
+          style="min-width:160px" title="Sort order within subject">
+          <option value="publish">By Publish Date</option>
+          <option value="timeline">By Timeline</option>
+        </select>
       </div>
     </div>
   </div>
@@ -1901,7 +1904,9 @@ function renderGrid(){
   // Otherwise sort alphabetically by title.
   const subjectHasOrder = {}
   for(const b of books){
-    if((globalBooks[b.id]||{}).series_position) subjectHasOrder[b.subject] = true
+    const gb0 = globalBooks[b.id]||{}
+    if(activeSortOrder === 'timeline' ? (gb0.chrono_position||gb0.series_position) : gb0.series_position)
+      subjectHasOrder[b.subject] = true
   }
   // Helper: get all subjects for a book (primary + extras)
   function allSubjects(bk){
@@ -1922,9 +1927,15 @@ function renderGrid(){
       const subjCmp = sortSubject(a).localeCompare(sortSubject(b))
       if(subjCmp !== 0) return subjCmp
     }
-    // 1. Series position (books with no number sort after numbered ones)
-    const posA = subjectHasOrder[a.subject] ? ((globalBooks[a.id]||{}).series_position || 99999) : 99999
-    const posB = subjectHasOrder[b.subject] ? ((globalBooks[b.id]||{}).series_position || 99999) : 99999
+    // 1. Series/Chrono position based on selected sort order
+    const posFieldA = activeSortOrder === 'timeline'
+      ? ((globalBooks[a.id]||{}).chrono_position || (globalBooks[a.id]||{}).series_position || 99999)
+      : ((globalBooks[a.id]||{}).series_position || 99999)
+    const posFieldB = activeSortOrder === 'timeline'
+      ? ((globalBooks[b.id]||{}).chrono_position || (globalBooks[b.id]||{}).series_position || 99999)
+      : ((globalBooks[b.id]||{}).series_position || 99999)
+    const posA = subjectHasOrder[a.subject] ? posFieldA : 99999
+    const posB = subjectHasOrder[b.subject] ? posFieldB : 99999
     if(posA !== posB) return posA - posB
     // 2. Tome Classification order (Novel → Novella → Short Story → Anthology → Omnibus → Audio → eBook)
     const typeA = TYPE_ORDER[a.type] || 99
@@ -1969,11 +1980,7 @@ function renderCard(b){
     +     '<div class="card-subject">' + esc(seriesDisplay) + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
     +     '<div class="card-format t-' + tc + '">' + esc(b.type) + '</div>'
     +     '<div style="flex:1;min-height:.4rem"></div>'
-    +     '<div class="c-title">' + ((gb2.series_position || gb2.chrono_position) ? '<div class="card-order-row">'
-    + (gb2.series_position ? '<span class="card-book-no">Book #' + (Number.isInteger(gb2.series_position) ? gb2.series_position : parseFloat(gb2.series_position.toFixed(2))) + '</span>' : '')
-    + (gb2.series_position && gb2.chrono_position ? '<span class="card-order-sep">·</span>' : '')
-    + (gb2.chrono_position ? '<span class="card-chrono-no">⏱ #' + (Number.isInteger(gb2.chrono_position) ? gb2.chrono_position : parseFloat(gb2.chrono_position.toFixed(2))) + '</span>' : '')
-    + '</div>' : '') + esc(b.title) + '</div>'
+    +     '<div class="c-title">' + (gb2.series_position ? '<div class="card-order-row"><span class="card-book-no">Book #' + (Number.isInteger(gb2.series_position) ? gb2.series_position : parseFloat(gb2.series_position.toFixed(2))) + '</span></div>' : '') + esc(b.title) + '</div>'
     +     '<div class="c-meta">' + esc(b.author) + ' &middot; ' + b.year + '</div>'
     +   '</div>'
     +   '<div class="card-cover-col">'
@@ -4196,6 +4203,13 @@ function rteIndent(editorId, increase){
 }
 
 Object.assign(window, {rteFontSize, rteIndent})
+
+
+function setSortOrder(v){
+  activeSortOrder = v
+  renderGrid()
+}
+Object.assign(window, {setSortOrder})
 
 </script>
 
