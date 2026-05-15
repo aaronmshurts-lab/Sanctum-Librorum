@@ -4303,7 +4303,7 @@ Object.assign(window, {rteFontSize, rteIndent})
       <div class="modal-right">
         <div class="mfield" style="flex:1;min-height:0;display:flex;flex-direction:column">
           <!-- Contained Works (Omnibus only) -->
-          <div id="mContainedSection" style="display:none;margin-bottom:.8rem;flex-shrink:0">
+          <div id="mContainedSection" style="display:none;margin-bottom:.8rem;flex-shrink:1;min-height:0">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem">
               <span class="mfield-label">Contained Works</span>
               <button class="cascade-btn" id="cascadeBtn" onclick="forceCascade()"
@@ -4311,7 +4311,7 @@ Object.assign(window, {rteFontSize, rteIndent})
                 &#8627; Sync Status to Contained Works
               </button>
             </div>
-            <div id="mContainedView" style="font-size:.85rem;color:#b8b2ac;line-height:1.8;margin-top:.3rem"></div>
+            <div id="mContainedView" style="font-size:.85rem;color:#b8b2ac;line-height:1.8;margin-top:.3rem;max-height:200px;overflow-y:auto;padding-right:.3rem"></div>
             <div class="modal-edit-field" id="mContainedEditWrap" style="display:none;position:relative">
               <div class="tag-input-wrap" id="containedTagWrap" onclick="focusTagInput()">
                 <input class="tag-input-field" id="containedTagInput"
