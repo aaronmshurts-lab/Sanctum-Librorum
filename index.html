@@ -742,7 +742,6 @@
     <div class="stat"><div class="sv" id="sNovels">0</div><div class="sl">Novels</div></div>
     <div class="sdiv"></div>
     <div class="stat"><div class="sv" id="sAudio">0</div><div class="sl">Audio</div></div>
-    <button class="inscribe-btn" onclick="openInscribeModal()">Inscribe Tome</button>
   </div>
 
   <div class="ctrl-wrap">
@@ -754,11 +753,14 @@
       <button class="pill"        data-filter="wishlist"  onclick="setFilter('wishlist')">Wishlist</button>
       <button class="pill"        data-filter="untracked" onclick="setFilter('untracked')">Untracked</button>
       <div class="ctrl-right">
-        <div style="position:relative;display:flex;align-items:center">
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <button class="inscribe-btn" onclick="openInscribeModal()" style="white-space:nowrap;flex-shrink:0">✦ Inscribe Tome</button>
+          <div style="position:relative;display:flex;align-items:center">
           <input class="srch" type="text" id="srchInput" placeholder="Search title, author or tag…" oninput="doSearch(this.value)" style="padding-right:1.8rem"/>
           <button id="srchClear" onclick="clearSearch()" title="Clear search"
             style="display:none;position:absolute;right:.4rem;background:none;border:none;
             color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
+          </div>
         </div>
       </div>
     </div>
