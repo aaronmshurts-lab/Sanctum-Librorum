@@ -499,7 +499,8 @@
     /* ── CONTAINED WORKS TAG INPUT ────────────────────────────── */
     .tag-input-wrap{border:1px solid #3a3650;border-radius:var(--radius);
       background:var(--bg);padding:.4rem .5rem;display:flex;flex-wrap:wrap;
-      gap:.3rem;min-height:48px;cursor:text;transition:border-color .2s}
+      gap:.3rem;min-height:48px;max-height:120px;overflow-y:auto;
+      cursor:text;transition:border-color .2s}
     .tag-input-wrap:focus-within{border-color:rgba(232,201,106,.5)}
     .tag-pill{display:inline-flex;align-items:center;gap:.25rem;
       background:var(--gold-dim);border:1px solid rgba(232,201,106,.4);
@@ -4369,7 +4370,7 @@ Object.assign(window, {setSortOrder})
               </button>
             </div>
             <div id="mContainedView" style="font-size:.85rem;color:#b8b2ac;line-height:1.8;margin-top:.3rem;max-height:150px;overflow-y:auto;padding-right:.3rem"></div>
-            <div class="modal-edit-field" id="mContainedEditWrap" style="display:none;position:relative">
+            <div class="modal-edit-field" id="mContainedEditWrap" style="position:relative;max-height:160px">
               <div class="tag-input-wrap" id="containedTagWrap" onclick="focusTagInput()">
                 <input class="tag-input-field" id="containedTagInput"
                   placeholder="Type a title to search…"
