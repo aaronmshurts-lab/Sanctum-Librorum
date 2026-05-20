@@ -2631,7 +2631,7 @@ async function saveModalEdits(){
     const newTitle   = (document.getElementById('mTitleEdit').value   || '').trim()
     const newAuthor  = (document.getElementById('mAuthorEdit').value  || '').trim()
     const newYear    = parseInt(document.getElementById('mYearEdit').value) || bk.year
-    const newType    = document.getElementById('mTypeEdit').value || bk.type
+    const newType    = bk.type  // primary type unchanged (extras handled via type_list)
     const newSubject = (document.getElementById('mSubjectEdit').value || '').trim() || bk.subject
 
     const metaPayload = {}
