@@ -697,6 +697,7 @@
       color:var(--text-muted);background:none;user-select:none}
     .type-check-pill:hover{border-color:rgba(232,201,106,.4);color:#cec8be}
     .type-check-pill.selected{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-bright)}
+    .type-check-pill.primary{border-color:var(--gold)!important;box-shadow:0 0 6px rgba(232,201,106,.2)}
     .type-check-pill input{display:none}
   </style>
 </head>
@@ -2562,6 +2563,10 @@ async function saveModalEdits(){
   // Faction display — mSubject shows faction, NEVER the series/subject
   const mSubjectEl = document.getElementById('mSubject')
   if(mSubjectEl) mSubjectEl.textContent = gData.faction || '—'
+
+  // Refresh extra type badges from updated cache
+  renderExtraTypeBadges(modalBookId)
+  renderTypeCheckboxes()
   // Book number
   const mBookNoDisp = document.getElementById('mBookNo')
   if(mBookNoDisp){
@@ -4309,8 +4314,10 @@ function renderTypeCheckboxes(){
     const isExtra   = activeTypeList.includes(t)
     const selected  = isPrimary || isExtra
     const label     = isPrimary ? t + ' ★' : t
-    return '<span class="type-check-pill' + (selected ? ' selected' : '') + '"'
-      + (isPrimary ? ' title="Primary type (edit via Series field)"' : ' onclick="toggleTypePill(\'' + t + '\')"')
+    return '<span class="type-check-pill' + (selected ? ' selected' : '') + (isPrimary ? ' primary' : '') + '"'
+      + (isPrimary
+          ? ' title="Primary type — double-click another to change"'
+          : ' onclick="toggleTypePill(\'' + t + '\')" ondblclick="setPrimaryType(\'' + t + '\')" title="Click to add · Double-click to make primary"')
       + '>' + label + '</span>'
   }).join('')
 }
@@ -4422,6 +4429,47 @@ function refreshAuthorDisplay(bookId){
 
 function serializeAuthorList(){
   return extraAuthorList.length ? JSON.stringify(extraAuthorList) : null
+}
+
+
+// Set a new primary type via double-click
+Object.assign(window, {setPrimaryType})
+
+async function setPrimaryType(newType){
+  if(!modalBookId || !isAdmin()) return
+  const bk = BOOKS.find(b => b.id === modalBookId)
+  if(!bk || bk.type === newType) return
+
+  // Move old primary to extras, remove new primary from extras
+  const oldPrimary = bk.type
+  activeTypeList = activeTypeList.filter(t => t !== newType)
+  if(oldPrimary && !activeTypeList.includes(oldPrimary)) activeTypeList.push(oldPrimary)
+
+  // Update local BOOKS entry
+  bk.type = newType
+
+  // Save to DB — write to metaPayload for the type override
+  const typePayload = {type: newType}
+  if(bk._customId){
+    await supabase.from('custom_tomes').update(typePayload).eq('id', bk._customId)
+  } else {
+    const gbEntry = globalBooks[bk.id] || {}
+    const overridePayload = {
+      book_id: bk.id, type_override: newType, updated_at: new Date().toISOString(),
+      type_list: serializeTypeList()
+    }
+    if(gbEntry.db_id && typeof gbEntry.db_id === 'string') overridePayload.id = gbEntry.db_id
+    const {data:ovData} = await supabase.from('books_global')
+      .upsert(overridePayload, {onConflict:'book_id'}).select().single()
+    if(ovData){
+      globalBooks[bk.id] = {...globalBooks[bk.id], ...ovData}
+      globalBooks[bk.id].type_list = ovData.type_list || serializeTypeList()
+    }
+  }
+
+  renderTypeCheckboxes()
+  renderExtraTypeBadges(modalBookId)
+  showToast(newType + ' set as primary type')
 }
 
 </script>
