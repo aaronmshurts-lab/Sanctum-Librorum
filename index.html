@@ -678,6 +678,16 @@
     .card-chrono-no{display:inline;font-family:'Cinzel',serif;font-size:.52rem;
       letter-spacing:.1em;text-transform:uppercase;color:#a8aab8;opacity:.75}
     .card-order-sep{color:var(--text-muted);opacity:.4;font-size:.5rem}
+  
+    /* ── COVER LIGHTBOX ─────────────────────────────────────── */
+    .cover-lightbox{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.88);
+      display:flex;align-items:center;justify-content:center;
+      cursor:zoom-out;animation:fadeIn .15s ease}
+    .cover-lightbox img{max-width:90vw;max-height:88vh;object-fit:contain;
+      box-shadow:0 0 80px rgba(232,201,106,.12),0 20px 60px rgba(0,0,0,.7);
+      border:1px solid rgba(232,201,106,.15)}
+    #modalCoverImg{cursor:zoom-in;transition:opacity .2s}
+    #modalCoverImg:not(.loaded){cursor:default}
   </style>
 </head>
 <body>
@@ -4215,6 +4225,32 @@ function setSortOrder(v){
 }
 Object.assign(window, {setSortOrder})
 
+
+// ── COVER LIGHTBOX ────────────────────────────────────────────────────────
+Object.assign(window, {openLightbox, closeLightbox})
+
+function openLightbox(src){
+  if(!src) return
+  const lb = document.getElementById('coverLightbox')
+  const img = document.getElementById('lightboxImg')
+  img.src = src
+  lb.style.display = 'flex'
+  document.body.style.overflow = 'hidden'
+}
+
+function closeLightbox(){
+  document.getElementById('coverLightbox').style.display = 'none'
+  document.body.style.overflow = ''
+}
+
+// Close lightbox on Escape key
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    const lb = document.getElementById('coverLightbox')
+    if(lb && lb.style.display !== 'none'){ closeLightbox(); return }
+  }
+})
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -4258,7 +4294,7 @@ Object.assign(window, {setSortOrder})
       <!-- LEFT: cover + metadata -->
       <div class="modal-left">
         <div class="modal-cover" id="modalCoverWrap">
-          <img class="modal-cover-img" id="modalCoverImg" alt="Book cover"/>
+          <img class="modal-cover-img" id="modalCoverImg" onclick="openLightbox(this.src)" alt="Book cover"/>
           <div class="modal-cover-ph">
             <span class="mcp-aquila">&#9869;</span>
             <span class="mcp-text" id="modalCoverPhTitle"></span>
@@ -4648,6 +4684,11 @@ Object.assign(window, {setSortOrder})
       Built-in subjects (from catalogue) cannot be removed here.
     </div>
   </div>
+</div>
+
+<!-- ══ COVER LIGHTBOX ═══════════════════════════════════════════ -->
+<div id="coverLightbox" class="cover-lightbox" style="display:none" onclick="closeLightbox()">
+  <img id="lightboxImg" src="" alt="Book cover"/>
 </div>
 </body>
 </html>
