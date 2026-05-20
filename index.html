@@ -688,6 +688,16 @@
       border:1px solid rgba(232,201,106,.15)}
     #modalCoverImg{cursor:zoom-in;transition:opacity .2s}
     #modalCoverImg:not(.loaded){cursor:default}
+  
+    /* ── TYPE MULTI-SELECT ───────────────────────────────────── */
+    .type-check-pill{display:inline-flex;align-items:center;gap:.3rem;
+      padding:.22rem .55rem;border:1px solid #3a3650;border-radius:2px;
+      font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.08em;
+      text-transform:uppercase;cursor:pointer;transition:all .15s;
+      color:var(--text-muted);background:none;user-select:none}
+    .type-check-pill:hover{border-color:rgba(232,201,106,.4);color:#cec8be}
+    .type-check-pill.selected{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-bright)}
+    .type-check-pill input{display:none}
   </style>
 </head>
 <body>
@@ -1685,6 +1695,7 @@ async function loadGlobalBooks(){
       series_list:       r.series_list       || '',
       series_position:  r.series_position  || null,
       chrono_position:  r.chrono_position   || null,
+      type_list:        r.type_list        || '',
       title_override:   r.title_override  || null,
       author_override:  r.author_override || null,
       year_override:    r.year_override   || null,
@@ -1847,7 +1858,12 @@ function getFiltered(){
     if(activeFilter==='wishlist'  && !ub.wishlisted)                     return false
     if(activeFilter==='untracked' && (ub.owned||ub.read||ub.wishlisted)) return false
     if(activeType==='Series'      && !SERIES_SUBJECTS.has(b.subject))   return false
-    if(activeType!=='all' && activeType!=='Series' && b.type!==activeType) return false
+    if(activeType!=='all' && activeType!=='Series'){
+      const tl = (globalBooks[b.id]||{}).type_list || ''
+      let extraTypes = []
+      try{ const p=JSON.parse(tl); if(Array.isArray(p)) extraTypes=p }catch(e){}
+      if(b.type!==activeType && !extraTypes.includes(activeType)) return false
+    }
     if(activeSubject!=='all'){
       const gbf = globalBooks[b.id] || {}
       let extraMatch = false
@@ -1992,7 +2008,10 @@ function renderCard(b){
     + '<div class="card-body">'
     +   '<div class="card-meta-col">'
     +     '<div class="card-subject">' + esc(seriesDisplay) + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
-    +     '<div class="card-format t-' + tc + '">' + esc(b.type) + '</div>'
+    +     '<div style="display:flex;flex-wrap:wrap;gap:.2rem">'
+    + '<div class="card-format t-' + tc + '">' + esc(b.type) + '</div>'
+    + (function(){ const tl=(globalBooks[b.id]||{}).type_list||''; let ex=[]; try{const p=JSON.parse(tl);if(Array.isArray(p))ex=p;}catch(e){} return ex.map(t=>'<div class="card-format t-'+t.replace(' ','')+'">' + t + '</div>').join('') }())
+    + '</div>'
     +     '<div style="flex:1;min-height:.4rem"></div>'
     +     '<div class="c-title">' + (gb2.series_position ? '<div class="card-order-row"><span class="card-book-no">Book #' + (Number.isInteger(gb2.series_position) ? gb2.series_position : parseFloat(gb2.series_position.toFixed(2))) + '</span></div>' : '') + esc(b.title) + '</div>'
     +     '<div class="c-meta">' + esc(b.author) + ' &middot; ' + b.year + '</div>'
@@ -2166,6 +2185,8 @@ function openModal(bookId){
 
   // Cover — from global store
   refreshModalCover(gb.cover_image || null)
+  // Extra types
+  loadTypeList(bookId)
   // Extra series
   loadExtraSeries(bookId)
 
@@ -2405,6 +2426,7 @@ function applyEditMode(on){
     const ed=document.getElementById('rteEditor')
     ed.innerHTML=gb.summary||''
     setTimeout(()=>ed.focus(),50)
+    renderTypeCheckboxes()
   }
   // Upload button
   document.getElementById('modalUploadArea').classList.toggle('visible',on)
@@ -2494,6 +2516,7 @@ async function saveModalEdits(){
     tags:            newTags    || null,
     series_position: newBookNo,
     chrono_position: newChronoNo,
+    type_list:       serializeTypeList(),
     updated_at:      new Date().toISOString()
   }
   if(gb.db_id && typeof gb.db_id==='string' && gb.db_id.length>10) globalPayload.id = gb.db_id
@@ -4251,6 +4274,78 @@ document.addEventListener('keydown', function(e){
   }
 })
 
+
+// ════════════════════════════════════════════════════════════════════════
+//  MULTI-TYPE (TOME) SYSTEM
+// ════════════════════════════════════════════════════════════════════════
+const ALL_TYPES = ['Novel','Novella','Short Story','Graphic Novel','Anthology','Omnibus','Audio Drama','eBook','Series']
+let activeTypeList = []  // extra types for current modal book
+
+Object.assign(window, {toggleTypePill})
+
+function toggleTypePill(type){
+  const idx = activeTypeList.indexOf(type)
+  if(idx >= 0) activeTypeList.splice(idx,1)
+  else activeTypeList.push(type)
+  renderTypeCheckboxes()
+}
+
+function renderTypeCheckboxes(){
+  const bk = BOOKS.find(b => b.id === modalBookId)
+  const primaryType = bk ? bk.type : ''
+  const container = document.getElementById('mTypeCheckboxes')
+  if(!container) return
+  container.innerHTML = ALL_TYPES.map(t => {
+    const isPrimary = t === primaryType
+    const isExtra   = activeTypeList.includes(t)
+    const selected  = isPrimary || isExtra
+    const label     = isPrimary ? t + ' ★' : t
+    return '<span class="type-check-pill' + (selected ? ' selected' : '') + '"'
+      + (isPrimary ? ' title="Primary type (edit via Series field)"' : ' onclick="toggleTypePill(\'' + t + '\')"')
+      + '>' + label + '</span>'
+  }).join('')
+}
+
+function loadTypeList(bookId){
+  activeTypeList = []
+  const gb = globalBooks[bookId] || {}
+  const raw = gb.type_list || ''
+  if(raw){
+    try{
+      const parsed = JSON.parse(raw)
+      if(Array.isArray(parsed)) activeTypeList = parsed.filter(t => t)
+    } catch(e){}
+  }
+  renderTypeCheckboxes()
+  renderExtraTypeBadges(bookId)
+}
+
+function renderExtraTypeBadges(bookId){
+  const bk = BOOKS.find(b => b.id === bookId)
+  const gb = globalBooks[bookId] || {}
+  const raw = gb.type_list || ''
+  let extras = []
+  try{ const p = JSON.parse(raw); if(Array.isArray(p)) extras = p } catch(e){}
+
+  // Primary badge
+  const mFormat = document.getElementById('mFormat')
+  if(mFormat && bk){
+    mFormat.className = 'tbadge t-' + bk.type.replace(' ','')
+    mFormat.textContent = bk.type
+  }
+  // Extra badges
+  const mFormatExtra = document.getElementById('mFormatExtra')
+  if(mFormatExtra){
+    mFormatExtra.innerHTML = extras.map(t =>
+      '<span class="tbadge t-' + t.replace(' ','') + '">' + t + '</span>'
+    ).join('')
+  }
+}
+
+function serializeTypeList(){
+  return activeTypeList.length ? JSON.stringify(activeTypeList) : null
+}
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -4325,17 +4420,14 @@ document.addEventListener('keydown', function(e){
           </div>
           <div class="mfield">
             <span class="mfield-label">Tome</span>
-            <div class="mfield-val" id="mFormat"></div>
-            <select class="inscribe-select modal-edit-field" id="mTypeEdit" style="display:none">
-              <option value="Novel">Novel</option>
-              <option value="Novella">Novella</option>
-              <option value="Graphic Novel">Graphic Novel</option>
-              <option value="Anthology">Anthology</option>
-              <option value="Omnibus">Omnibus</option>
-              <option value="Audio Drama">Audio Drama</option>
-              <option value="eBook">eBook</option>
-              <option value="Short Story">Short Story</option>
-            </select>
+            <!-- View mode: badges -->
+            <div id="mFormatWrap" style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.2rem">
+              <div class="mfield-val tbadge" id="mFormat" style="margin:0"></div>
+              <div id="mFormatExtra" style="display:flex;flex-wrap:wrap;gap:.3rem"></div>
+            </div>
+            <!-- Edit mode: checkbox group -->
+            <div class="modal-edit-field" id="mTypeCheckboxes" style="display:none;flex-wrap:wrap;gap:.3rem;margin-top:.3rem">
+            </div>
           </div>
         </div>
         <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
