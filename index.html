@@ -2777,11 +2777,11 @@ function rteCmd(cmd){
   const ed = rteGetEditor()
   ed.focus()
   if(cmd==='bold'){
-    rteToggleTag('strong')
+    document.execCommand('bold', false, null)
   } else if(cmd==='italic'){
-    rteToggleTag('em')
+    document.execCommand('italic', false, null)
   } else if(cmd==='underline'){
-    rteToggleTag('u')
+    document.execCommand('underline', false, null)
   } else if(cmd==='insertUnorderedList'){
     document.execCommand('insertUnorderedList',false,null)
   } else if(cmd==='insertOrderedList'){
