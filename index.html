@@ -777,24 +777,11 @@
       <div class="ctrl-right">
         <div style="display:flex;align-items:center;gap:.5rem">
           <button class="inscribe-btn" onclick="openInscribeModal()" style="white-space:nowrap;flex-shrink:0">✦ Inscribe Tome</button>
-          <div style="display:flex;align-items:center;gap:.35rem;flex:1">
-            <select id="srchField" onchange="updateSearchPlaceholder()" 
-              style="background:var(--surface);border:1px solid #3a3650;color:var(--text-muted);
-              font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;padding:.35rem .5rem;
-              border-radius:var(--radius);cursor:pointer;white-space:nowrap;flex-shrink:0">
-              <option value="all">All Fields</option>
-              <option value="title">Title</option>
-              <option value="author">Author</option>
-              <option value="series">Series</option>
-              <option value="faction">Faction / Subject</option>
-              <option value="tags">Tags</option>
-            </select>
-            <div style="position:relative;display:flex;align-items:center;flex:1">
-              <input class="srch" type="text" id="srchInput" placeholder="Search title, author or tag…" oninput="doSearch(this.value)" style="padding-right:1.8rem;width:100%"/>
-              <button id="srchClear" onclick="clearSearch()" title="Clear search"
-                style="display:none;position:absolute;right:.4rem;background:none;border:none;
-                color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
-            </div>
+          <div style="position:relative;display:flex;align-items:center;flex:1">
+            <input class="srch" type="text" id="srchInput" placeholder="Search title or tag…" oninput="doSearch(this.value)" style="padding-right:1.8rem;width:100%"/>
+            <button id="srchClear" onclick="clearSearch()" title="Clear search"
+              style="display:none;position:absolute;right:.4rem;background:none;border:none;
+              color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
           </div>
         </div>
       </div>
@@ -812,7 +799,13 @@
       <button class="pill"        data-type="Audio Drama" onclick="setType('Audio Drama')">Audio Drama</button>
       <button class="pill"        data-type="eBook"       onclick="setType('eBook')">eBOOK ONLY</button>
       <div class="ctrl-right" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:flex-start">
-        <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)" style="min-width:180px">
+        <select class="subj-sel" id="browseBy" onchange="updateBrowseDropdown()"
+          style="flex-shrink:0">
+          <option value="subject">Subject</option>
+          <option value="series">Series</option>
+          <option value="author">Author</option>
+        </select>
+        <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)" style="min-width:200px">
           <option value="all">&mdash; All Subjects &mdash;</option>
         </select>
         <button id="subjClear" onclick="clearSubject()" title="Clear subject filter"
@@ -1891,41 +1884,27 @@ function getFiltered(){
     }
     if(activeSubject!=='all'){
       const gbf = globalBooks[b.id] || {}
-      let extraMatch = false
-      try{
-        const sl = gbf.series_list
-        if(sl){ const ex=JSON.parse(sl); if(Array.isArray(ex)) extraMatch = ex.includes(activeSubject) }
-      } catch(e){}
-      if(b.subject !== activeSubject && !extraMatch) return false
+      if(activeBrowseBy === 'author'){
+        // Match primary or extra authors
+        let extraAuthors = []
+        try{ const al=JSON.parse(gbf.author_list||'[]'); if(Array.isArray(al)) extraAuthors=al }catch(e){}
+        const allA = [b.author, ...extraAuthors]
+        if(!allA.includes(activeSubject)) return false
+      } else if(activeBrowseBy === 'subject'){
+        // Match faction field
+        if((gbf.faction||'') !== activeSubject) return false
+      } else {
+        // Series mode: match primary subject or extra series
+        let extraMatch = false
+        try{ const sl=gbf.series_list; if(sl){ const ex=JSON.parse(sl); if(Array.isArray(ex)) extraMatch=ex.includes(activeSubject) } }catch(e){}
+        if(b.subject !== activeSubject && !extraMatch) return false
+      }
     }
     if(searchQuery){
       const q   = searchQuery.toLowerCase()
       const gb  = globalBooks[b.id] || {}
-      const tags = gb.tags || ''
-      const faction = gb.faction || ''
-      // extra series list
-      let extraSeries = []
-      try{ const sl=JSON.parse(gb.series_list||'[]'); if(Array.isArray(sl)) extraSeries=sl }catch(e){}
-      const allSeries = [b.subject, ...extraSeries].join(' ').toLowerCase()
-      // extra authors
-      let extraAuthors = []
-      try{ const al=JSON.parse(gb.author_list||'[]'); if(Array.isArray(al)) extraAuthors=al }catch(e){}
-      const allAuthors = [b.author, ...extraAuthors].join(' ').toLowerCase()
-
-      let match = false
-      switch(activeSrchField){
-        case 'title':   match = b.title.toLowerCase().includes(q); break
-        case 'author':  match = allAuthors.includes(q); break
-        case 'series':  match = allSeries.includes(q); break
-        case 'faction': match = faction.toLowerCase().includes(q); break
-        case 'tags':    match = tags.toLowerCase().includes(q); break
-        default: // 'all'
-          match = b.title.toLowerCase().includes(q)
-               || allAuthors.includes(q)
-               || tags.toLowerCase().includes(q)
-               || faction.toLowerCase().includes(q)
-               || allSeries.includes(q)
-      }
+      const tags = (gb.tags || '').toLowerCase()
+      const match = b.title.toLowerCase().includes(q) || tags.includes(q)
       if(!match) return false
     }
     return true
@@ -2152,6 +2131,7 @@ async function showApp(user){
   ])
   try { await loadSubmissions() } catch(e) { console.error('loadSubmissions failed:', e) }
   populateSubjects()
+  updateBrowseDropdown()
   updateStats()
   try { renderGrid() } catch(e) { console.error('renderGrid failed:', e); document.getElementById('grid').innerHTML='<div class="no-res"><p>Error loading archive. Please refresh.</p></div>' }
   // Show manage subjects button for admin
@@ -4549,6 +4529,73 @@ async function setPrimaryType(newType){
   renderTypeCheckboxes()
   renderExtraTypeBadges(modalBookId)
   showToast(newType + ' set as primary type')
+}
+
+
+// ── BROWSE BY: Series / Subject / Author ─────────────────────────────────
+let activeBrowseBy = 'subject'  // 'subject' | 'series' | 'author'
+
+Object.assign(window, {updateBrowseDropdown})
+
+function updateBrowseDropdown(){
+  const sel = document.getElementById('browseBy')
+  activeBrowseBy = sel ? sel.value : 'subject'
+
+  // Clear current selection
+  activeSubject = 'all'
+  const subjSel = document.getElementById('subjSel')
+  if(!subjSel) return
+
+  const placeholder = {
+    subject: '— All Subjects —',
+    series:  '— All Series —',
+    author:  '— All Authors —'
+  }[activeBrowseBy] || '— All —'
+
+  // Populate based on mode
+  let options = []
+  if(activeBrowseBy === 'subject'){
+    // Faction values from globalBooks
+    const factions = new Set()
+    for(const id in globalBooks){
+      const f = globalBooks[id].faction
+      if(f) factions.add(f)
+    }
+    options = [...factions].sort()
+  } else if(activeBrowseBy === 'series'){
+    // All subjects (primary + extras)
+    const series = new Set()
+    for(const b of BOOKS){
+      if(b.subject) series.add(b.subject)
+      const sl = (globalBooks[b.id]||{}).series_list || ''
+      try{ const ex=JSON.parse(sl); if(Array.isArray(ex)) ex.forEach(s=>series.add(s)) }catch(e){}
+    }
+    customSubjects.forEach(s => series.add(s))
+    options = [...series].sort()
+  } else if(activeBrowseBy === 'author'){
+    // All authors (primary + extras)
+    const authors = new Set()
+    for(const b of BOOKS){
+      if(b.author) authors.add(b.author)
+      const al = (globalBooks[b.id]||{}).author_list || ''
+      try{ const ex=JSON.parse(al); if(Array.isArray(ex)) ex.forEach(a=>authors.add(a)) }catch(e){}
+    }
+    options = [...authors].sort()
+  }
+
+  subjSel.innerHTML = `<option value="all">${placeholder}</option>`
+    + options.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')
+
+  renderGrid()
+}
+
+// Override setSubject to handle all browse modes
+const _origSetSubject = setSubject
+window.setSubject = function(v){
+  activeSubject = v
+  const clr = document.getElementById('subjClear')
+  if(clr) clr.style.display = (v && v !== 'all') ? '' : 'none'
+  renderGrid()
 }
 
 </script>
