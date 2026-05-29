@@ -777,11 +777,24 @@
       <div class="ctrl-right">
         <div style="display:flex;align-items:center;gap:.5rem">
           <button class="inscribe-btn" onclick="openInscribeModal()" style="white-space:nowrap;flex-shrink:0">✦ Inscribe Tome</button>
-          <div style="position:relative;display:flex;align-items:center">
-          <input class="srch" type="text" id="srchInput" placeholder="Search title, author or tag…" oninput="doSearch(this.value)" style="padding-right:1.8rem"/>
-          <button id="srchClear" onclick="clearSearch()" title="Clear search"
-            style="display:none;position:absolute;right:.4rem;background:none;border:none;
-            color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
+          <div style="display:flex;align-items:center;gap:.35rem;flex:1">
+            <select id="srchField" onchange="updateSearchPlaceholder()" 
+              style="background:var(--surface);border:1px solid #3a3650;color:var(--text-muted);
+              font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;padding:.35rem .5rem;
+              border-radius:var(--radius);cursor:pointer;white-space:nowrap;flex-shrink:0">
+              <option value="all">All Fields</option>
+              <option value="title">Title</option>
+              <option value="author">Author</option>
+              <option value="series">Series</option>
+              <option value="faction">Faction / Subject</option>
+              <option value="tags">Tags</option>
+            </select>
+            <div style="position:relative;display:flex;align-items:center;flex:1">
+              <input class="srch" type="text" id="srchInput" placeholder="Search title, author or tag…" oninput="doSearch(this.value)" style="padding-right:1.8rem;width:100%"/>
+              <button id="srchClear" onclick="clearSearch()" title="Clear search"
+                style="display:none;position:absolute;right:.4rem;background:none;border:none;
+                color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1886,12 +1899,34 @@ function getFiltered(){
       if(b.subject !== activeSubject && !extraMatch) return false
     }
     if(searchQuery){
-      const q=searchQuery.toLowerCase()
-      const tags=(globalBooks[b.id]||{}).tags||''
-      const inTitle  = b.title.toLowerCase().includes(q)
-      const inAuthor = b.author.toLowerCase().includes(q)
-      const inTags   = tags.toLowerCase().includes(q)
-      if(!inTitle && !inAuthor && !inTags) return false
+      const q   = searchQuery.toLowerCase()
+      const gb  = globalBooks[b.id] || {}
+      const tags = gb.tags || ''
+      const faction = gb.faction || ''
+      // extra series list
+      let extraSeries = []
+      try{ const sl=JSON.parse(gb.series_list||'[]'); if(Array.isArray(sl)) extraSeries=sl }catch(e){}
+      const allSeries = [b.subject, ...extraSeries].join(' ').toLowerCase()
+      // extra authors
+      let extraAuthors = []
+      try{ const al=JSON.parse(gb.author_list||'[]'); if(Array.isArray(al)) extraAuthors=al }catch(e){}
+      const allAuthors = [b.author, ...extraAuthors].join(' ').toLowerCase()
+
+      let match = false
+      switch(activeSrchField){
+        case 'title':   match = b.title.toLowerCase().includes(q); break
+        case 'author':  match = allAuthors.includes(q); break
+        case 'series':  match = allSeries.includes(q); break
+        case 'faction': match = faction.toLowerCase().includes(q); break
+        case 'tags':    match = tags.toLowerCase().includes(q); break
+        default: // 'all'
+          match = b.title.toLowerCase().includes(q)
+               || allAuthors.includes(q)
+               || tags.toLowerCase().includes(q)
+               || faction.toLowerCase().includes(q)
+               || allSeries.includes(q)
+      }
+      if(!match) return false
     }
     return true
   })
@@ -1917,8 +1952,28 @@ function doSearch(v){
   if(inp && v) inp.value = v
   const clr = document.getElementById('srchClear')
   if(clr) clr.style.display = v ? '' : 'none'
+  const sel = document.getElementById('srchField')
+  if(sel) activeSrchField = sel.value
   renderGrid()
 }
+
+function updateSearchPlaceholder(){
+  const sel = document.getElementById('srchField')
+  const inp = document.getElementById('srchInput')
+  if(!sel || !inp) return
+  activeSrchField = sel.value
+  const placeholders = {
+    all:     'Search title, author or tag…',
+    title:   'Search by title…',
+    author:  'Search by author…',
+    series:  'Search by series…',
+    faction: 'Search by faction or subject…',
+    tags:    'Search by tag…'
+  }
+  inp.placeholder = placeholders[sel.value] || 'Search…'
+  if(searchQuery) renderGrid()
+}
+Object.assign(window, {updateSearchPlaceholder})
 function setSubject(v){
   activeSubject=v
   const clr = document.getElementById('subjClear')
