@@ -1748,6 +1748,7 @@ async function loadUserBooks(){
 async function saveBook(bookId,updated,prevDbId){
   const payload={user_id:currentUser.id,book_id:bookId,owned:updated.owned,read:updated.read,wishlisted:updated.wishlisted,bindings:updated.bindings||[]}
   if(prevDbId)payload.id=prevDbId
+  console.log('[OWNED] saveBook', bookId.slice(-8), 'owned:', updated.owned, 'bindings:', updated.bindings)
   const {data,error}=await supabase.from('user_books').upsert(payload,{onConflict:'user_id,book_id'}).select().single()
   if(!error&&data){if(userBooks[bookId])userBooks[bookId].db_id=data.id}
   return error
@@ -2096,12 +2097,13 @@ function updateCard(id){
 
 function updateStats(){
   const vals=Object.values(userBooks)
-  document.getElementById('sTotal').textContent  = BOOKS.length.toLocaleString()
-  document.getElementById('sOwned').textContent  = vals.filter(b=>b.owned).length
-  document.getElementById('sRead').textContent   = vals.filter(b=>b.read).length
-  document.getElementById('sWish').textContent   = vals.filter(b=>b.wishlisted).length
-  document.getElementById('sNovels').textContent = BOOKS.filter(b=>b.type==='Novel').length
-  document.getElementById('sAudio').textContent  = BOOKS.filter(b=>b.type==='Audio Drama').length
+  const el = id => document.getElementById(id)
+  if(el('sTotal'))  el('sTotal').textContent  = BOOKS.length.toLocaleString()
+  if(el('sOwned'))  el('sOwned').textContent  = vals.filter(b=>b.owned).length
+  if(el('sRead'))   el('sRead').textContent   = vals.filter(b=>b.read).length
+  if(el('sWish'))   el('sWish').textContent   = vals.filter(b=>b.wishlisted).length
+  if(el('sNovels')) el('sNovels').textContent = BOOKS.filter(b=>b.type==='Novel').length
+  if(el('sAudio'))  el('sAudio').textContent  = BOOKS.filter(b=>b.type==='Audio Drama').length
 }
 
 function populateSubjects(){
