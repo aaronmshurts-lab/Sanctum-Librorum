@@ -2052,7 +2052,10 @@ function renderCard(b){
   const ub2      = userBooks[b.id] || {}
   let seriesDisplay = b.subject || ''
   try{ const sl=gb2.series_list; if(sl){ const ex=JSON.parse(sl); if(Array.isArray(ex)&&ex.length) seriesDisplay+=', '+ex.join(', ') } }catch(e){}
+  const tl2 = (gb2.type_list||''); let extraTypesLtd=[]; try{const p=JSON.parse(tl2);if(Array.isArray(p))extraTypesLtd=p;}catch(e){}
   const isLtd    = (ub2.bindings||[]).includes('Limited Edition')
+                || b.type === 'Limited Edition'
+                || extraTypesLtd.includes('Limited Edition')
   const thumbCls = 'card-thumb' + (isLtd ? ' ltd-ed' : '')
   const coverHtml = gb2.cover_image
     ? '<img src="' + gb2.cover_image + '" alt="" style="width:100%;height:100%;object-fit:contain"/>'
