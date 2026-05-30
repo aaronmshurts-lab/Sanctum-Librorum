@@ -3253,6 +3253,9 @@ function openInscribeModal(){
 function closeInscribeModal(){
   document.getElementById('inscribeModal').style.display = 'none'
   document.body.style.overflow = ''
+  const btn = document.getElementById('inscribeSubmitBtn')
+  if(btn){ btn.disabled = false; btn.textContent = '✦ Inscribe to Your Archive' }
+  inscribePendingCover = null
 }
 
 function closeInscribeBg(e){
@@ -3335,11 +3338,14 @@ async function saveInscribedTome(){
   userBooks[localTome.id] = {owned: true, read: false, wishlisted: false, bindings: []}
   await saveBook(localTome.id, userBooks[localTome.id], null)
 
+  // Close modal immediately — don't wait for saveBook
+  closeInscribeModal()
   updateStats()
   populateSubjects()
-  closeInscribeModal()
   renderGrid()
   showToast(isAdmin() ? 'Tome inscribed and promoted to the catalogue.' : 'Tome inscribed to your archive, Marshal.')
+  // Save ownership record async (non-blocking)
+  saveBook(localTome.id, userBooks[localTome.id], null)
 }
 
 // Load user's custom tomes from Supabase
