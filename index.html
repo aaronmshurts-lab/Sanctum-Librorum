@@ -1883,7 +1883,12 @@ function getFiltered(){
       const tl = (globalBooks[b.id]||{}).type_list || ''
       let extraTypes = []
       try{ const p=JSON.parse(tl); if(Array.isArray(p)) extraTypes=p }catch(e){}
-      if(b.type!==activeType && !extraTypes.includes(activeType)) return false
+      const primaryMatch = b.type === activeType
+      const extraMatch   = extraTypes.includes(activeType)
+      // For Limited Edition: also match if user has that binding
+      const bindingMatch = activeType === 'Limited Edition'
+        && ((userBooks[b.id]||{}).bindings||[]).includes('Limited Edition')
+      if(!primaryMatch && !extraMatch && !bindingMatch) return false
     }
     if(activeSubject!=='all'){
       const gbf = globalBooks[b.id] || {}
