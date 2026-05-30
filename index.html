@@ -110,7 +110,7 @@
     .pill[data-type="Audio Drama"].active{background:rgba(200,80,80,.15);border-color:#c85050;color:#f0a0a0}
     .pill[data-type="eBook"].active{background:rgba(80,160,180,.15);border-color:#50a0b4;color:#90dcf0}
     .pill[data-type="Short Story"].active{background:rgba(180,130,60,.15);border-color:#b48232;color:#f0c870}
-    .pill.ltd-pill{border-color:rgba(232,201,106,.5);color:var(--gold)}
+    .pill.ltd-pill{}
     .pill.ltd-pill.active{background:rgba(232,201,106,.15);border-color:var(--gold);color:var(--gold-bright);box-shadow:0 0 8px rgba(232,201,106,.3)}
     .pill[data-type="Graphic Novel"].active{background:rgba(120,80,160,.15);border-color:#8855bb;color:#c090f0}
     .pill[data-type="Series"].active{background:rgba(180,150,50,.18);border-color:#b49632;color:#f0d070}
@@ -785,7 +785,7 @@
             color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
         </div>
         <select class="subj-sel" id="browseBy" onchange="updateBrowseDropdown()" style="flex-shrink:0">
-          <option value="subject">Subject</option>
+          <option value="subject">Subject/Faction</option>
           <option value="series">Series</option>
           <option value="author">Author</option>
         </select>
@@ -4345,7 +4345,7 @@ document.addEventListener('keydown', function(e){
 // ════════════════════════════════════════════════════════════════════════
 //  MULTI-TYPE (TOME) SYSTEM
 // ════════════════════════════════════════════════════════════════════════
-const ALL_TYPES = ['Novel','Novella','Short Story','Graphic Novel','Anthology','Omnibus','Audio Drama','eBook','Series']
+const ALL_TYPES = ['Novel','Novella','Short Story','Graphic Novel','Anthology','Omnibus','Audio Drama','eBook','Limited Edition','Series']
 let activeTypeList = []  // extra types for current modal book
 
 Object.assign(window, {toggleTypePill})
