@@ -110,6 +110,8 @@
     .pill[data-type="Audio Drama"].active{background:rgba(200,80,80,.15);border-color:#c85050;color:#f0a0a0}
     .pill[data-type="eBook"].active{background:rgba(80,160,180,.15);border-color:#50a0b4;color:#90dcf0}
     .pill[data-type="Short Story"].active{background:rgba(180,130,60,.15);border-color:#b48232;color:#f0c870}
+    .pill.ltd-pill{border-color:rgba(232,201,106,.5);color:var(--gold)}
+    .pill.ltd-pill.active{background:rgba(232,201,106,.15);border-color:var(--gold);color:var(--gold-bright);box-shadow:0 0 8px rgba(232,201,106,.3)}
     .pill[data-type="Graphic Novel"].active{background:rgba(120,80,160,.15);border-color:#8855bb;color:#c090f0}
     .pill[data-type="Series"].active{background:rgba(180,150,50,.18);border-color:#b49632;color:#f0d070}
     .ctrl-right{margin-left:auto;display:flex;gap:.5rem}
@@ -357,6 +359,7 @@
     .card-format.t-Series{background:rgba(180,150,50,.18);border-color:rgba(180,150,50,.4);color:#f0d070}
     .card-format.t-ShortStory{background:rgba(180,130,60,.15);border-color:rgba(180,130,60,.4);color:#f0c870}
     .card-format.t-GraphicNovel{background:rgba(120,80,160,.15);border-color:rgba(120,80,160,.4);color:#c090f0}
+    .card-format.t-LimitedEdition{background:rgba(232,201,106,.15);border-color:rgba(232,201,106,.5);color:var(--gold-bright);box-shadow:0 0 6px rgba(232,201,106,.25)}
   
     /* ── BINDINGS ──────────────────────────────────────────── */
     .bindings-section{margin-top:.5rem}
@@ -760,10 +763,6 @@
     <div class="stat"><div class="sv" id="sRead">0</div><div class="sl">Read</div></div>
     <div class="sdiv"></div>
     <div class="stat"><div class="sv" id="sWish">0</div><div class="sl">Wishlist</div></div>
-    <div class="sdiv"></div>
-    <div class="stat"><div class="sv" id="sNovels">0</div><div class="sl">Novels</div></div>
-    <div class="sdiv"></div>
-    <div class="stat"><div class="sv" id="sAudio">0</div><div class="sl">Audio</div></div>
   </div>
 
   <div class="ctrl-wrap">
@@ -774,16 +773,36 @@
       <button class="pill"        data-filter="read"      onclick="setFilter('read')">Read</button>
       <button class="pill"        data-filter="wishlist"  onclick="setFilter('wishlist')">Wishlist</button>
       <button class="pill"        data-filter="untracked" onclick="setFilter('untracked')">Untracked</button>
-      <div class="ctrl-right">
-        <div style="display:flex;align-items:center;gap:.5rem">
-          <button class="inscribe-btn" onclick="openInscribeModal()" style="white-space:nowrap;flex-shrink:0">✦ Inscribe Tome</button>
-          <div style="position:relative;display:flex;align-items:center;flex:1">
-            <input class="srch" type="text" id="srchInput" placeholder="Search title or tag…" oninput="doSearch(this.value)" style="padding-right:1.8rem;width:100%"/>
-            <button id="srchClear" onclick="clearSearch()" title="Clear search"
-              style="display:none;position:absolute;right:.4rem;background:none;border:none;
-              color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
-          </div>
+      <div class="ctrl-right" style="display:flex;align-items:center;gap:.5rem;flex:1">
+        <button id="syncCatalogBtn" onclick="syncToCatalog()" style="display:none;white-space:nowrap;flex-shrink:0;
+          padding:.35rem .75rem;background:none;border:1px solid rgba(232,201,106,.35);
+          color:var(--gold);font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.1em;
+          text-transform:uppercase;cursor:pointer;border-radius:2px">&#8635; Sync</button>
+        <div style="position:relative;display:flex;align-items:center;flex:1">
+          <input class="srch" type="text" id="srchInput" placeholder="Search title or tag…" oninput="doSearch(this.value)" style="padding-right:1.8rem;width:100%"/>
+          <button id="srchClear" onclick="clearSearch()" title="Clear search"
+            style="display:none;position:absolute;right:.4rem;background:none;border:none;
+            color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
         </div>
+        <select class="subj-sel" id="browseBy" onchange="updateBrowseDropdown()" style="flex-shrink:0">
+          <option value="subject">Subject</option>
+          <option value="series">Series</option>
+          <option value="author">Author</option>
+        </select>
+        <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)" style="min-width:180px">
+          <option value="all">&mdash; All Series &mdash;</option>
+        </select>
+        <button id="subjClear" onclick="clearSubject()" title="Clear filter"
+          style="display:none;padding:.32rem .5rem;background:none;border:1px solid #3a3650;
+          border-radius:2px;color:var(--text-muted);cursor:pointer;font-size:.75rem">&#10005;</button>
+        <button id="manageSubjectsBtn" onclick="openManageSubjects()" title="Manage Subjects (Admin)"
+          style="display:none;padding:.32rem .5rem;background:none;border:1px solid var(--border-gold);
+          border-radius:2px;color:var(--gold);cursor:pointer;font-size:.75rem">&#9881;</button>
+        <select class="subj-sel" id="sortOrderSel" onchange="setSortOrder(this.value)" style="flex-shrink:0">
+          <option value="publish">By Publish Date</option>
+          <option value="timeline">By Timeline</option>
+        </select>
+        <button class="inscribe-btn" onclick="openInscribeModal()" style="white-space:nowrap;flex-shrink:0">✦ Inscribe Tome</button>
       </div>
     </div>
     <div class="ctrl-row">
@@ -798,27 +817,10 @@
       <button class="pill"        data-type="Omnibus"     onclick="setType('Omnibus')">Omnibus</button>
       <button class="pill"        data-type="Audio Drama" onclick="setType('Audio Drama')">Audio Drama</button>
       <button class="pill"        data-type="eBook"       onclick="setType('eBook')">eBOOK ONLY</button>
-      <div class="ctrl-right" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:flex-start">
-        <select class="subj-sel" id="browseBy" onchange="updateBrowseDropdown()"
-          style="flex-shrink:0">
-          <option value="subject">Subject</option>
-          <option value="series">Series</option>
-          <option value="author">Author</option>
-        </select>
-        <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)" style="min-width:200px">
-          <option value="all">&mdash; All Subjects &mdash;</option>
-        </select>
-        <button id="subjClear" onclick="clearSubject()" title="Clear subject filter"
-          style="display:none;padding:.32rem .5rem;background:none;border:1px solid #3a3650;
-          border-radius:2px;color:var(--text-muted);cursor:pointer;font-size:.75rem;
-          transition:all .15s;white-space:nowrap">&#10005;</button>
-        <button id="manageSubjectsBtn" onclick="openManageSubjects()" title="Manage Subjects (Admin)"
-          style="display:none;padding:.32rem .5rem;background:none;border:1px solid var(--border-gold);
-          border-radius:2px;color:var(--gold);cursor:pointer;font-size:.75rem">&#9881;</button>
-        <select class="subj-sel" id="sortOrderSel" onchange="setSortOrder(this.value)"
-          style="min-width:160px" title="Sort order within subject">
-          <option value="publish">By Publish Date</option>
-          <option value="timeline">By Timeline</option>
+      <button class="pill ltd-pill"   data-type="Limited Edition" onclick="setType('Limited Edition')">&#10022; Ltd Edition</button>
+      <div class="ctrl-right" style="display:none">
+        <select class="subj-sel" id="subjSelHidden">
+          <option value="all"></option>
         </select>
       </div>
     </div>
@@ -1596,7 +1598,8 @@ const TYPE_ORDER = {
   'Omnibus':     6,
   'Audio Drama': 7,
   'eBook':       8,
-  'Series':      9
+  'Limited Edition': 9,
+  'Series':      10
 }
 
 
@@ -4974,6 +4977,7 @@ window.setSubject = function(v){
                 <option value="Novella">Novella</option>
                 <option value="Short Story">Short Story</option>
                 <option value="Graphic Novel">Graphic Novel</option>
+                <option value="Limited Edition">Limited Edition</option>
                 <option value="Anthology">Anthology</option>
                 <option value="Omnibus">Omnibus</option>
                 <option value="Audio Drama">Audio Drama</option>
