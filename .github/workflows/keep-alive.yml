@@ -1,19 +1,53 @@
 name: Supabase Keep-Alive
-
 on:
   schedule:
-    # Runs every 3 days at 12:00 UTC
-    - cron: '0 12 */3 * *'
-  workflow_dispatch: # Also allows manual trigger from GitHub Actions tab
+    # Every 2 days at 12:00 UTC — safety margin under the 7-day pause threshold.
+    # Two consecutive missed pings still leave room before the project sleeps.
+    - cron: '0 12 */2 * *'
+  workflow_dispatch: # Manual trigger from the Actions tab
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase to prevent inactivity pause
+      - name: Ping Supabase (real table read, with retries)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          curl -s -o /dev/null -w "HTTP Status: %{http_code}" \
-            "https://yzhoqdjhttdztorcsbdt.supabase.co/rest/v1/" \
-            -H "apikey: sb_publishable_MZpvQ3ySRm8l_saadAeKFw_GAKYPPa6" \
-            -H "Authorization: Bearer sb_publishable_MZpvQ3ySRm8l_saadAeKFw_GAKYPPa6"
-          echo " — Supabase pinged successfully"
+          set -euo pipefail
+
+          # A real table read — this is what counts as DB activity and resets
+          # the inactivity clock. Selecting one row keeps the payload tiny.
+          ENDPOINT="${SUPABASE_URL}/rest/v1/books_global?select=book_id&limit=1"
+
+          attempt=1
+          max_attempts=3
+          status=000
+
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Attempt ${attempt}/${max_attempts}…"
+            status=$(curl -s -o /dev/null -w "%{http_code}" \
+              --connect-timeout 15 --max-time 30 \
+              "$ENDPOINT" \
+              -H "apikey: ${SUPABASE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_KEY}" || echo "000")
+
+            echo "HTTP Status: ${status}"
+
+            # 2xx = success. Accept it and stop.
+            if [ "$status" -ge 200 ] && [ "$status" -lt 300 ]; then
+              echo "✓ Supabase responded healthy (${status}). Archive is awake."
+              exit 0
+            fi
+
+            # 000 usually means the project is paused (hostname won't resolve)
+            # or a transient network blip. Retry after a short wait.
+            echo "✗ Non-success status (${status}). Retrying in 20s…"
+            attempt=$((attempt + 1))
+            sleep 20
+          done
+
+          echo "::error::Supabase keep-alive FAILED after ${max_attempts} attempts (last status: ${status})."
+          echo "::error::Status 000 typically means the project is PAUSED — restore it in the Supabase dashboard."
+          exit 1
