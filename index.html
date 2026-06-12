@@ -874,7 +874,7 @@ window.SC = function(n,f,el){
 }
 
 // ════════════════════════════════════════════════════════════
-//  CATALOGUE  (453 entries)
+//  CATALOGUE  (682 entries)
 // ════════════════════════════════════════════════════════════
 let customSubjects = []  // admin-added subjects not in BOOKS
 
@@ -1748,7 +1748,6 @@ async function loadUserBooks(){
 async function saveBook(bookId,updated,prevDbId){
   const payload={user_id:currentUser.id,book_id:bookId,owned:updated.owned,read:updated.read,wishlisted:updated.wishlisted,bindings:updated.bindings||[]}
   if(prevDbId)payload.id=prevDbId
-  console.log('[OWNED] saveBook', bookId.slice(-8), 'owned:', updated.owned, 'bindings:', updated.bindings)
   const {data,error}=await supabase.from('user_books').upsert(payload,{onConflict:'user_id,book_id'}).select().single()
   if(!error&&data){if(userBooks[bookId])userBooks[bookId].db_id=data.id}
   return error
@@ -2147,9 +2146,9 @@ async function showApp(user){
   updateBrowseDropdown()
   updateStats()
   try { renderGrid() } catch(e) { console.error('renderGrid failed:', e); document.getElementById('grid').innerHTML='<div class="no-res"><p>Error loading archive. Please refresh.</p></div>' }
-  // Show manage subjects button for admin
+  // Show manage subjects button (always visible)
   const msBtn = document.getElementById('manageSubjectsBtn')
-  if(msBtn) msBtn.style.display = isAdmin() ? '' : 'none'
+  if(msBtn) msBtn.style.display = ''
 }
 
 function showAuth(){
@@ -2409,7 +2408,6 @@ function closeModalBg(e){
 }
 
 function refreshModalCover(src){
-  if(!src) console.log('[COVER] refreshModalCover called with null/empty — clearing cover display')
   const img=document.getElementById('modalCoverImg')
   if(src){
     img.onload=()=>img.classList.add('loaded')
@@ -2559,9 +2557,6 @@ async function saveModalEdits(){
   const containedWorks = serializeContainedTags()
   const gb = globalBooks[modalBookId] || {}
   const coverToSave = pendingCover !== null ? pendingCover : (gb.cover_image || null)
-  console.log('[COVER] pendingCover:', pendingCover ? 'SET (' + Math.round(pendingCover.length/1024) + 'KB)' : 'null')
-  console.log('[COVER] coverToSave:', coverToSave ? 'SET (' + Math.round(coverToSave.length/1024) + 'KB)' : 'null')
-  console.log('[COVER] modalBookId:', modalBookId, '| isCustom:', !!(BOOKS.find(b=>b.id===modalBookId)||{})._customId)
 
   // Faction (independent from series) and Tags
   const factionEl  = document.getElementById('mFactionEdit')
@@ -2598,7 +2593,6 @@ async function saveModalEdits(){
     .upsert(globalPayload, {onConflict:'book_id'})
     .select().single()
 
-  console.log('[COVER] upsert gError:', gError, '| gData.cover_image:', gData?.cover_image ? 'SET (' + Math.round((gData.cover_image||'').length/1024) + 'KB)' : 'null/empty')
   if(gError){
     console.error('Global save error:', gError)
     btn.disabled=false; btn.textContent='Save Changes'
