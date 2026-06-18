@@ -2662,10 +2662,13 @@ async function saveModalEdits(){
     .upsert(globalPayload, {onConflict:'book_id'})
     .select().single()
   if(gError){
-    console.error('Global save error:', gError)
+    console.error('[SAVE] Global save error:', gError)
+    console.error('[SAVE] Payload keys:', Object.keys(globalPayload), '| book_id:', globalPayload.book_id, '| has cover:', !!globalPayload.cover_image)
+    alert('Save failed: ' + (gError.message || gError.code || JSON.stringify(gError)))
     btn.disabled=false; btn.textContent='Save Changes'
     return
   }
+  console.log('[SAVE] Success for', globalPayload.book_id)
 
   globalBooks[modalBookId] = {
     db_id:             gData.id,
