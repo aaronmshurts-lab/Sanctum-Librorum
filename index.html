@@ -2193,10 +2193,11 @@ async function showApp(user){
   await Promise.all([
     loadGlobalBooks().catch(e  => console.error('loadGlobalBooks failed:', e)),
     loadUserBooks().catch(e    => console.error('loadUserBooks failed:', e)),
-    loadCustomTomes().catch(e  => console.error('loadCustomTomes failed:', e)),
     loadHiddenBooks().catch(e  => console.error('loadHiddenBooks failed:', e)),
     loadCustomSubjects().catch(e => console.error('loadCustomSubjects failed:', e))
   ])
+  // Custom tomes load AFTER globalBooks so their merge doesn't get clobbered
+  await loadCustomTomes().catch(e => console.error('loadCustomTomes failed:', e))
   try { await loadSubmissions() } catch(e) { console.error('loadSubmissions failed:', e) }
   populateSubjects()
   updateBrowseDropdown(true)
@@ -2662,13 +2663,10 @@ async function saveModalEdits(){
     .upsert(globalPayload, {onConflict:'book_id'})
     .select().single()
   if(gError){
-    console.error('[SAVE] Global save error:', gError)
-    console.error('[SAVE] Payload keys:', Object.keys(globalPayload), '| book_id:', globalPayload.book_id, '| has cover:', !!globalPayload.cover_image)
-    alert('Save failed: ' + (gError.message || gError.code || JSON.stringify(gError)))
+    console.error('Global save error:', gError)
     btn.disabled=false; btn.textContent='Save Changes'
     return
   }
-  console.log('[SAVE] Success for', globalPayload.book_id)
 
   globalBooks[modalBookId] = {
     db_id:             gData.id,
@@ -3452,13 +3450,13 @@ async function loadCustomTomes(){
     }
     BOOKS.push(local)
 
-    // Populate globalBooks with cover/notes so modal works
-    if(t.cover_image || t.notes){
-      globalBooks[local.id] = {
-        cover_image: t.cover_image || null,
-        summary:     t.notes       || '',
-        db_id:       null
-      }
+    // Merge into globalBooks WITHOUT clobbering any books_global data
+    // (contained_works, series_list, type_list, etc. saved via the modal)
+    const existing = globalBooks[local.id] || {}
+    globalBooks[local.id] = {
+      ...existing,
+      cover_image: existing.cover_image || t.cover_image || null,
+      summary:     existing.summary     || t.notes       || ''
     }
   }
 }
