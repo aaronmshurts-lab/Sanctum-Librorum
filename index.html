@@ -702,6 +702,13 @@
     .type-check-pill.selected{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-bright)}
     .type-check-pill.primary{border-color:var(--gold)!important;box-shadow:0 0 6px rgba(232,201,106,.2)}
     .type-check-pill input{display:none}
+  
+    .auth-forgot{display:block;width:100%;margin-top:.7rem;background:none;border:none;
+      color:var(--text-muted);font-family:'EB Garamond',serif;font-size:.85rem;
+      font-style:italic;cursor:pointer;text-align:center;transition:color .2s;
+      letter-spacing:.02em}
+    .auth-forgot:hover{color:var(--gold)}
+    .auth-msg.success{color:#8fd98f;border-color:rgba(143,217,143,.3);background:rgba(143,217,143,.08)}
   </style>
 </head>
 <body>
@@ -728,6 +735,7 @@
       <div class="fg"><label>Password</label>
         <input type="password" id="lPass" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" onkeydown="if(event.key==='Enter')doLogin()"/></div>
       <button class="btn-primary" id="loginBtn" onclick="doLogin()">Access Archive</button>
+      <button class="auth-forgot" id="forgotBtn" onclick="doForgotPassword()">Forgot your password?</button>
     </div>
     <div id="regForm" style="display:none;">
       <div class="fg"><label>Email Address</label>
@@ -874,7 +882,7 @@ window.SC = function(n,f,el){
 }
 
 // ════════════════════════════════════════════════════════════
-//  CATALOGUE  (682 entries)
+//  CATALOGUE  (453 entries)
 // ════════════════════════════════════════════════════════════
 let customSubjects = []  // admin-added subjects not in BOOKS
 
@@ -1666,9 +1674,13 @@ function switchTab(t){
   document.getElementById('tabReg').classList.toggle('active',!isL)
   clearMsg()
 }
-function showMsg(txt,type='error'){
-  const el=document.getElementById('authMsg')
-  el.className='auth-msg '+type; el.textContent=txt; el.style.display=''
+function showMsg(msg, type){
+  const el = document.getElementById('authMsg')
+  if(!el) return
+  el.textContent = msg
+  const isSuccess = (type === true || type === 'success')
+  el.className = 'auth-msg ' + (isSuccess ? 'success' : 'error')
+  el.style.display = ''
 }
 function clearMsg(){document.getElementById('authMsg').style.display='none'}
 
@@ -1748,6 +1760,7 @@ async function loadUserBooks(){
 async function saveBook(bookId,updated,prevDbId){
   const payload={user_id:currentUser.id,book_id:bookId,owned:updated.owned,read:updated.read,wishlisted:updated.wishlisted,bindings:updated.bindings||[]}
   if(prevDbId)payload.id=prevDbId
+  console.log('[OWNED] saveBook', bookId.slice(-8), 'owned:', updated.owned, 'bindings:', updated.bindings)
   const {data,error}=await supabase.from('user_books').upsert(payload,{onConflict:'user_id,book_id'}).select().single()
   if(!error&&data){if(userBooks[bookId])userBooks[bookId].db_id=data.id}
   return error
@@ -2146,9 +2159,9 @@ async function showApp(user){
   updateBrowseDropdown()
   updateStats()
   try { renderGrid() } catch(e) { console.error('renderGrid failed:', e); document.getElementById('grid').innerHTML='<div class="no-res"><p>Error loading archive. Please refresh.</p></div>' }
-  // Show manage subjects button (always visible)
+  // Show manage subjects button for admin
   const msBtn = document.getElementById('manageSubjectsBtn')
-  if(msBtn) msBtn.style.display = ''
+  if(msBtn) msBtn.style.display = isAdmin() ? '' : 'none'
 }
 
 function showAuth(){
@@ -2408,6 +2421,7 @@ function closeModalBg(e){
 }
 
 function refreshModalCover(src){
+  if(!src) console.log('[COVER] refreshModalCover called with null/empty — clearing cover display')
   const img=document.getElementById('modalCoverImg')
   if(src){
     img.onload=()=>img.classList.add('loaded')
@@ -2557,6 +2571,9 @@ async function saveModalEdits(){
   const containedWorks = serializeContainedTags()
   const gb = globalBooks[modalBookId] || {}
   const coverToSave = pendingCover !== null ? pendingCover : (gb.cover_image || null)
+  console.log('[COVER] pendingCover:', pendingCover ? 'SET (' + Math.round(pendingCover.length/1024) + 'KB)' : 'null')
+  console.log('[COVER] coverToSave:', coverToSave ? 'SET (' + Math.round(coverToSave.length/1024) + 'KB)' : 'null')
+  console.log('[COVER] modalBookId:', modalBookId, '| isCustom:', !!(BOOKS.find(b=>b.id===modalBookId)||{})._customId)
 
   // Faction (independent from series) and Tags
   const factionEl  = document.getElementById('mFactionEdit')
@@ -2593,6 +2610,7 @@ async function saveModalEdits(){
     .upsert(globalPayload, {onConflict:'book_id'})
     .select().single()
 
+  console.log('[COVER] upsert gError:', gError, '| gData.cover_image:', gData?.cover_image ? 'SET (' + Math.round((gData.cover_image||'').length/1024) + 'KB)' : 'null/empty')
   if(gError){
     console.error('Global save error:', gError)
     btn.disabled=false; btn.textContent='Save Changes'
@@ -4609,6 +4627,31 @@ window.setSubject = function(v){
   const clr = document.getElementById('subjClear')
   if(clr) clr.style.display = (v && v !== 'all') ? '' : 'none'
   renderGrid()
+}
+
+
+// ── PASSWORD RESET ────────────────────────────────────────────────────────
+Object.assign(window, {doForgotPassword})
+
+async function doForgotPassword(){
+  const email = document.getElementById('lEmail').value.trim()
+  if(!email){
+    showMsg('Enter your email address above, then click "Forgot your password?" again.')
+    return
+  }
+  const btn = document.getElementById('forgotBtn')
+  btn.disabled = true
+  btn.textContent = 'Dispatching astropathic message…'
+  const {error} = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  })
+  btn.disabled = false
+  btn.textContent = 'Forgot your password?'
+  if(error){
+    showMsg(error.message)
+  } else {
+    showMsg('A password reset link has been sent to ' + email + '. Check your inbox, Marshal.', true)
+  }
 }
 
 </script>
