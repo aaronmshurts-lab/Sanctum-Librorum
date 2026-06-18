@@ -2622,7 +2622,8 @@ async function saveModalEdits(){
   const spoilerContent = tempSpoiler.innerHTML.trim()
   const containedWorks = serializeContainedTags()
   const gb = globalBooks[modalBookId] || {}
-  const coverToSave = pendingCover !== null ? pendingCover : (gb.cover_image || null)
+  const coverChanged = pendingCover !== null
+  const coverToSave = coverChanged ? pendingCover : (gb.cover_image || null)
 
 
 
@@ -2640,7 +2641,6 @@ async function saveModalEdits(){
   const newChronoNo  = chronoEditEl  ? (parseFloat(chronoEditEl.value)  || null) : null
   const globalPayload = {
     book_id:         modalBookId,
-    cover_image:     coverToSave,
     summary:         summary,
     spoiler:         spoilerContent     || null,
     dramatis_personae: dpContent || null,
@@ -2654,6 +2654,8 @@ async function saveModalEdits(){
     author_list:     serializeAuthorList(),
     updated_at:      new Date().toISOString()
   }
+  // Only send the cover blob if it actually changed (avoids re-uploading megabytes)
+  if(coverChanged) globalPayload.cover_image = coverToSave
   if(gb.db_id && typeof gb.db_id==='string' && gb.db_id.length>10) globalPayload.id = gb.db_id
 
   const {data:gData, error:gError} = await supabase
