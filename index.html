@@ -1710,12 +1710,24 @@ async function doLogout(){await supabase.auth.signOut()}
 //  DATA
 // ════════════════════════════════════════════════════════════
 async function loadGlobalBooks(){
-  const {data,error} = await supabase.from('books_global').select('*')
+  // Fast load: everything EXCEPT the heavy cover_image base64 blobs.
+  // Covers are fetched separately by loadCovers() after the grid renders.
+  const cols = 'id,book_id,summary,spoiler,contained_works,faction,tags,'
+    + 'avg_rating,rating_count,dramatis_personae,series_list,series_position,'
+    + 'chrono_position,type_list,author_list,'
+    + 'title_override,author_override,year_override,type_override,subject_override,'
+    + 'cover_image'
+  // Pull a lightweight flag for which books HAVE a cover, without the blob,
+  // by asking only for cover_image presence is not possible in one go,
+  // so we select metadata first (no cover), then lazy-fetch covers.
+  const metaCols = cols.replace(',cover_image','')
+  const {data,error} = await supabase.from('books_global').select(metaCols)
   if(error){ console.error('loadGlobalBooks:', error); return }
   globalBooks = {}
   for(const r of (data||[])){
     globalBooks[r.book_id] = {
-      cover_image:     r.cover_image     || null,
+      cover_image:     null,   // filled in later by loadCovers()
+      _coverPending:   true,    // marks that a cover may exist in DB
       summary:         r.summary         || '',
       spoiler:         r.spoiler         || '',
       contained_works: r.contained_works || '',
@@ -1736,7 +1748,6 @@ async function loadGlobalBooks(){
       subject_override: r.subject_override|| null,
       db_id:           r.id
     }
-    // Apply any metadata overrides to the BOOKS array
     const bookEntry = BOOKS.find(bk=>bk.id===r.book_id)
     if(bookEntry){
       if(r.title_override)   bookEntry.title   = r.title_override
@@ -1744,6 +1755,39 @@ async function loadGlobalBooks(){
       if(r.year_override)    bookEntry.year    = r.year_override
       if(r.type_override)    bookEntry.type    = r.type_override
       if(r.subject_override) bookEntry.subject = r.subject_override
+    }
+  }
+}
+
+// Lazy-load cover images in the background, in batches, after grid renders.
+async function loadCovers(){
+  try{
+    const {data,error} = await supabase
+      .from('books_global')
+      .select('book_id,cover_image')
+      .not('cover_image','is',null)
+    if(error){ console.error('loadCovers:', error); return }
+    for(const r of (data||[])){
+      if(globalBooks[r.book_id]){
+        globalBooks[r.book_id].cover_image = r.cover_image || null
+        globalBooks[r.book_id]._coverPending = false
+      }
+    }
+    // Refresh visible card thumbnails now that covers are in
+    applyCoversToCards()
+  } catch(e){ console.error('loadCovers exception:', e) }
+}
+
+// Update card thumbnails in-place without a full re-render
+function applyCoversToCards(){
+  for(const id in globalBooks){
+    const cover = globalBooks[id].cover_image
+    if(!cover) continue
+    const card = document.getElementById('card-' + id)
+    if(!card) continue
+    const thumb = card.querySelector('.card-thumb')
+    if(thumb && !thumb.querySelector('img')){
+      thumb.innerHTML = '<img src="' + cover + '" alt="" style="width:100%;height:100%;object-fit:contain"/>'
     }
   }
 }
@@ -1760,7 +1804,6 @@ async function loadUserBooks(){
 async function saveBook(bookId,updated,prevDbId){
   const payload={user_id:currentUser.id,book_id:bookId,owned:updated.owned,read:updated.read,wishlisted:updated.wishlisted,bindings:updated.bindings||[]}
   if(prevDbId)payload.id=prevDbId
-  console.log('[OWNED] saveBook', bookId.slice(-8), 'owned:', updated.owned, 'bindings:', updated.bindings)
   const {data,error}=await supabase.from('user_books').upsert(payload,{onConflict:'user_id,book_id'}).select().single()
   if(!error&&data){if(userBooks[bookId])userBooks[bookId].db_id=data.id}
   return error
@@ -2147,7 +2190,6 @@ async function showApp(user){
   document.getElementById('app').classList.add('visible')
   document.getElementById('hEmail').textContent=user.email
   document.getElementById('grid').innerHTML='<div class="loading"><div class="spinner"></div><p>Loading your archive…</p></div>'
-  const _t0 = performance.now()
   await Promise.all([
     loadGlobalBooks().catch(e  => console.error('loadGlobalBooks failed:', e)),
     loadUserBooks().catch(e    => console.error('loadUserBooks failed:', e)),
@@ -2155,15 +2197,13 @@ async function showApp(user){
     loadHiddenBooks().catch(e  => console.error('loadHiddenBooks failed:', e)),
     loadCustomSubjects().catch(e => console.error('loadCustomSubjects failed:', e))
   ])
-  console.log('[PERF] Data load took', Math.round(performance.now()-_t0), 'ms |',
-    'globalBooks:', Object.keys(globalBooks).length,
-    '| covers:', Object.values(globalBooks).filter(g=>g.cover_image).length)
-  const _t1 = performance.now()
   try { await loadSubmissions() } catch(e) { console.error('loadSubmissions failed:', e) }
   populateSubjects()
   updateBrowseDropdown(true)
   updateStats()
-  try { renderGrid(); console.log('[PERF] renderGrid took', Math.round(performance.now()-_t1), 'ms') } catch(e) { console.error('renderGrid failed:', e); document.getElementById('grid').innerHTML='<div class="no-res"><p>Error loading archive. Please refresh.</p></div>' }
+  try { renderGrid() } catch(e) { console.error('renderGrid failed:', e); document.getElementById('grid').innerHTML='<div class="no-res"><p>Error loading archive. Please refresh.</p></div>' }
+  // Background: fetch cover images and slot them in (non-blocking)
+  loadCovers()
   // Show manage subjects button for admin
   const msBtn = document.getElementById('manageSubjectsBtn')
   if(msBtn) msBtn.style.display = isAdmin() ? '' : 'none'
@@ -2263,8 +2303,15 @@ function openModal(bookId){
   const sum = gb.summary || ''
   document.getElementById('mSummaryView').innerHTML = sum || '<em style="color:var(--text-muted);font-style:italic">No summary added yet.</em>'
 
-  // Cover — from global store
-  refreshModalCover(gb.cover_image || null)
+  // Cover — from global store (fetch on demand if not yet loaded)
+  if(gb.cover_image){
+    refreshModalCover(gb.cover_image)
+  } else if(gb._coverPending){
+    refreshModalCover(null)
+    fetchSingleCover(bookId)
+  } else {
+    refreshModalCover(null)
+  }
   // Extra types
   loadTypeList(bookId)
   // Extra authors
@@ -2426,7 +2473,7 @@ function closeModalBg(e){
 }
 
 function refreshModalCover(src){
-  if(!src) console.log('[COVER] refreshModalCover called with null/empty — clearing cover display')
+  if(!src)
   const img=document.getElementById('modalCoverImg')
   if(src){
     img.onload=()=>img.classList.add('loaded')
@@ -2576,9 +2623,8 @@ async function saveModalEdits(){
   const containedWorks = serializeContainedTags()
   const gb = globalBooks[modalBookId] || {}
   const coverToSave = pendingCover !== null ? pendingCover : (gb.cover_image || null)
-  console.log('[COVER] pendingCover:', pendingCover ? 'SET (' + Math.round(pendingCover.length/1024) + 'KB)' : 'null')
-  console.log('[COVER] coverToSave:', coverToSave ? 'SET (' + Math.round(coverToSave.length/1024) + 'KB)' : 'null')
-  console.log('[COVER] modalBookId:', modalBookId, '| isCustom:', !!(BOOKS.find(b=>b.id===modalBookId)||{})._customId)
+
+
 
   // Faction (independent from series) and Tags
   const factionEl  = document.getElementById('mFactionEdit')
@@ -2614,8 +2660,6 @@ async function saveModalEdits(){
     .from('books_global')
     .upsert(globalPayload, {onConflict:'book_id'})
     .select().single()
-
-  console.log('[COVER] upsert gError:', gError, '| gData.cover_image:', gData?.cover_image ? 'SET (' + Math.round((gData.cover_image||'').length/1024) + 'KB)' : 'null/empty')
   if(gError){
     console.error('Global save error:', gError)
     btn.disabled=false; btn.textContent='Save Changes'
@@ -4657,6 +4701,27 @@ async function doForgotPassword(){
   } else {
     showMsg('A password reset link has been sent to ' + email + '. Check your inbox, Marshal.', true)
   }
+}
+
+
+// Fetch a single book's cover on demand (for modal open before bg load completes)
+async function fetchSingleCover(bookId){
+  try{
+    const {data,error} = await supabase
+      .from('books_global')
+      .select('cover_image')
+      .eq('book_id', bookId)
+      .maybeSingle()
+    if(error || !data) return
+    if(globalBooks[bookId]){
+      globalBooks[bookId].cover_image = data.cover_image || null
+      globalBooks[bookId]._coverPending = false
+    }
+    // If this modal is still open for this book, show the cover
+    if(modalBookId === bookId && data.cover_image){
+      refreshModalCover(data.cover_image)
+    }
+  } catch(e){ console.error('fetchSingleCover:', e) }
 }
 
 </script>
