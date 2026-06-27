@@ -518,8 +518,8 @@
       outline:none;color:var(--text);font-family:'EB Garamond',serif;
       font-size:.92rem;padding:.15rem .2rem}
     .tag-input-field::placeholder{color:#9a94a2}
-    .tag-autocomplete{position:absolute;z-index:200;background:var(--surface);
-      border:1px solid var(--border-gold);width:100%;max-height:180px;
+    .tag-autocomplete{position:absolute;z-index:300;background:var(--surface);
+      border:1px solid var(--border-gold);width:100%;max-height:108px;
       overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
     .tag-ac-item{padding:.45rem .75rem;cursor:pointer;font-size:.88rem;
       color:#cec8be;border-bottom:1px solid var(--border);display:flex;
@@ -701,6 +701,7 @@
     .type-check-pill:hover{border-color:rgba(232,201,106,.4);color:#cec8be}
     .type-check-pill.selected{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-bright)}
     .type-check-pill.primary{border-color:var(--gold)!important;box-shadow:0 0 6px rgba(232,201,106,.2)}
+    .type-check-pill.ltd-addon.selected{background:rgba(232,201,106,.15);border-color:var(--gold);color:var(--gold-bright);box-shadow:0 0 8px rgba(232,201,106,.3)}
     .type-check-pill input{display:none}
   
     .auth-forgot{display:block;width:100%;margin-top:.7rem;background:none;border:none;
@@ -4460,10 +4461,17 @@ function renderTypeCheckboxes(){
   const container = document.getElementById('mTypeCheckboxes')
   if(!container) return
   container.innerHTML = ALL_TYPES.map(t => {
+    // Limited Edition is a pure add-on: never primary, never promotable
+    if(t === 'Limited Edition'){
+      const on = activeTypeList.includes('Limited Edition')
+      return '<span class="type-check-pill ltd-addon' + (on ? ' selected' : '') + '"'
+        + ' onclick="toggleTypePill(\'Limited Edition\')" title="Add-on — click to toggle">'
+        + '\u2726 Limited Edition</span>'
+    }
     const isPrimary = t === primaryType
     const isExtra   = activeTypeList.includes(t)
     const selected  = isPrimary || isExtra
-    const label     = isPrimary ? t + ' ★' : t
+    const label     = isPrimary ? t + ' \u2605' : t
     return '<span class="type-check-pill' + (selected ? ' selected' : '') + (isPrimary ? ' primary' : '') + '"'
       + (isPrimary
           ? ' title="Primary type — double-click another to change"'
@@ -4488,7 +4496,6 @@ function loadTypeList(bookId){
   }
   renderTypeCheckboxes()
   renderExtraTypeBadges(bookId)
-  syncLeCheckbox()
 }
 
 function renderExtraTypeBadges(bookId){
@@ -4597,6 +4604,7 @@ Object.assign(window, {setPrimaryType})
 
 async function setPrimaryType(newType){
   if(!modalBookId || !isAdmin()) return
+  if(newType === 'Limited Edition') return  // LE is an add-on, never primary
   const bk = BOOKS.find(b => b.id === modalBookId)
   if(!bk || bk.type === newType) return
 
@@ -4757,10 +4765,6 @@ function toggleLimitedEdition(checked){
   }
 }
 
-function syncLeCheckbox(){
-  const cb = document.getElementById('leCheckbox')
-  if(cb) cb.checked = activeTypeList.includes('Limited Edition')
-}
 
 </script>
 
