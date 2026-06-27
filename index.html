@@ -3653,7 +3653,10 @@ function tagAutocomplete(query){
     .slice(0, 12)
 
   if(!matches.length){
-    ac.innerHTML = '<div class="tag-ac-empty">No matching tomes found</div>'
+    // Allow adding a title that isn't in the catalogue as free text
+    const safe = query.replace(/'/g, "\\'").trim()
+    ac.innerHTML = '<div class="tag-ac-item" onclick="selectTag(\'_txt_' + esc(safe) + '\',\'' + esc(safe) + '\')">'
+      + '+ Add &ldquo;' + esc(query.trim()) + '&rdquo; as a new title</div>'
     ac.style.display = ''
     return
   }
@@ -4439,7 +4442,7 @@ document.addEventListener('keydown', function(e){
 // ════════════════════════════════════════════════════════════════════════
 //  MULTI-TYPE (TOME) SYSTEM
 // ════════════════════════════════════════════════════════════════════════
-const ALL_TYPES = ['Novel','Novella','Short Story','Graphic Novel','Anthology','Omnibus','Audio Drama','eBook','Limited Edition','Series']
+const ALL_TYPES = ['Novel','Novella','Short Story','Graphic Novel','Anthology','Omnibus','Audio Drama','eBook','Series']
 let activeTypeList = []  // extra types for current modal book
 
 Object.assign(window, {toggleTypePill})
@@ -4485,6 +4488,7 @@ function loadTypeList(bookId){
   }
   renderTypeCheckboxes()
   renderExtraTypeBadges(bookId)
+  syncLeCheckbox()
 }
 
 function renderExtraTypeBadges(bookId){
@@ -4741,6 +4745,23 @@ async function fetchSingleCover(bookId){
   } catch(e){ console.error('fetchSingleCover:', e) }
 }
 
+
+// ── LIMITED EDITION checkbox (separate from tome type pills) ──────────────
+Object.assign(window, {toggleLimitedEdition})
+
+function toggleLimitedEdition(checked){
+  if(checked){
+    if(!activeTypeList.includes('Limited Edition')) activeTypeList.push('Limited Edition')
+  } else {
+    activeTypeList = activeTypeList.filter(t => t !== 'Limited Edition')
+  }
+}
+
+function syncLeCheckbox(){
+  const cb = document.getElementById('leCheckbox')
+  if(cb) cb.checked = activeTypeList.includes('Limited Edition')
+}
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -4821,7 +4842,13 @@ async function fetchSingleCover(bookId){
             <input class="inscribe-input modal-edit-field" id="mYearEdit" type="number" style="display:none;width:80px" placeholder="Year"/>
           </div>
           <div class="mfield">
-            <span class="mfield-label">Tome</span>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span class="mfield-label">Tome</span>
+              <label class="le-check modal-edit-field" id="leCheckWrap" style="display:none;align-items:center;gap:.35rem;cursor:pointer;font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)">
+                <input type="checkbox" id="leCheckbox" onchange="toggleLimitedEdition(this.checked)" style="cursor:pointer;accent-color:var(--gold)"/>
+                <span>&#10022; Limited Edition</span>
+              </label>
+            </div>
             <!-- View mode: badges -->
             <div id="mFormatWrap" style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.2rem">
               <div class="mfield-val tbadge" id="mFormat" style="margin:0"></div>
