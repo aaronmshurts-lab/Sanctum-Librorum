@@ -2520,7 +2520,7 @@ function applyEditMode(on){
     el.style.display = canEditMeta ? '' : 'none'
   })
   // In edit mode hide static labels; in view mode show them
-  const staticFields = ['mTitle','mAuthor','mYear','mFormat','mSubject','mSeries']
+  const staticFields = ['mTitle','mAuthor','mYear','mFormatWrap','mSubject','mSeries']
   staticFields.forEach(id => {
     const el = document.getElementById(id)
     if(el) el.style.display = canEditMeta ? 'none' : ''
