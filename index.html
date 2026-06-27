@@ -519,11 +519,11 @@
       font-size:.92rem;padding:.15rem .2rem}
     .tag-input-field::placeholder{color:#9a94a2}
     .tag-autocomplete{position:absolute;z-index:300;background:var(--surface);
-      border:1px solid var(--border-gold);width:100%;max-height:108px;
+      border:1px solid var(--border-gold);width:100%;max-height:165px;
       overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
-    .tag-ac-item{padding:.45rem .75rem;cursor:pointer;font-size:.88rem;
+    .tag-ac-item{padding:.3rem .7rem;cursor:pointer;font-size:.82rem;
       color:#cec8be;border-bottom:1px solid var(--border);display:flex;
-      flex-direction:column;gap:.1rem;transition:background .1s}
+      flex-direction:column;gap:0;transition:background .1s;line-height:1.25}
     .tag-ac-item:last-child{border-bottom:none}
     .tag-ac-item:hover,.tag-ac-item.focused{background:var(--card-hover)}
     .tag-ac-title{font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold-bright)}
@@ -4443,7 +4443,7 @@ document.addEventListener('keydown', function(e){
 // ════════════════════════════════════════════════════════════════════════
 //  MULTI-TYPE (TOME) SYSTEM
 // ════════════════════════════════════════════════════════════════════════
-const ALL_TYPES = ['Novel','Novella','Short Story','Graphic Novel','Anthology','Omnibus','Audio Drama','eBook','Series']
+const ALL_TYPES = ['Novel','Novella','Short Story','Graphic Novel','Anthology','Omnibus','Audio Drama','eBook','Series','Limited Edition']
 let activeTypeList = []  // extra types for current modal book
 
 Object.assign(window, {toggleTypePill})
@@ -4846,13 +4846,7 @@ function toggleLimitedEdition(checked){
             <input class="inscribe-input modal-edit-field" id="mYearEdit" type="number" style="display:none;width:80px" placeholder="Year"/>
           </div>
           <div class="mfield">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <span class="mfield-label">Tome</span>
-              <label class="le-check modal-edit-field" id="leCheckWrap" style="display:none;align-items:center;gap:.35rem;cursor:pointer;font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)">
-                <input type="checkbox" id="leCheckbox" onchange="toggleLimitedEdition(this.checked)" style="cursor:pointer;accent-color:var(--gold)"/>
-                <span>&#10022; Limited Edition</span>
-              </label>
-            </div>
+            <span class="mfield-label">Tome</span>
             <!-- View mode: badges -->
             <div id="mFormatWrap" style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.2rem">
               <div class="mfield-val tbadge" id="mFormat" style="margin:0"></div>
