@@ -676,6 +676,7 @@
     .rte-btn.sz{font-size:.75rem;letter-spacing:-.02em;min-width:26px}
   
     .card-order-row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.1rem}
+    .card-series-line{font-family:'EB Garamond',serif;font-style:italic;font-size:.82rem;color:var(--text-muted);margin-top:.35rem;line-height:1.3}
     .card-book-no{display:inline;font-family:'Cinzel',serif;font-size:.52rem;
       letter-spacing:.1em;text-transform:uppercase;color:var(--gold);opacity:.65}
     .card-chrono-no{display:inline;font-family:'Cinzel',serif;font-size:.52rem;
@@ -1715,7 +1716,7 @@ async function loadGlobalBooks(){
   // Covers are fetched separately by loadCovers() after the grid renders.
   const cols = 'id,book_id,summary,spoiler,contained_works,faction,tags,'
     + 'avg_rating,rating_count,dramatis_personae,series_list,series_position,'
-    + 'chrono_position,type_list,author_list,'
+    + 'chrono_position,type_list,author_list,faction_list,'
     + 'title_override,author_override,year_override,type_override,subject_override,'
     + 'cover_image'
   // Pull a lightweight flag for which books HAVE a cover, without the blob,
@@ -1742,6 +1743,7 @@ async function loadGlobalBooks(){
       chrono_position:  r.chrono_position   || null,
       type_list:        r.type_list        || '',
       author_list:      r.author_list      || '',
+      faction_list:     r.faction_list     || '',
       title_override:   r.title_override  || null,
       author_override:  r.author_override || null,
       year_override:    r.year_override   || null,
@@ -2121,14 +2123,15 @@ function renderCard(b){
   return '<div class="card" id="card-' + esc(b.id) + '" onclick="OC(' + idx + ')">'
     + '<div class="card-body">'
     +   '<div class="card-meta-col">'
-    +     '<div class="card-subject">' + esc(seriesDisplay) + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
+    +     '<div class="card-subject">' + esc(factionHierarchy(b.id) || seriesDisplay) + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
     +     '<div style="display:flex;flex-wrap:wrap;gap:.2rem">'
     + '<div class="card-format t-' + tc + '">' + esc(b.type) + '</div>'
     + (function(){ const tl=(globalBooks[b.id]||{}).type_list||''; let ex=[]; try{const p=JSON.parse(tl);if(Array.isArray(p))ex=p.filter(t=>t!==b.type);}catch(e){} return ex.map(t=>'<div class="card-format t-'+t.replace(' ','')+'">' + t + '</div>').join('') }())
     + '</div>'
-    +     '<div style="flex:1;min-height:.4rem"></div>'
-    +     '<div class="c-title">' + (gb2.series_position ? '<div class="card-order-row"><span class="card-book-no">Book #' + (Number.isInteger(gb2.series_position) ? gb2.series_position : parseFloat(gb2.series_position.toFixed(2))) + '</span></div>' : '') + esc(b.title) + '</div>'
-    +     '<div class="c-meta">' + esc(b.author) + ' &middot; ' + b.year + '</div>'
+    +     '<div class="card-series-line">' + esc(seriesDisplay) + (gb2.series_position ? ' &middot; Book #' + (Number.isInteger(gb2.series_position) ? gb2.series_position : parseFloat(gb2.series_position.toFixed(2))) : '') + '</div>'
+    +     '<div style="flex:1;min-height:.3rem"></div>'
+    +     '<div class="c-title">' + esc(b.title) + '</div>'
+    +     '<div class="c-meta">' + esc(allAuthorsForCard(b)) + ' &middot; ' + b.year + '</div>'
     +   '</div>'
     +   '<div class="card-cover-col">'
     +     '<div class="' + thumbCls + '">' + coverHtml + '</div>'
@@ -2254,6 +2257,9 @@ function openModal(bookId){
   extraAuthorList = []
   const authorWrap = document.getElementById('authorTagWrap')
   if(authorWrap) authorWrap.querySelectorAll('.tag-pill').forEach(p=>p.remove())
+  extraFactionList = []
+  const factionWrap = document.getElementById('factionTagWrap')
+  if(factionWrap) factionWrap.querySelectorAll('.tag-pill').forEach(p=>p.remove())
   const tagsEditField = document.getElementById('mTagsEdit')
   if(tagsEditField) tagsEditField.value = ''
   const tagsViewField = document.getElementById('mTagsView')
@@ -2318,6 +2324,8 @@ function openModal(bookId){
   loadTypeList(bookId)
   // Extra authors
   loadAuthorList(bookId)
+  // Extra factions (subject hierarchy)
+  loadFactionList(bookId)
   // Extra series
   loadExtraSeries(bookId)
 
@@ -2573,6 +2581,8 @@ function applyEditMode(on){
   // Extra series input
   const authorExtraWrap = document.getElementById('authorExtraWrap')
   if(authorExtraWrap) authorExtraWrap.style.display = (on && isAdmin()) ? '' : 'none'
+  const factionExtraWrap = document.getElementById('factionExtraWrap')
+  if(factionExtraWrap) factionExtraWrap.style.display = (on && isAdmin()) ? '' : 'none'
   const seriesExtraInp = document.querySelector('.series-extra-input.modal-edit-field')
   if(seriesExtraInp) seriesExtraInp.style.display = (on && isAdmin()) ? '' : 'none'
   renderExtraSeries()
@@ -2657,6 +2667,7 @@ async function saveModalEdits(){
     chrono_position: newChronoNo,
     type_list:       serializeTypeList(),
     author_list:     serializeAuthorList(),
+    faction_list:    serializeFactionList(),
     updated_at:      new Date().toISOString()
   }
   // Only send the cover blob if it actually changed (avoids re-uploading megabytes)
@@ -2688,6 +2699,7 @@ async function saveModalEdits(){
     chrono_position:   gData.chrono_position   || null,
     type_list:         gData.type_list         || '',
     author_list:       gData.author_list       || '',
+    faction_list:      gData.faction_list      || '',
     avg_rating:        gData.avg_rating        || null,
     rating_count:      gData.rating_count      || 0,
     title_override:    gData.title_override    || null,
@@ -2725,6 +2737,7 @@ async function saveModalEdits(){
 
   // Re-load extra series from updated globalBooks cache
   loadExtraSeries(modalBookId)
+  loadFactionList(modalBookId)
 
   // Refresh DP view
   const dpViewEl = document.getElementById('mDPView')
@@ -4766,6 +4779,88 @@ function toggleLimitedEdition(checked){
 }
 
 
+
+// ════════════════════════════════════════════════════════════════════════
+//  MULTI-FACTION (SUBJECT HIERARCHY) SYSTEM
+// ════════════════════════════════════════════════════════════════════════
+let extraFactionList = []
+
+Object.assign(window, {factionTagKeydown, removeFactionTag})
+
+function factionTagKeydown(e){
+  const inp = document.getElementById('factionTagInput')
+  if(e.key === 'Enter' || e.key === ','){
+    e.preventDefault()
+    const val = inp.value.trim().replace(/,$/, '')
+    if(val && !extraFactionList.includes(val)){
+      extraFactionList.push(val)
+      renderFactionTags()
+    }
+    inp.value = ''
+  }
+}
+
+function removeFactionTag(idx){
+  extraFactionList.splice(idx, 1)
+  renderFactionTags()
+}
+
+function renderFactionTags(){
+  const wrap = document.getElementById('factionTagWrap')
+  const inp  = document.getElementById('factionTagInput')
+  if(!wrap) return
+  wrap.querySelectorAll('.tag-pill').forEach(p => p.remove())
+  extraFactionList.forEach((a, i) => {
+    const pill = document.createElement('span')
+    pill.className = 'tag-pill'
+    pill.innerHTML = '<span>' + esc(a) + '</span>'
+      + '<button class="tag-pill-remove" onclick="removeFactionTag(' + i + ')" title="Remove">&#10005;</button>'
+    wrap.insertBefore(pill, inp)
+  })
+}
+
+function loadFactionList(bookId){
+  extraFactionList = []
+  const gb  = globalBooks[bookId] || {}
+  const raw = gb.faction_list || ''
+  if(raw){
+    try{ const p=JSON.parse(raw); if(Array.isArray(p)) extraFactionList = p }
+    catch(e){}
+  }
+  renderFactionTags()
+  refreshFactionDisplay(bookId)
+}
+
+
+// Compose full author string (primary + extras) for card display
+function allAuthorsForCard(b){
+  const al = (globalBooks[b.id]||{}).author_list || ''
+  let ex = []
+  try{ const p=JSON.parse(al); if(Array.isArray(p)) ex=p }catch(e){}
+  return [b.author, ...ex].filter(Boolean).join(', ')
+}
+
+// Build the hierarchical "Broad > Sub1 > Sub2" string for display
+function factionHierarchy(bookId){
+  const gb = globalBooks[bookId] || {}
+  const primary = gb.faction || ''
+  let extras = []
+  try{ const p=JSON.parse(gb.faction_list||''); if(Array.isArray(p)) extras=p }catch(e){}
+  return [primary, ...extras].filter(Boolean).join(' \u203a ')  // › = \u203a
+}
+
+function refreshFactionDisplay(bookId){
+  const mSubject = document.getElementById('mSubject')
+  if(mSubject){
+    const h = factionHierarchy(bookId)
+    mSubject.textContent = h || '\u2014'
+  }
+}
+
+function serializeFactionList(){
+  return extraFactionList.length ? JSON.stringify(extraFactionList) : null
+}
+
 </script>
 
 <!-- ══ BOOK DETAIL MODAL ═══════════════════════════════════ -->
@@ -4895,7 +4990,14 @@ function toggleLimitedEdition(checked){
           <div class="mfield">
             <span class="mfield-label">Faction / Subject</span>
             <div class="mfield-val meta" id="mSubject"></div>
-            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="e.g. Adepta Sororitas, Black Templars…"/>
+            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="Broad subject, e.g. Astra Militarum"/>
+            <div class="modal-edit-field faction-extra-wrap" id="factionExtraWrap" style="display:none;margin-top:.3rem">
+              <div class="tag-input-wrap" id="factionTagWrap" onclick="document.getElementById('factionTagInput').focus()" style="min-height:34px">
+                <input class="tag-input-field" id="factionTagInput" placeholder="Add sub-faction (e.g. Catachan Jungle Fighters)…"
+                  autocomplete="off" onkeydown="factionTagKeydown(event)"/>
+              </div>
+              <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Shown as a hierarchy: Broad &rsaquo; Sub-faction</div>
+            </div>
           </div>
         </div>
         <div class="bindings-section">
