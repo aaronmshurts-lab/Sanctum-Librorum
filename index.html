@@ -2519,6 +2519,10 @@ function applyEditMode(on){
   document.querySelectorAll('.modal-edit-field').forEach(el => {
     el.style.display = canEditMeta ? '' : 'none'
   })
+  // In edit mode, hide the read-only contained-works list so only the
+  // editable tag input shows (prevents stacking that squishes the tabs)
+  const cView = document.getElementById('mContainedView')
+  if(cView) cView.style.display = canEditMeta ? 'none' : ''
   // In edit mode hide static labels; in view mode show them
   const staticFields = ['mTitle','mAuthor','mYear','mFormatWrap','mSubject','mSeries']
   staticFields.forEach(id => {
@@ -4896,7 +4900,7 @@ async function fetchSingleCover(bookId){
               </button>
             </div>
             <div id="mContainedView" style="font-size:.85rem;color:#b8b2ac;line-height:1.8;margin-top:.3rem;max-height:150px;overflow-y:auto;padding-right:.3rem"></div>
-            <div class="modal-edit-field" id="mContainedEditWrap" style="position:relative;max-height:160px">
+            <div class="modal-edit-field" id="mContainedEditWrap" style="position:relative;max-height:140px;overflow-y:auto">
               <div class="tag-input-wrap" id="containedTagWrap" onclick="focusTagInput()">
                 <input class="tag-input-field" id="containedTagInput"
                   placeholder="Type a title to search…"
