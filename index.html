@@ -2669,6 +2669,7 @@ async function saveModalEdits(){
   }
 
   globalBooks[modalBookId] = {
+    ...(globalBooks[modalBookId] || {}),
     db_id:             gData.id,
     cover_image:       gData.cover_image       || null,
     summary:           gData.summary           || '',
@@ -2678,7 +2679,17 @@ async function saveModalEdits(){
     faction:           gData.faction           || '',
     tags:              gData.tags              || '',
     series_list:       gData.series_list       || '',
-    series_position:   gData.series_position   || null
+    series_position:   gData.series_position   || null,
+    chrono_position:   gData.chrono_position   || null,
+    type_list:         gData.type_list         || '',
+    author_list:       gData.author_list       || '',
+    avg_rating:        gData.avg_rating        || null,
+    rating_count:      gData.rating_count      || 0,
+    title_override:    gData.title_override    || null,
+    author_override:   gData.author_override   || null,
+    year_override:     gData.year_override     || null,
+    type_override:     gData.type_override     || null,
+    subject_override:  gData.subject_override  || null
   }
   pendingCover = null
 
