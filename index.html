@@ -521,6 +521,7 @@
     .tag-autocomplete{position:absolute;z-index:300;background:var(--surface);
       border:1px solid var(--border-gold);width:100%;max-height:165px;
       overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+    #contentTabs.ac-pushed{margin-top:172px;transition:margin-top .12s ease}
     .tag-ac-item{padding:.3rem .7rem;cursor:pointer;font-size:.82rem;
       color:#cec8be;border-bottom:1px solid var(--border);display:flex;
       flex-direction:column;gap:0;transition:background .1s;line-height:1.25}
@@ -3669,7 +3670,7 @@ function focusTagInput(){
 function tagAutocomplete(query){
   acFocusIdx = -1
   const ac = document.getElementById('containedAcList')
-  if(!query || query.length < 2){ ac.style.display='none'; return }
+  if(!query || query.length < 2){ ac.style.display='none'; setAcPush(false); return }
 
   const q = query.toLowerCase()
   const already = new Set(containedTags.map(t=>t.id))
@@ -3683,6 +3684,7 @@ function tagAutocomplete(query){
     ac.innerHTML = '<div class="tag-ac-item" onclick="selectTag(\'_txt_' + esc(safe) + '\',\'' + esc(safe) + '\')">'
       + '+ Add &ldquo;' + esc(query.trim()) + '&rdquo; as a new title</div>'
     ac.style.display = ''
+    setAcPush(true)
     return
   }
 
@@ -3694,6 +3696,13 @@ function tagAutocomplete(query){
     + '</div>'
   ).join('')
   ac.style.display = ''
+  setAcPush(true)
+}
+
+// Push the tabs/summary area down while the autocomplete dropdown is open
+function setAcPush(on){
+  const tabs = document.getElementById('contentTabs')
+  if(tabs) tabs.classList.toggle('ac-pushed', !!on)
 }
 
 function tagKeydown(e){
@@ -3713,6 +3722,7 @@ function tagKeydown(e){
     selectTag(el.dataset.id, el.dataset.title)
   } else if(e.key === 'Escape'){
     ac.style.display = 'none'
+    setAcPush(false)
   }
 }
 
@@ -3729,6 +3739,12 @@ function selectTag(id, title){
   // Show cascade note
   const note = document.getElementById('containedCascadeNote')
   if(note) note.classList.add('visible')
+  // Close the dropdown and un-push the tabs
+  const ac = document.getElementById('containedAcList')
+  if(ac) ac.style.display = 'none'
+  const ti = document.getElementById('containedTagInput')
+  if(ti) ti.value = ''
+  setAcPush(false)
 }
 
 function removeTag(id){
