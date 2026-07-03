@@ -2065,10 +2065,23 @@ function renderGrid(){
     if((globalBooks[b.id]||{}).series_position) subjectHasOrder[b.subject] = true
   }
   const sorted = [...books].sort((a, b) => {
-    // Alphabetical modes: pure title sort, ignore grouping/position
+    // Alphabetical modes: sort by the active Browse By dimension
     if(activeSortOrder === 'az' || activeSortOrder === 'za'){
-      const cmp = a.title.localeCompare(b.title)
-      return activeSortOrder === 'za' ? -cmp : cmp
+      const keyOf = (x) => {
+        const gx = globalBooks[x.id] || {}
+        if(activeBrowseBy === 'author'){
+          return (x.author || '')
+        } else if(activeBrowseBy === 'series'){
+          return (x.subject || '')
+        }
+        // Subject/Faction: primary faction, falling back to series (matches card)
+        return (gx.faction || x.subject || '')
+      }
+      let cmp = keyOf(a).localeCompare(keyOf(b))
+      if(activeSortOrder === 'za') cmp = -cmp
+      if(cmp !== 0) return cmp
+      // Tie-break within the same group: always title A→Z
+      return a.title.localeCompare(b.title)
     }
     if(activeSubject === 'all'){
       const subjCmp = sortSubject(a).localeCompare(sortSubject(b))
