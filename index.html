@@ -1968,8 +1968,12 @@ function getFiltered(){
         const allA = [b.author, ...extraAuthors]
         if(!allA.includes(activeSubject)) return false
       } else if(activeBrowseBy === 'subject'){
-        // Match faction field
-        if((gbf.faction||'') !== activeSubject) return false
+        // Match primary faction or any sub-faction in faction_list
+        let fMatch = (gbf.faction||'') === activeSubject
+        if(!fMatch){
+          try{ const fl=JSON.parse(gbf.faction_list||'[]'); if(Array.isArray(fl)) fMatch = fl.includes(activeSubject) }catch(e){}
+        }
+        if(!fMatch) return false
       } else {
         // Series mode: match primary subject or extra series
         let extraMatch = false
@@ -4767,11 +4771,13 @@ function updateBrowseDropdown(skipRender){
   // Populate based on mode
   let options = []
   if(activeBrowseBy === 'subject'){
-    // Faction values from globalBooks
+    // Faction values from globalBooks — primary factions plus all sub-factions
     const factions = new Set()
     for(const id in globalBooks){
       const f = globalBooks[id].faction
       if(f) factions.add(f)
+      const fl = globalBooks[id].faction_list || ''
+      try{ const ex=JSON.parse(fl); if(Array.isArray(ex)) ex.forEach(x=>{ if(x) factions.add(x) }) }catch(e){}
     }
     options = [...factions].sort()
   } else if(activeBrowseBy === 'series'){
