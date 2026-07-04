@@ -1724,7 +1724,7 @@ async function loadGlobalBooks(){
   // Fast load: everything EXCEPT the heavy cover_image base64 blobs.
   // Covers are fetched separately by loadCovers() after the grid renders.
   const cols = 'id,book_id,summary,spoiler,contained_works,faction,tags,'
-    + 'avg_rating,rating_count,dramatis_personae,series_list,series_position,'
+    + 'avg_rating,rating_count,dramatis_personae,series_list,series_position,series_positions,'
     + 'chrono_position,type_list,author_list,faction_list,'
     + 'title_override,author_override,year_override,type_override,subject_override,'
     + 'cover_image'
@@ -1748,6 +1748,7 @@ async function loadGlobalBooks(){
       rating_count:      r.rating_count      || 0,
       dramatis_personae: r.dramatis_personae || '',
       series_list:       r.series_list       || '',
+      series_positions:  r.series_positions  || '',
       series_position:  r.series_position  || null,
       chrono_position:  r.chrono_position   || null,
       type_list:        r.type_list        || '',
@@ -2134,8 +2135,22 @@ function renderCard(b){
   const wIcon = ub.wishlisted ? '&#9733;'   : '&#9734;'
   const gb2       = globalBooks[b.id] || {}
   const ub2      = userBooks[b.id] || {}
-  let seriesDisplay = b.subject || ''
-  try{ const sl=gb2.series_list; if(sl){ const ex=JSON.parse(sl); if(Array.isArray(ex)&&ex.length) seriesDisplay+=', '+ex.join(', ') } }catch(e){}
+  // Build series segments with per-series numbers
+  const fmtNum = n => Number.isInteger(n) ? n : parseFloat(Number(n).toFixed(2))
+  let seriesSegs = []
+  if(b.subject) seriesSegs.push({name:b.subject, pos:gb2.series_position})
+  try{ const sl=gb2.series_list; if(sl){ const ex=JSON.parse(sl); if(Array.isArray(ex)&&ex.length){
+    let posMap={}
+    try{ const p=JSON.parse(gb2.series_positions||'{}'); if(p&&typeof p==='object') posMap=p }catch(e){}
+    ex.forEach(n=>seriesSegs.push({name:n, pos:posMap[n]}))
+  } } }catch(e){}
+  // Single series: classic 'Series · Book #N'. Multiple: compact 'A #5 · B #2'
+  let seriesWithNums = ''
+  if(seriesSegs.length === 1){
+    seriesWithNums = esc(seriesSegs[0].name) + (seriesSegs[0].pos ? ' &middot; Book #' + fmtNum(seriesSegs[0].pos) : '')
+  } else if(seriesSegs.length > 1){
+    seriesWithNums = seriesSegs.map(s => esc(s.name) + (s.pos ? ' #' + fmtNum(s.pos) : '')).join(' &middot; ')
+  }
   const tl2 = (gb2.type_list||''); let extraTypesLtd=[]; try{const p=JSON.parse(tl2);if(Array.isArray(p))extraTypesLtd=p;}catch(e){}
   const isLtd    = (ub2.bindings||[]).includes('Limited Edition')
                 || b.type === 'Limited Edition'
@@ -2147,16 +2162,15 @@ function renderCard(b){
   const cascade = ''  // cascade note removed
   // Gold top line & italic sub-line swap based on the active Browse By dimension
   const factionDisp = factionHierarchy(b.id)
-  const bookNum = gb2.series_position ? ' &middot; Book #' + (Number.isInteger(gb2.series_position) ? gb2.series_position : parseFloat(gb2.series_position.toFixed(2))) : ''
   let topLine, subLine
   if(activeBrowseBy === 'series'){
     // Series takes the gold; faction hierarchy drops to the italic line
-    topLine = seriesDisplay ? (esc(seriesDisplay) + bookNum) : esc(factionDisp)
-    subLine = seriesDisplay ? esc(factionDisp) : ''
+    topLine = seriesWithNums || esc(factionDisp)
+    subLine = seriesWithNums ? esc(factionDisp) : ''
   } else {
-    // Default: faction hierarchy in gold, series · book # in italics
-    topLine = esc(factionDisp || seriesDisplay)
-    subLine = esc(seriesDisplay) + bookNum
+    // Default: faction hierarchy in gold, series with numbers in italics
+    topLine = factionDisp ? esc(factionDisp) : seriesWithNums
+    subLine = seriesWithNums
   }
   return '<div class="card" id="card-' + esc(b.id) + '" onclick="OC(' + idx + ')">'
     + '<div class="card-body">'
@@ -2700,6 +2714,7 @@ async function saveModalEdits(){
     contained_works: containedWorks || null,
     faction:         newFaction  || null,
     series_list:     newSeriesList || null,
+    series_positions: serializeExtraSeriesPositions(),
     tags:            newTags    || null,
     series_position: newBookNo,
     chrono_position: newChronoNo,
@@ -2733,6 +2748,7 @@ async function saveModalEdits(){
     faction:           gData.faction           || '',
     tags:              gData.tags              || '',
     series_list:       gData.series_list       || '',
+    series_positions:  gData.series_positions  || '',
     series_position:   gData.series_position   || null,
     chrono_position:   gData.chrono_position   || null,
     type_list:         gData.type_list         || '',
@@ -4329,19 +4345,21 @@ function loadRatings(bookId){
 // ════════════════════════════════════════════════════════════════════════
 let extraSeriesList = []  // [{name}] for current modal
 
-Object.assign(window, {seriesExtraKeydown, removeExtraSeries, addExtraSeries})
+Object.assign(window, {seriesExtraKeydown, removeExtraSeries, addExtraSeries, setExtraSeriesPos})
 
 // ── Extra series ──────────────────────────────────────────────────────────
 function loadExtraSeries(bookId){
   extraSeriesList = []
   const gb = globalBooks[bookId] || {}
   const raw = gb.series_list || ''
+  let posMap = {}
+  try{ const p = JSON.parse(gb.series_positions||'{}'); if(p && typeof p==='object' && !Array.isArray(p)) posMap = p }catch(e){}
   if(raw){
     try {
       const parsed = JSON.parse(raw)
-      if(Array.isArray(parsed)) extraSeriesList = parsed.map(s=>({name:s}))
+      if(Array.isArray(parsed)) extraSeriesList = parsed.map(s=>({name:s, position: posMap[s] ?? null}))
     } catch(e){
-      extraSeriesList = raw.split(',').map(s=>s.trim()).filter(Boolean).map(s=>({name:s}))
+      extraSeriesList = raw.split(',').map(s=>s.trim()).filter(Boolean).map(s=>({name:s, position: posMap[s] ?? null}))
     }
   }
   renderExtraSeries()
@@ -4362,8 +4380,13 @@ function renderExtraSeries(){
   container.innerHTML = extraSeriesList.map((s,i) =>
     '<span class="series-extra-pill">' + esc(s.name)
     + (editing
-        ? '<button class="series-extra-pill-rm" onclick="removeExtraSeries(' + i + ')">&#10005;</button>'
-        : '')
+        ? ' <input type="number" step="0.1" min="0" value="' + (s.position ?? '') + '" placeholder="#"'
+          + ' oninput="setExtraSeriesPos(' + i + ', this.value)" onclick="event.stopPropagation()"'
+          + ' style="width:3.4rem;margin-left:.4rem;background:rgba(0,0,0,.25);border:1px solid var(--border,#444);color:inherit;border-radius:4px;padding:.05rem .3rem;font-size:.75rem"/>'
+          + '<button class="series-extra-pill-rm" onclick="removeExtraSeries(' + i + ')">&#10005;</button>'
+        : (s.position != null && s.position !== ''
+            ? ' <span style="opacity:.75">&middot; Book #' + (Number.isInteger(s.position) ? s.position : parseFloat(Number(s.position).toFixed(2))) + '</span>'
+            : ''))
     + '</span>'
   ).join('')
 }
@@ -4379,10 +4402,23 @@ function addExtraSeries(){
   const val = inp.value.trim()
   if(!val) return
   if(!extraSeriesList.find(s=>s.name.toLowerCase()===val.toLowerCase())){
-    extraSeriesList.push({name:val})
+    extraSeriesList.push({name:val, position:null})
     renderExtraSeries()
   }
   inp.value = ''
+}
+
+function setExtraSeriesPos(idx, val){
+  if(!extraSeriesList[idx]) return
+  const n = parseFloat(val)
+  extraSeriesList[idx].position = isNaN(n) ? null : n
+  // No re-render here — it would steal focus from the input mid-typing
+}
+
+function serializeExtraSeriesPositions(){
+  const map = {}
+  extraSeriesList.forEach(s=>{ if(s.position != null && s.position !== '') map[s.name] = s.position })
+  return Object.keys(map).length ? JSON.stringify(map) : null
 }
 
 function seriesExtraKeydown(e){
