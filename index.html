@@ -4385,7 +4385,7 @@ function renderExtraSeries(){
           + ' style="width:3.4rem;margin-left:.4rem;background:rgba(0,0,0,.25);border:1px solid var(--border,#444);color:inherit;border-radius:4px;padding:.05rem .3rem;font-size:.75rem"/>'
           + '<button class="series-extra-pill-rm" onclick="removeExtraSeries(' + i + ')">&#10005;</button>'
         : (s.position != null && s.position !== ''
-            ? ' <span style="opacity:.75">&middot; Book #' + (Number.isInteger(s.position) ? s.position : parseFloat(Number(s.position).toFixed(2))) + '</span>'
+            ? ' <span style="color:var(--gold);font-size:.82rem;opacity:.8">#' + (Number.isInteger(s.position) ? s.position : parseFloat(Number(s.position).toFixed(2))) + '</span>'
             : ''))
     + '</span>'
   ).join('')
