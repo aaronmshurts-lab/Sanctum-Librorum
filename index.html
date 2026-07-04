@@ -790,7 +790,7 @@
           color:var(--gold);font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.1em;
           text-transform:uppercase;cursor:pointer;border-radius:2px">&#8635; Sync</button>
         <div style="position:relative;display:flex;align-items:center;flex:1">
-          <input class="srch" type="text" id="srchInput" placeholder="Search title or tag…" oninput="doSearch(this.value)" style="padding-right:1.8rem;width:100%"/>
+          <input class="srch" type="text" id="srchInput" placeholder="Search title, series, author or tag…" oninput="doSearch(this.value)" style="padding-right:1.8rem;width:100%"/>
           <button id="srchClear" onclick="clearSearch()" title="Clear search"
             style="display:none;position:absolute;right:.4rem;background:none;border:none;
             color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
@@ -1979,9 +1979,15 @@ function getFiltered(){
     if(searchQuery){
       const q   = searchQuery.toLowerCase()
       const gb  = globalBooks[b.id] || {}
-      const tags = (gb.tags || '').toLowerCase()
-      const match = b.title.toLowerCase().includes(q) || tags.includes(q)
-      if(!match) return false
+      // Build a haystack from all searchable fields: title, series (primary + extras),
+      // authors (primary + extras), faction (primary + sub-factions), and tags
+      let extra = ''
+      try{ const sl=JSON.parse(gb.series_list||'[]');  if(Array.isArray(sl)) extra += ' ' + sl.join(' ') }catch(e){}
+      try{ const al=JSON.parse(gb.author_list||'[]');  if(Array.isArray(al)) extra += ' ' + al.join(' ') }catch(e){}
+      try{ const fl=JSON.parse(gb.faction_list||'[]'); if(Array.isArray(fl)) extra += ' ' + fl.join(' ') }catch(e){}
+      const hay = (b.title + ' ' + (b.subject||'') + ' ' + (b.author||'') + ' '
+                + (gb.faction||'') + ' ' + (gb.tags||'') + extra).toLowerCase()
+      if(!hay.includes(q)) return false
     }
     return true
   })
