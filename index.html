@@ -3670,7 +3670,6 @@ function focusTagInput(){
 function tagAutocomplete(query){
   acFocusIdx = -1
   const ac = document.getElementById('containedAcList')
-  console.log('[AC] query:', query, '| ac element:', ac ? 'found' : 'NULL', '| editWrap display:', (document.getElementById('mContainedEditWrap')||{}).style?.display)
   if(!query || query.length < 2){ ac.style.display='none'; setAcPush(false); return }
 
   const q = query.toLowerCase()
@@ -3678,7 +3677,6 @@ function tagAutocomplete(query){
   const matches = BOOKS
     .filter(b => !already.has(b.id) && b.title.toLowerCase().includes(q))
     .slice(0, 12)
-  console.log('[AC] matches:', matches.length, matches.map(m=>m.title).slice(0,3))
 
   if(!matches.length){
     // Allow adding a title that isn't in the catalogue as free text
@@ -3700,7 +3698,6 @@ function tagAutocomplete(query){
   ac.style.display = ''
   setAcPush(true)
   const r = ac.getBoundingClientRect()
-  console.log('[AC] shown. rect:', Math.round(r.top), Math.round(r.left), Math.round(r.width)+'x'+Math.round(r.height), '| display:', getComputedStyle(ac).display, '| visibility:', getComputedStyle(ac).visibility, '| z:', getComputedStyle(ac).zIndex)
 }
 
 // Push the tabs/summary area down while the autocomplete dropdown is open
