@@ -2106,9 +2106,22 @@ function renderGrid(){
       const subjCmp = sortSubject(a).localeCompare(sortSubject(b))
       if(subjCmp !== 0) return subjCmp
     }
-    // 1. Series position (publish order)
-    const posA = subjectHasOrder[a.subject] ? ((globalBooks[a.id]||{}).series_position || 99999) : 99999
-    const posB = subjectHasOrder[b.subject] ? ((globalBooks[b.id]||{}).series_position || 99999) : 99999
+    // 1. Series position (publish order) — when a specific series is selected,
+    //    use each book's position WITHIN that series (primary or extra)
+    const posIn = (x) => {
+      const gx = globalBooks[x.id] || {}
+      if(activeBrowseBy === 'series' && activeSubject !== 'all'){
+        if(x.subject === activeSubject) return gx.series_position || 99999
+        try{
+          const pm = JSON.parse(gx.series_positions || '{}')
+          if(pm && typeof pm === 'object' && pm[activeSubject] != null && pm[activeSubject] !== '') return pm[activeSubject]
+        }catch(e){}
+        return 99999
+      }
+      return subjectHasOrder[x.subject] ? (gx.series_position || 99999) : 99999
+    }
+    const posA = posIn(a)
+    const posB = posIn(b)
     if(posA !== posB) return posA - posB
     // 2. Tome Classification order (Novel → Novella → Short Story → Anthology → Omnibus → Audio → eBook)
     const typeA = TYPE_ORDER[a.type] || 99
