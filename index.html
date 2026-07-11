@@ -158,7 +158,7 @@
     .c-pipe{color:rgba(232,201,106,.3);font-size:.6rem;margin:0 .1rem}
     .card{background:var(--card);padding:.85rem 1rem 1rem;transition:background .15s;
       display:flex;flex-direction:column;cursor:pointer;gap:.18rem}
-    .card-body{display:flex;gap:.7rem;margin-bottom:.65rem}
+    .card-body{display:flex;gap:.7rem;margin-bottom:.65rem;flex:1}
     .card-meta-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:.18rem}
     .card-cover-col{width:80px;flex-shrink:0;display:flex;align-items:stretch}
     .card-thumb{width:80px;aspect-ratio:2/3;background:#0a0a14;
@@ -815,6 +815,7 @@
           <option value="za">Sort Z to A</option>
         </select>
         <button class="inscribe-btn" onclick="openInscribeModal()" style="white-space:nowrap;flex-shrink:0">✦ Inscribe Tome</button>
+        <button class="inscribe-btn" onclick="openExportModal()" style="white-space:nowrap;flex-shrink:0">⇩ Export Tomes</button>
       </div>
     </div>
     <div class="ctrl-row">
@@ -824,7 +825,7 @@
       <button class="pill"        data-type="Novel"       onclick="setType('Novel')">Novel</button>
       <button class="pill"        data-type="Novella"     onclick="setType('Novella')">Novella</button>
       <button class="pill"        data-type="Short Story"    onclick="setType('Short Story')">Short Story</button>
-      <button class="pill"        data-type="Graphic Novel"  onclick="setType('Graphic Novel')">Graphic Novel</button>
+      <button class="pill"        data-type="Graphic Novel"  onclick="setType('Graphic Novel')">Graphic Novel/Comic</button>
       <button class="pill"        data-type="Anthology"   onclick="setType('Anthology')">Anthology</button>
       <button class="pill"        data-type="Omnibus"     onclick="setType('Omnibus')">Omnibus</button>
       <button class="pill"        data-type="Audio Drama" onclick="setType('Audio Drama')">Audio Drama</button>
@@ -2135,6 +2136,8 @@ function renderGrid(){
 }
 
 function typeClass(t){return t.replace(' ','')}
+// Display label for tome types — data value stays 'Graphic Novel' (Supabase, filters, CSS classes untouched)
+function TYPE_LABEL(t){ return t === 'Graphic Novel' ? 'Graphic Novel/Comic' : t }
 
 function renderCard(b){
   const ub    = userBooks[b.id] || {}
@@ -2194,8 +2197,8 @@ function renderCard(b){
     +   '<div class="card-meta-col">'
     +     '<div class="card-subject">' + topLine + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
     +     '<div style="display:flex;flex-wrap:wrap;gap:.2rem">'
-    + '<div class="card-format t-' + tc + '">' + esc(b.type) + '</div>'
-    + (function(){ const tl=(globalBooks[b.id]||{}).type_list||''; let ex=[]; try{const p=JSON.parse(tl);if(Array.isArray(p))ex=p.filter(t=>t!==b.type);}catch(e){} return ex.map(t=>'<div class="card-format t-'+t.replace(' ','')+'">' + t + '</div>').join('') }())
+    + '<div class="card-format t-' + tc + '">' + esc(TYPE_LABEL(b.type)) + '</div>'
+    + (function(){ const tl=(globalBooks[b.id]||{}).type_list||''; let ex=[]; try{const p=JSON.parse(tl);if(Array.isArray(p))ex=p.filter(t=>t!==b.type);}catch(e){} return ex.map(t=>'<div class="card-format t-'+t.replace(' ','')+'">' + TYPE_LABEL(t) + '</div>').join('') }())
     + '</div>'
     +     '<div class="card-series-line">' + subLine + '</div>'
     +     '<div style="flex:1;min-height:.3rem"></div>'
@@ -2372,7 +2375,7 @@ function openModal(bookId){
   if(mSeriesEl) mSeriesEl.textContent = b.subject || 'Standalone'
   const gbForFaction = globalBooks[bookId] || {}
   document.getElementById('mSubject').textContent = gbForFaction.faction || '—'
-  document.getElementById('mFormat').innerHTML    = `<span class="tbadge t-${b.type.replace(' ','')}">${b.type}</span>`
+  document.getElementById('mFormat').innerHTML    = `<span class="tbadge t-${b.type.replace(' ','')}">${TYPE_LABEL(b.type)}</span>`
   document.getElementById('modalCoverPhTitle').textContent = b.title
 
   // Global data (cover + summary) — from books_global, visible to all
@@ -2904,7 +2907,7 @@ async function saveModalEdits(){
       const mSeriesEl = document.getElementById('mSeries')
       if(mSeriesEl) mSeriesEl.textContent = bk.subject || 'Standalone'
       document.getElementById('mFormat').innerHTML =
-        '<span class="tbadge t-'+bk.type.replace(' ','')+'">' + bk.type + '</span>'
+        '<span class="tbadge t-'+bk.type.replace(' ','')+'">' + TYPE_LABEL(bk.type) + '</span>'
     }
   }
 
@@ -4591,7 +4594,7 @@ function renderTypeCheckboxes(){
     const isPrimary = t === primaryType
     const isExtra   = activeTypeList.includes(t)
     const selected  = isPrimary || isExtra
-    const label     = isPrimary ? t + ' \u2605' : t
+    const label     = isPrimary ? TYPE_LABEL(t) + ' \u2605' : TYPE_LABEL(t)
     return '<span class="type-check-pill' + (selected ? ' selected' : '') + (isPrimary ? ' primary' : '') + '"'
       + (isPrimary
           ? ' title="Primary type — double-click another to change"'
@@ -4631,13 +4634,13 @@ function renderExtraTypeBadges(bookId){
   const mFormat = document.getElementById('mFormat')
   if(mFormat && bk){
     mFormat.className = 'tbadge t-' + bk.type.replace(' ','')
-    mFormat.textContent = bk.type
+    mFormat.textContent = TYPE_LABEL(bk.type)
   }
   // Extra badges
   const mFormatExtra = document.getElementById('mFormatExtra')
   if(mFormatExtra){
     mFormatExtra.innerHTML = extras.map(t =>
-      '<span class="tbadge t-' + t.replace(' ','') + '">' + t + '</span>'
+      '<span class="tbadge t-' + t.replace(' ','') + '">' + TYPE_LABEL(t) + '</span>'
     ).join('')
   }
 }
@@ -4969,6 +4972,200 @@ function refreshFactionDisplay(bookId){
 function serializeFactionList(){
   return extraFactionList.length ? JSON.stringify(extraFactionList) : null
 }
+
+// ════════════════════════════════════════════════════════════
+//  EXPORT TOMES — Excel / presentation PDF, grouped by dimension
+// ════════════════════════════════════════════════════════════
+function loadExtScript(src){
+  return new Promise((res, rej) => {
+    if(document.querySelector('script[src="' + src + '"]')) return res()
+    const s = document.createElement('script')
+    s.src = src
+    s.onload = res
+    s.onerror = () => rej(new Error('Could not load ' + src))
+    document.head.appendChild(s)
+  })
+}
+
+function openExportModal(){
+  let m = document.getElementById('exportModal')
+  if(!m){
+    m = document.createElement('div')
+    m.id = 'exportModal'
+    m.className = 'modal-overlay'
+    m.onclick = (e)=>{ if(e.target === m) closeExportModal() }
+    m.innerHTML =
+      '<div class="modal-panel" onclick="event.stopPropagation()" style="max-width:430px">'
+      + '<div style="padding:1.4rem 1.6rem 1.5rem">'
+      + '<div style="font-family:\'Cinzel\',serif;font-size:1.05rem;letter-spacing:.1em;color:var(--gold-bright);margin-bottom:.35rem">⇩ EXPORT TOMES</div>'
+      + '<div id="exportCount" style="font-size:.8rem;font-style:italic;color:var(--text-muted);margin-bottom:1rem"></div>'
+      + '<div style="font-family:\'Cinzel\',serif;font-size:.68rem;letter-spacing:.12em;color:var(--gold-bright);opacity:.85;margin-bottom:.4rem">GROUP BY</div>'
+      + '<div style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:1rem">'
+      +   '<label style="cursor:pointer"><input type="radio" name="expDim" value="series" checked> By Series</label>'
+      +   '<label style="cursor:pointer"><input type="radio" name="expDim" value="faction"> By Faction/Subject</label>'
+      +   '<label style="cursor:pointer"><input type="radio" name="expDim" value="author"> By Author</label>'
+      + '</div>'
+      + '<div style="font-family:\'Cinzel\',serif;font-size:.68rem;letter-spacing:.12em;color:var(--gold-bright);opacity:.85;margin-bottom:.4rem">FORMAT</div>'
+      + '<div style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:1.3rem">'
+      +   '<label style="cursor:pointer"><input type="radio" name="expFmt" value="xlsx" checked> Excel workbook (.xlsx)</label>'
+      +   '<label style="cursor:pointer"><input type="radio" name="expFmt" value="pdf"> Presentation PDF (.pdf)</label>'
+      + '</div>'
+      + '<div style="display:flex;gap:.6rem;justify-content:flex-end">'
+      +   '<button onclick="closeExportModal()" style="background:none;border:1px solid var(--border,#444);color:var(--text-muted);padding:.45rem .9rem;cursor:pointer">Cancel</button>'
+      +   '<button id="exportGoBtn" class="inscribe-btn" onclick="runExport()">⇩ Export</button>'
+      + '</div>'
+      + '</div></div>'
+    document.body.appendChild(m)
+  }
+  const n = getFiltered().length
+  document.getElementById('exportCount').textContent =
+    'Exports the current view — ' + n.toLocaleString() + ' tome' + (n===1?'':'s') + ' (set filters to All to export the full archive).'
+  m.style.display = 'flex'
+}
+
+function closeExportModal(){
+  const m = document.getElementById('exportModal')
+  if(m) m.style.display = 'none'
+  const btn = document.getElementById('exportGoBtn')
+  if(btn){ btn.disabled = false; btn.textContent = '⇩ Export' }
+}
+
+function buildExportGroups(dim){
+  const books = getFiltered()
+  const map = new Map()
+  const push = (g, row) => { if(!map.has(g)) map.set(g, []); map.get(g).push(row) }
+  for(const b of books){
+    const gb = globalBooks[b.id] || {}
+    const ub = userBooks[b.id] || {}
+    const base = {
+      pos: '', title: b.title, author: allAuthorsForCard(b), year: b.year,
+      type: TYPE_LABEL(b.type), faction: factionHierarchy(b.id) || '',
+      series: b.subject || '',
+      owned: ub.owned ? 'Yes' : '', read: ub.read ? 'Yes' : '', want: ub.wishlisted ? 'Yes' : ''
+    }
+    if(dim === 'series'){
+      const segs = []
+      if(b.subject) segs.push({name: b.subject, pos: gb.series_position})
+      try{
+        const ex = JSON.parse(gb.series_list || '[]')
+        if(Array.isArray(ex)){
+          let pm = {}
+          try{ const p = JSON.parse(gb.series_positions || '{}'); if(p && typeof p === 'object') pm = p }catch(e){}
+          ex.forEach(n => { if(n) segs.push({name: n, pos: pm[n]}) })
+        }
+      }catch(e){}
+      if(!segs.length) segs.push({name: 'Unassigned', pos: null})
+      segs.forEach(s => push(s.name, Object.assign({}, base, {pos: (s.pos == null || s.pos === '') ? '' : s.pos})))
+    } else if(dim === 'faction'){
+      push(gb.faction || 'Untagged', Object.assign({}, base))
+    } else {
+      const auths = []
+      if(b.author) auths.push(b.author)
+      try{ const al = JSON.parse(gb.author_list || '[]'); if(Array.isArray(al)) al.forEach(a => { if(a && !auths.includes(a)) auths.push(a) }) }catch(e){}
+      if(!auths.length) auths.push('Unknown Author')
+      auths.forEach(a => push(a, Object.assign({}, base)))
+    }
+  }
+  return [...map.keys()].sort((a,b) => a.localeCompare(b)).map(g => ({
+    group: g,
+    rows: map.get(g).sort((a,b) => {
+      const pa = parseFloat(a.pos), pb = parseFloat(b.pos)
+      const va = isNaN(pa) ? 99999 : pa, vb = isNaN(pb) ? 99999 : pb
+      if(va !== vb) return va - vb
+      return a.title.localeCompare(b.title)
+    })
+  }))
+}
+
+async function runExport(){
+  const dim = document.querySelector('input[name="expDim"]:checked').value
+  const fmt = document.querySelector('input[name="expFmt"]:checked').value
+  const btn = document.getElementById('exportGoBtn')
+  btn.disabled = true; btn.textContent = 'Preparing…'
+  try{
+    const groups = buildExportGroups(dim)
+    if(!groups.length){ alert('Nothing to export — the current view is empty.'); closeExportModal(); return }
+    if(fmt === 'xlsx'){
+      await loadExtScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')
+      exportExcel(groups, dim)
+    } else {
+      await loadExtScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+      await loadExtScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js')
+      exportPdf(groups, dim)
+    }
+    closeExportModal()
+  }catch(err){
+    console.error('Export failed:', err)
+    alert('Export failed: ' + err.message)
+    btn.disabled = false; btn.textContent = '⇩ Export'
+  }
+}
+
+const EXPORT_DIM_LABEL = {series:'Series', faction:'Faction / Subject', author:'Author'}
+
+function exportExcel(groups, dim){
+  const header = [EXPORT_DIM_LABEL[dim], '#', 'Title', 'Author(s)', 'Year', 'Type', 'Faction / Subject', 'Primary Series', 'Owned', 'Read', 'Want']
+  const aoa = [header]
+  groups.forEach(g => g.rows.forEach(r =>
+    aoa.push([g.group, r.pos, r.title, r.author, r.year, r.type, r.faction, r.series, r.owned, r.read, r.want])
+  ))
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+  ws['!cols'] = [{wch:28},{wch:5},{wch:44},{wch:26},{wch:6},{wch:18},{wch:36},{wch:26},{wch:7},{wch:6},{wch:6}]
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Sanctum Librorum')
+  XLSX.writeFile(wb, 'sanctum-librorum-by-' + dim + '.xlsx')
+}
+
+function exportPdf(groups, dim){
+  const { jsPDF } = window.jspdf
+  const doc = new jsPDF({unit:'pt', format:'letter'})
+  const pageW = doc.internal.pageSize.getWidth()
+  const pageH = doc.internal.pageSize.getHeight()
+  const total = groups.reduce((n,g) => n + g.rows.length, 0)
+  // ── Title block ──
+  doc.setFont('times','bold');   doc.setFontSize(26); doc.setTextColor(30,26,20)
+  doc.text('SANCTUM LIBRORUM', pageW/2, 70, {align:'center'})
+  doc.setFont('times','italic'); doc.setFontSize(12); doc.setTextColor(100)
+  doc.text('A Black Library Catalogue — Grouped by ' + EXPORT_DIM_LABEL[dim], pageW/2, 90, {align:'center'})
+  doc.setFontSize(10)
+  doc.text('Compiled ' + new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})
+    + '  ·  ' + total.toLocaleString() + ' entries in ' + groups.length.toLocaleString() + ' groups', pageW/2, 105, {align:'center'})
+  doc.setDrawColor(176,141,60); doc.setLineWidth(1.4)
+  doc.line(72, 120, pageW-72, 120)
+  const footer = () => {
+    doc.setFont('times','italic'); doc.setFontSize(8); doc.setTextColor(130)
+    doc.text('Sanctum Librorum — Export by ' + EXPORT_DIM_LABEL[dim], 56, pageH-26)
+    doc.text('Page ' + doc.internal.getNumberOfPages(), pageW-56, pageH-26, {align:'right'})
+  }
+  let first = true
+  groups.forEach(g => {
+    const body = g.rows.map(r => [
+      r.pos !== '' ? ('#' + r.pos) : '',
+      r.title, r.author, '' + r.year, r.type,
+      [r.owned && 'Owned', r.read && 'Read', r.want && 'Want'].filter(Boolean).join(' · ')
+    ])
+    doc.autoTable({
+      head: [
+        [{content: g.group + '   (' + g.rows.length + ')', colSpan: 6,
+          styles:{fillColor:[26,23,42], textColor:[214,182,92], fontStyle:'bold', fontSize:10.5, halign:'left', cellPadding:5}}],
+        ['#','Title','Author(s)','Year','Type','Status']
+      ],
+      body,
+      startY: first ? 136 : (doc.lastAutoTable.finalY + 18),
+      margin: {left:56, right:56, top:64, bottom:46},
+      styles: {font:'times', fontSize:9, cellPadding:3.5, overflow:'linebreak'},
+      headStyles: {fillColor:[44,40,66], textColor:235, fontSize:8, fontStyle:'bold'},
+      alternateRowStyles: {fillColor:[246,244,250]},
+      columnStyles: {0:{cellWidth:30}, 3:{cellWidth:34}, 4:{cellWidth:82}, 5:{cellWidth:84}},
+      didDrawPage: footer,
+      rowPageBreak: 'avoid'
+    })
+    first = false
+  })
+  doc.save('sanctum-librorum-by-' + dim + '.pdf')
+}
+
+Object.assign(window, {openExportModal, closeExportModal, runExport})
 
 </script>
 
@@ -5352,7 +5549,7 @@ function serializeFactionList(){
                 <option value="Novel">Novel</option>
                 <option value="Novella">Novella</option>
                 <option value="Short Story">Short Story</option>
-                <option value="Graphic Novel">Graphic Novel</option>
+                <option value="Graphic Novel">Graphic Novel/Comic</option>
                 <option value="Limited Edition">Limited Edition</option>
                 <option value="Anthology">Anthology</option>
                 <option value="Omnibus">Omnibus</option>
