@@ -59,17 +59,18 @@
       transition:border-color .22s,background .22s,transform .1s;border-radius:var(--radius);overflow:hidden}
     .spoke:hover{border-color:var(--border-gold);background:var(--card-hover)}
     .spoke:active{transform:scale(.995)}
-    .spoke::after{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:var(--gold);opacity:0;transition:opacity .22s}
+    .spoke::after{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:var(--gold);opacity:0;transition:opacity .22s;pointer-events:none}
     .spoke:hover::after{opacity:.7}
     .spoke .ico{font-size:1.7rem;color:var(--gold-bright);display:block;margin-bottom:.9rem;line-height:1}
     .spoke .la{font-family:'Cinzel',serif;font-size:1.02rem;font-weight:700;letter-spacing:.08em;color:var(--gold-bright);text-transform:uppercase}
     .spoke .en{font-size:.72rem;color:var(--text-muted);letter-spacing:.14em;text-transform:uppercase;margin-top:.15rem}
     .spoke .desc{font-size:.95rem;color:var(--text);margin-top:.8rem;line-height:1.5}
+    .spoke > *{pointer-events:none}
     .spoke.locked{cursor:default;opacity:.5}
     .spoke.locked:hover{border-color:var(--border);background:var(--card)}
     .spoke.locked:hover::after{opacity:0}
     .spoke .badge{position:absolute;top:1rem;right:1rem;font-family:'Cinzel',serif;font-size:.54rem;
-      letter-spacing:.16em;text-transform:uppercase;padding:.22rem .5rem;border-radius:2px}
+      letter-spacing:.16em;text-transform:uppercase;padding:.22rem .5rem;border-radius:2px;pointer-events:none}
     .badge.live{color:var(--gold);border:1px solid var(--border-gold);background:var(--gold-glow)}
     .badge.ext{color:var(--iron);border:1px solid rgba(125,135,148,.3);background:var(--iron-bg)}
     .badge.soon{color:var(--text-muted);border:1px solid var(--border)}
