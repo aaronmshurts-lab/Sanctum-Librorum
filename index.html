@@ -3397,8 +3397,52 @@ Object.assign(window, {
   handleInscribeCover, saveInscribedTome
 })
 
+// ── Copy Tome: clone an existing entry into the Inscribe form (everything except the cover) ──
+let copyPendingMeta = null
+
+function copyTome(){
+  const bk = BOOKS.find(b => b.id === modalBookId)
+  if(!bk) return
+  const gb = globalBooks[modalBookId] || {}
+  const srcTitle = bk.title
+  // Stash all extended metadata — everything EXCEPT the cover image (and community ratings)
+  const meta = {
+    summary:           gb.summary           || null,
+    spoiler:           gb.spoiler           || null,
+    contained_works:   gb.contained_works   || null,
+    faction:           gb.faction           || null,
+    tags:              gb.tags              || null,
+    dramatis_personae: gb.dramatis_personae || null,
+    series_list:       gb.series_list       || null,
+    series_positions:  gb.series_positions  || null,
+    series_position:   gb.series_position   || null,
+    chrono_position:   gb.chrono_position   || null,
+    type_list:         gb.type_list         || null,
+    author_list:       gb.author_list       || null,
+    faction_list:      gb.faction_list      || null
+  }
+  closeModal()
+  openInscribeModal()               // resets the form (and clears copyPendingMeta)
+  copyPendingMeta = meta            // so set the stash AFTER
+  document.getElementById('itTitle').value  = bk.title
+  document.getElementById('itAuthor').value = (bk.author && bk.author !== 'Unknown') ? bk.author : ''
+  document.getElementById('itYear').value   = bk.year
+  document.getElementById('itType').value   = bk.type
+  const subjSel = document.getElementById('itSubject')
+  if(bk.subject && ![...subjSel.options].some(o => o.value === bk.subject)){
+    subjSel.innerHTML += '<option value="' + esc(bk.subject) + '">' + esc(bk.subject) + '</option>'
+  }
+  subjSel.value = bk.subject || 'Standalone'
+  document.getElementById('itNotes').value  = bk._notes || ''
+  const msg = document.getElementById('inscribeMsg')
+  msg.textContent = 'Copying \u201c' + srcTitle + '\u201d \u2014 all metadata carries over except the cover image. Amend the title (e.g. add [Special Edition]) and inscribe.'
+  msg.style.display = 'block'
+}
+Object.assign(window, {copyTome})
+
 function openInscribeModal(){
   // Reset form
+  copyPendingMeta = null
   document.getElementById('itTitle').value   = ''
   document.getElementById('itAuthor').value  = ''
   document.getElementById('itYear').value    = new Date().getFullYear()
@@ -3487,6 +3531,38 @@ async function saveInscribedTome(){
     inscribeMsg('The scriptorium is unavailable. Try again shortly.')
     btn.disabled = false; btn.textContent = '✦ Inscribe to Your Archive'
     return
+  }
+
+  // If this is a Copy, carry the source's extended metadata to the new tome (never the cover)
+  if(copyPendingMeta){
+    const newId = 'custom-' + data.id
+    const metaPayload = Object.assign({book_id: newId}, copyPendingMeta, {updated_at: new Date().toISOString()})
+    const {data: mData, error: mError} = await supabase
+      .from('books_global')
+      .upsert(metaPayload, {onConflict:'book_id'})
+      .select().single()
+    if(mError){
+      console.error('Copy metadata save error:', mError)
+    } else if(mData){
+      globalBooks[newId] = {
+        ...(globalBooks[newId] || {}),
+        db_id:             mData.id,
+        summary:           mData.summary           || '',
+        spoiler:           mData.spoiler           || '',
+        contained_works:   mData.contained_works   || '',
+        faction:           mData.faction           || '',
+        tags:              mData.tags              || '',
+        dramatis_personae: mData.dramatis_personae || '',
+        series_list:       mData.series_list       || '',
+        series_positions:  mData.series_positions  || '',
+        series_position:   mData.series_position   || null,
+        chrono_position:   mData.chrono_position   || null,
+        type_list:         mData.type_list         || '',
+        author_list:       mData.author_list       || '',
+        faction_list:      mData.faction_list      || ''
+      }
+    }
+    copyPendingMeta = null
   }
 
   // Add to local custom tomes and merge into display
@@ -5185,6 +5261,7 @@ Object.assign(window, {openExportModal, closeExportModal, runExport})
       <div class="modal-ctrl">
         <button class="modal-edit-btn" id="modalEditBtn" title="Edit" onclick="toggleEditMode()">&#9998;</button>
         <button class="modal-edit-btn" id="modalDeleteBtn" title="Delete Entry" style="display:none;border-color:rgba(180,60,60,.4);color:#e07070" onclick="deleteCustomTome()">&#128465;</button>
+        <button class="modal-edit-btn" id="modalCopyBtn" title="Copy Tome (everything except the cover)" onclick="copyTome()">&#10697;</button>
         <button class="modal-close-btn" title="Close" onclick="smartClose()">&#10005;</button>
       </div>
     </div>
