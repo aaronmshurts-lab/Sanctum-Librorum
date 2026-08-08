@@ -2631,9 +2631,11 @@ function applyEditMode(on){
     const el = document.getElementById(id)
     if(el) el.style.display = canEditMeta ? 'none' : ''
   })
-  // Contained works section — show in edit mode for admin (omnibus or not)
+  // Contained works section — in edit mode admins always get it; in view mode
+  // show it whenever the book actually HAS contained works, regardless of type
+  // (a Short Story or Novel can contain works too — type is not the test)
   const containedSection = document.getElementById('mContainedSection')
-  if(containedSection && isAdmin()) containedSection.style.display = on ? '' : (b && (b.type==='Omnibus'||b.type==='Anthology') ? '' : 'none')
+  if(containedSection && isAdmin()) containedSection.style.display = on ? '' : (containedTags.length ? '' : 'none')
   // Hide view panels in edit mode (RTE takes their place flush under tabs)
   const panelSum = document.getElementById('panelSummary')
   const panelSpo = document.getElementById('panelSpoiler')
