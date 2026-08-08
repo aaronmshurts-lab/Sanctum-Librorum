@@ -1721,6 +1721,23 @@ async function doLogout(){await supabase.auth.signOut()}
 // ════════════════════════════════════════════════════════════
 //  DATA
 // ════════════════════════════════════════════════════════════
+// ── Paginated fetch ───────────────────────────────────────────────────────
+// PostgREST caps a single select at 1,000 rows. The archive is past that, so
+// every full-table load must page through with .range() or later rows vanish.
+async function fetchAllRows(buildQuery, pageSize = 1000){
+  let all = [], from = 0
+  for(;;){
+    const {data, error} = await buildQuery().range(from, from + pageSize - 1)
+    if(error) throw error
+    const batch = data || []
+    all = all.concat(batch)
+    if(batch.length < pageSize) break
+    from += pageSize
+    if(from > 100000) break   // hard stop against a runaway loop
+  }
+  return all
+}
+
 async function loadGlobalBooks(){
   // Fast load: everything EXCEPT the heavy cover_image base64 blobs.
   // Covers are fetched separately by loadCovers() after the grid renders.
@@ -1733,8 +1750,10 @@ async function loadGlobalBooks(){
   // by asking only for cover_image presence is not possible in one go,
   // so we select metadata first (no cover), then lazy-fetch covers.
   const metaCols = cols.replace(',cover_image','')
-  const {data,error} = await supabase.from('books_global').select(metaCols)
-  if(error){ console.error('loadGlobalBooks:', error); return }
+  let data
+  try{
+    data = await fetchAllRows(() => supabase.from('books_global').select(metaCols).order('id',{ascending:true}))
+  }catch(error){ console.error('loadGlobalBooks:', error); return }
   globalBooks = {}
   for(const r of (data||[])){
     globalBooks[r.book_id] = {
@@ -1776,11 +1795,11 @@ async function loadGlobalBooks(){
 // Lazy-load cover images in the background, in batches, after grid renders.
 async function loadCovers(){
   try{
-    const {data,error} = await supabase
+    const data = await fetchAllRows(() => supabase
       .from('books_global')
       .select('book_id,cover_image')
       .not('cover_image','is',null)
-    if(error){ console.error('loadCovers:', error); return }
+      .order('book_id',{ascending:true}), 200)
     for(const r of (data||[])){
       if(globalBooks[r.book_id]){
         globalBooks[r.book_id].cover_image = r.cover_image || null
@@ -1807,8 +1826,10 @@ function applyCoversToCards(){
 }
 
 async function loadUserBooks(){
-  const {data,error}=await supabase.from('user_books').select('*').eq('user_id',currentUser.id)
-  if(error){console.error(error);return}
+  let data
+  try{
+    data = await fetchAllRows(() => supabase.from('user_books').select('*').eq('user_id',currentUser.id).order('id',{ascending:true}))
+  }catch(error){ console.error(error); return }
   userBooks={}
   for(const r of (data||[])){
     userBooks[r.book_id]={db_id:r.id,owned:r.owned,read:r.read,wishlisted:r.wishlisted,cover_image:r.cover_image||null,summary:r.summary||'',bindings:r.bindings||[]}
@@ -3599,11 +3620,13 @@ async function saveInscribedTome(){
 async function loadCustomTomes(){
   // Fetch: approved/promoted (all users) + pending/rejected (own only)
   // We do this with an OR filter: status in approved/promoted OR user_id = me
-  const {data, error} = await supabase
-    .from('custom_tomes')
-    .select('*')
-    .order('created_at', {ascending: true})
-  if(error){ console.error('loadCustomTomes:', error); return }
+  let data
+  try{
+    data = await fetchAllRows(() => supabase
+      .from('custom_tomes')
+      .select('*')
+      .order('created_at', {ascending: true}))
+  }catch(error){ console.error('loadCustomTomes:', error); return }
 
   customTomes = data || []
   for(const t of customTomes){
