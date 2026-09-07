@@ -1,53 +1,164 @@
 name: Supabase Keep-Alive
+
 on:
   schedule:
-    # Every 2 days at 12:00 UTC — safety margin under the 7-day pause threshold.
-    # Two consecutive missed pings still leave room before the project sleeps.
-    - cron: '0 12 */2 * *'
+    # DAILY at 12:00 UTC.
+    # Previously '0 12 */2 * *' — that puts */2 in the DAY-OF-MONTH field, which
+    # resets at each month boundary rather than meaning "every 2 days", and left
+    # too little margin when GitHub delays or drops scheduled runs (it does both).
+    # Daily gives ~7 skipped runs of headroom before the 7-day pause threshold.
+    - cron: '0 12 * * *'
   workflow_dispatch: # Manual trigger from the Actions tab
+
+# Prevent overlapping runs if a manual trigger collides with the schedule
+concurrency:
+  group: supabase-keep-alive
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write # needed to raise an alert issue on failure
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase (real table read, with retries)
+      - name: Ping Supabase (WRITE + read, with retries)
+        id: ping
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           set -euo pipefail
 
-          # A real table read — this is what counts as DB activity and resets
-          # the inactivity clock. Selecting one row keeps the payload tiny.
-          ENDPOINT="${SUPABASE_URL}/rest/v1/books_global?select=book_id&limit=1"
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_KEY:-}" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_KEY secret is missing or empty."
+            exit 1
+          fi
+
+          echo "Run timestamp (UTC): $(date -u '+%Y-%m-%d %H:%M:%S')"
+
+          # ── Why a write and not just a read ────────────────────────────────
+          # A PostgREST SELECT does not reliably reset Supabase's inactivity
+          # clock — the free-tier pause timer keys on database activity, and
+          # cached/edge-served reads may not register. An UPSERT is unambiguous
+          # write activity against the actual Postgres instance.
+          # Requires the keep_alive table + RLS policy (see keep-alive-table.sql).
+          WRITE_ENDPOINT="${SUPABASE_URL}/rest/v1/keep_alive?on_conflict=id"
+          READ_ENDPOINT="${SUPABASE_URL}/rest/v1/books_global?select=book_id&limit=1"
+
+          NOW_ISO="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          PAYLOAD="{\"id\":1,\"last_ping\":\"${NOW_ISO}\",\"source\":\"github-actions\"}"
 
           attempt=1
           max_attempts=3
+          write_ok=0
           status=000
 
           while [ "$attempt" -le "$max_attempts" ]; do
-            echo "Attempt ${attempt}/${max_attempts}…"
-            status=$(curl -s -o /dev/null -w "%{http_code}" \
+            echo "── Attempt ${attempt}/${max_attempts} ──"
+
+            # Capture body AND status so failures are diagnosable from the log
+            body_file="$(mktemp)"
+            status=$(curl -s -o "$body_file" -w "%{http_code}" \
               --connect-timeout 15 --max-time 30 \
-              "$ENDPOINT" \
+              -X POST "$WRITE_ENDPOINT" \
               -H "apikey: ${SUPABASE_KEY}" \
-              -H "Authorization: Bearer ${SUPABASE_KEY}" || echo "000")
+              -H "Authorization: Bearer ${SUPABASE_KEY}" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: resolution=merge-duplicates" \
+              -d "$PAYLOAD" || echo "000")
 
-            echo "HTTP Status: ${status}"
+            echo "WRITE HTTP status: ${status}"
+            if [ "$status" != "000" ]; then
+              echo "WRITE response body: $(head -c 500 "$body_file")"
+            fi
+            rm -f "$body_file"
 
-            # 2xx = success. Accept it and stop.
             if [ "$status" -ge 200 ] && [ "$status" -lt 300 ]; then
-              echo "✓ Supabase responded healthy (${status}). Archive is awake."
-              exit 0
+              echo "✓ Write ping succeeded (${status}). Database activity registered."
+              write_ok=1
+              break
             fi
 
-            # 000 usually means the project is paused (hostname won't resolve)
-            # or a transient network blip. Retry after a short wait.
-            echo "✗ Non-success status (${status}). Retrying in 20s…"
+            # 000 = DNS failure or connection refused. On a PAUSED project the
+            # subdomain stops resolving, so this is the signature of a sleeping
+            # archive rather than a transient blip.
+            if [ "$status" = "000" ]; then
+              echo "✗ No response (000) — hostname may not resolve. Project could be PAUSED."
+            else
+              echo "✗ Non-success status (${status})."
+            fi
+
             attempt=$((attempt + 1))
-            sleep 20
+            [ "$attempt" -le "$max_attempts" ] && { echo "Retrying in 20s…"; sleep 20; }
           done
 
-          echo "::error::Supabase keep-alive FAILED after ${max_attempts} attempts (last status: ${status})."
-          echo "::error::Status 000 typically means the project is PAUSED — restore it in the Supabase dashboard."
-          exit 1
+          if [ "$write_ok" -ne 1 ]; then
+            echo "::error::Keep-alive WRITE failed after ${max_attempts} attempts (last status: ${status})."
+            echo "::error::Status 000 = project likely PAUSED. Restore it at supabase.com/dashboard."
+            echo "::error::Status 401/403 = anon key rejected. Check the SUPABASE_KEY secret and the keep_alive RLS policy."
+            echo "::error::Status 404 = keep_alive table missing. Run keep-alive-table.sql in the SQL editor."
+            exit 1
+          fi
+
+          # Secondary read against the real catalogue — confirms the archive
+          # itself is reachable, not merely the scratch table.
+          read_status=$(curl -s -o /dev/null -w "%{http_code}" \
+            --connect-timeout 15 --max-time 30 \
+            "$READ_ENDPOINT" \
+            -H "apikey: ${SUPABASE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_KEY}" || echo "000")
+          echo "READ HTTP status (books_global): ${read_status}"
+
+          if [ "$read_status" -lt 200 ] || [ "$read_status" -ge 300 ]; then
+            echo "::error::Catalogue read failed (${read_status}) even though the write succeeded."
+            exit 1
+          fi
+
+          echo "✓ Sanctum Librorum is awake. The candles remain lit."
+
+      - name: Raise an alert issue if the ping failed
+        # Fires only on failure, and only for scheduled runs — a manual test
+        # that fails doesn't need to open an issue.
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '⚠️ Supabase keep-alive failed — archive may be pausing';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            // Don't spam: reuse an existing open alert if one is already filed
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'keep-alive'
+            });
+            const body = [
+              'The scheduled Supabase keep-alive ping failed.',
+              '',
+              `**Run log:** ${runUrl}`,
+              '',
+              'Likely causes, in order:',
+              '- **Status 000** — the project is PAUSED (its subdomain stops resolving). Restore it at supabase.com/dashboard.',
+              '- **401 / 403** — the anon key was rejected. Check the `SUPABASE_KEY` secret and the `keep_alive` RLS policy.',
+              '- **404** — the `keep_alive` table is missing. Run `keep-alive-table.sql`.',
+              '',
+              'The database sleeps only while unattended.'
+            ].join('\n');
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['keep-alive']
+              });
+            }
