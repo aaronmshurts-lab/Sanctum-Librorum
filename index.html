@@ -2190,6 +2190,12 @@ function renderCard(b){
     try{ const p=JSON.parse(gb2.series_positions||'{}'); if(p&&typeof p==='object') posMap=p }catch(e){}
     ex.forEach(n=>seriesSegs.push({name:n, pos:posMap[n]}))
   } } }catch(e){}
+  // When filtering to a specific series, that series leads — the lens you're
+  // viewing through should come first, whether it's the primary or an extra.
+  if(activeBrowseBy === 'series' && activeSubject !== 'all' && seriesSegs.length > 1){
+    const hit = seriesSegs.findIndex(s => s.name === activeSubject)
+    if(hit > 0) seriesSegs.unshift(seriesSegs.splice(hit, 1)[0])
+  }
   // Single series: classic 'Series · Book #N'. Multiple: compact 'A #5 · B #2'
   let seriesWithNums = ''
   if(seriesSegs.length === 1){
