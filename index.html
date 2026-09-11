@@ -363,6 +363,7 @@
   
     /* ── BINDINGS ──────────────────────────────────────────── */
     .bindings-section{margin-top:.5rem}
+    .timeline-section{margin-top:.7rem}
     .bindings-label{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.16em;
       text-transform:uppercase;color:var(--gold);opacity:.7;margin-bottom:.4rem;display:block}
     .bindings-pills{display:flex;flex-wrap:wrap;gap:.3rem}
@@ -1753,7 +1754,7 @@ async function loadGlobalBooks(){
   // Covers are fetched separately by loadCovers() after the grid renders.
   const cols = 'id,book_id,summary,spoiler,contained_works,faction,tags,'
     + 'avg_rating,rating_count,dramatis_personae,series_list,series_position,series_positions,'
-    + 'chrono_position,type_list,author_list,faction_list,'
+    + 'timeline_year,timeline_millennium,timeline_circa,type_list,author_list,faction_list,'
     + 'title_override,author_override,year_override,type_override,subject_override,'
     + 'cover_image'
   // Pull a lightweight flag for which books HAVE a cover, without the blob,
@@ -1780,7 +1781,9 @@ async function loadGlobalBooks(){
       series_list:       r.series_list       || '',
       series_positions:  r.series_positions  || '',
       series_position:  r.series_position  || null,
-      chrono_position:  r.chrono_position   || null,
+      timeline_year:       r.timeline_year       ?? null,
+      timeline_millennium: r.timeline_millennium ?? null,
+      timeline_circa:      r.timeline_circa      ?? false,
       type_list:        r.type_list        || '',
       author_list:      r.author_list      || '',
       faction_list:     r.faction_list     || '',
@@ -2126,16 +2129,12 @@ function renderGrid(){
     if(activeSortOrder === 'title'){
       return a.title.localeCompare(b.title)
     }
-    // By Chronology: in-universe order via chrono_position. Unplaced tomes sink
-    // to the end rather than clustering at the top, then fall back to title.
+    // By Chronology: in-universe Imperial dating (Year.Millennium). Undated
+    // tomes sink to the end rather than clustering at the top.
     if(activeSortOrder === 'chrono'){
-      const chronoOf = (x) => {
-        const v = (globalBooks[x.id] || {}).chrono_position
-        const n = parseFloat(v)
-        return (v == null || v === '' || isNaN(n)) ? Infinity : n
-      }
-      const ca = chronoOf(a), cb = chronoOf(b)
-      if(ca !== cb) return ca - cb
+      const ka = imperialSortKey(globalBooks[a.id])
+      const kb = imperialSortKey(globalBooks[b.id])
+      if(ka !== kb) return ka - kb
       return a.title.localeCompare(b.title)
     }
     // Alphabetical modes: sort by the active Browse By dimension
@@ -2188,7 +2187,39 @@ function renderGrid(){
   grid.innerHTML=sorted.map(renderCard).join('')
 }
 
+// Live preview of the formatted date while editing the Timeline fields
+function updateTimelinePreview(){
+  const y  = document.getElementById('mTimelineYear')
+  const m  = document.getElementById('mTimelineMill')
+  const c  = document.getElementById('mTimelineCirca')
+  const pv = document.getElementById('mTimelinePreview')
+  if(!pv) return
+  const out = formatImperialDate(y ? y.value : '', m ? m.value : '', c ? c.checked : false)
+  pv.textContent = out ? ('\u2192 ' + out) : ''
+}
+Object.assign(window, {updateTimelinePreview})
+
 function typeClass(t){return t.replace(' ','')}
+// ── IMPERIAL DATING ───────────────────────────────────────────────────────
+// 203.M31 = the 203rd year of the 31st millennium. Year is padded to three
+// digits. With no year, the millennium stands alone (M31, never 000.M31).
+// 'circa' prefixes c. when the exact year is uncertain.
+function formatImperialDate(year, mill, circa){
+  const m = parseInt(mill, 10)
+  if(isNaN(m) || m < 1) return ''
+  const y = parseInt(year, 10)
+  const hasYear = !isNaN(y) && y >= 1
+  const stem = hasYear ? (String(y).padStart(3,'0') + '.M' + m) : ('M' + m)
+  return (circa ? 'c.' : '') + stem
+}
+// Sort key: millennium dominates, year orders within it. A millennium with no
+// year sorts to its start. Undated tomes return Infinity and sink to the end.
+function imperialSortKey(gb){
+  const m = parseInt((gb||{}).timeline_millennium, 10)
+  if(isNaN(m) || m < 1) return Infinity
+  const y = parseInt((gb||{}).timeline_year, 10)
+  return m * 1000 + ((isNaN(y) || y < 1) ? 0 : y)
+}
 // Display label for tome types — data value stays 'Graphic Novel' (Supabase, filters, CSS classes untouched)
 function TYPE_LABEL(t){ return t === 'Graphic Novel' ? 'Graphic Novel/Comic' : t }
 
@@ -2243,11 +2274,9 @@ function renderCard(b){
   // placements without cluttering the card the rest of the time.
   let chronoMark = ''
   if(activeSortOrder === 'chrono'){
-    const cv = gb2.chrono_position
-    const cn = parseFloat(cv)
-    chronoMark = (cv == null || cv === '' || isNaN(cn))
-      ? ' <span class="card-order-sep">·</span> <span class="card-chrono-no">Unplaced</span>'
-      : ' <span class="card-order-sep">·</span> <span class="card-chrono-no">Chrono ' + (Number.isInteger(cn) ? cn : parseFloat(cn.toFixed(2))) + '</span>'
+    const impDate = formatImperialDate(gb2.timeline_year, gb2.timeline_millennium, gb2.timeline_circa)
+    chronoMark = ' <span class="card-order-sep">·</span> <span class="card-chrono-no">'
+      + (impDate || 'Undated') + '</span>'
   }
   // Gold top line & italic sub-line swap based on the active Browse By dimension
   const factionDisp = factionHierarchy(b.id)
@@ -2542,16 +2571,18 @@ function openModal(bookId){
     bookNoEl.textContent = displayNo
   }
   if(bookNoEdit) bookNoEdit.value = gbBookNo
-  const chronoEl   = document.getElementById('mChronoNo')
-  const chronoEdit = document.getElementById('mChronoEdit')
-  const gbChronoNo = (globalBooks[bookId] || {}).chrono_position || ''
-  if(chronoEl){
-    const displayChrono = gbChronoNo ? ('⏱ #' + (Number.isInteger(parseFloat(gbChronoNo)) ? parseInt(gbChronoNo) : parseFloat(gbChronoNo))) : ''
-    chronoEl.textContent = displayChrono
-    const sepEl = document.getElementById('mOrderSep')
-    if(sepEl) sepEl.style.display = (gbBookNo && gbChronoNo) ? '' : 'none'
-  }
-  if(chronoEdit) chronoEdit.value = gbChronoNo
+  // ── Timeline (Imperial dating) ──
+  const gbT = globalBooks[bookId] || {}
+  const tlEl     = document.getElementById('mTimeline')
+  const tlYear   = document.getElementById('mTimelineYear')
+  const tlMill   = document.getElementById('mTimelineMill')
+  const tlCirca  = document.getElementById('mTimelineCirca')
+  const tlDate   = formatImperialDate(gbT.timeline_year, gbT.timeline_millennium, gbT.timeline_circa)
+  if(tlEl) tlEl.textContent = tlDate || '\u2014'
+  if(tlYear)  tlYear.value   = (gbT.timeline_year  != null && gbT.timeline_year  !== '') ? gbT.timeline_year  : ''
+  if(tlMill)  tlMill.value   = (gbT.timeline_millennium != null && gbT.timeline_millennium !== '') ? gbT.timeline_millennium : ''
+  if(tlCirca) tlCirca.checked = !!gbT.timeline_circa
+  updateTimelinePreview()
 
   // Edit button always visible (save is still admin-protected)
   document.getElementById('modalEditBtn').style.display = ''
@@ -2795,8 +2826,17 @@ async function saveModalEdits(){
   // Save to books_global — includes faction and tags as separate fields
   const bookNoEditEl  = document.getElementById('mBookNoEdit')
   const newBookNo    = bookNoEditEl  ? (parseFloat(bookNoEditEl.value)  || null) : null
-  const chronoEditEl = document.getElementById('mChronoEdit')
-  const newChronoNo  = chronoEditEl  ? (parseFloat(chronoEditEl.value)  || null) : null
+  const tlYearEl  = document.getElementById('mTimelineYear')
+  const tlMillEl  = document.getElementById('mTimelineMill')
+  const tlCircaEl = document.getElementById('mTimelineCirca')
+  const parseTl = (el, max) => {
+    if(!el) return null
+    const n = parseInt(el.value, 10)
+    return (isNaN(n) || n < 1 || n > max) ? null : n
+  }
+  const newTlYear  = parseTl(tlYearEl, 999)
+  const newTlMill  = parseTl(tlMillEl, 99)
+  const newTlCirca = tlCircaEl ? !!tlCircaEl.checked : false
   const globalPayload = {
     book_id:         modalBookId,
     summary:         summary,
@@ -2808,7 +2848,9 @@ async function saveModalEdits(){
     series_positions: serializeExtraSeriesPositions(),
     tags:            newTags    || null,
     series_position: newBookNo,
-    chrono_position: newChronoNo,
+    timeline_year:       newTlYear,
+    timeline_millennium: newTlMill,
+    timeline_circa:      newTlCirca,
     type_list:       serializeTypeList(),
     author_list:     serializeAuthorList(),
     faction_list:    serializeFactionList(),
@@ -2841,7 +2883,9 @@ async function saveModalEdits(){
     series_list:       gData.series_list       || '',
     series_positions:  gData.series_positions  || '',
     series_position:   gData.series_position   || null,
-    chrono_position:   gData.chrono_position   || null,
+    timeline_year:       gData.timeline_year       ?? null,
+    timeline_millennium: gData.timeline_millennium ?? null,
+    timeline_circa:      gData.timeline_circa      ?? false,
     type_list:         gData.type_list         || '',
     author_list:       gData.author_list       || '',
     faction_list:      gData.faction_list      || '',
@@ -2873,11 +2917,9 @@ async function saveModalEdits(){
     const dispNo = sp ? ('#' + (Number.isInteger(sp) ? sp : parseFloat(sp.toFixed(2)))) : ''
     mBookNoDisp.textContent = dispNo
   }
-  const mChronoDisp = document.getElementById('mChronoNo')
-  if(mChronoDisp){
-    const cp = gData.chrono_position
-    const dispChrono = cp ? ('⏱ #' + (Number.isInteger(cp) ? cp : parseFloat(cp.toFixed(2)))) : ''
-    mChronoDisp.textContent = dispChrono
+  const mTlDisp = document.getElementById('mTimeline')
+  if(mTlDisp){
+    mTlDisp.textContent = formatImperialDate(gData.timeline_year, gData.timeline_millennium, gData.timeline_circa) || '\u2014'
   }
 
   // Re-load extra series from updated globalBooks cache
@@ -3487,7 +3529,9 @@ function copyTome(){
     series_list:       gb.series_list       || null,
     series_positions:  gb.series_positions  || null,
     series_position:   gb.series_position   || null,
-    chrono_position:   gb.chrono_position   || null,
+    timeline_year:       gb.timeline_year       ?? null,
+    timeline_millennium: gb.timeline_millennium ?? null,
+    timeline_circa:      gb.timeline_circa      ?? false,
     type_list:         gb.type_list         || null,
     author_list:       gb.author_list       || null,
     faction_list:      gb.faction_list      || null
@@ -3627,7 +3671,9 @@ async function saveInscribedTome(){
         series_list:       mData.series_list       || '',
         series_positions:  mData.series_positions  || '',
         series_position:   mData.series_position   || null,
-        chrono_position:   mData.chrono_position   || null,
+        timeline_year:       mData.timeline_year       ?? null,
+        timeline_millennium: mData.timeline_millennium ?? null,
+        timeline_circa:      mData.timeline_circa      ?? false,
         type_list:         mData.type_list         || '',
         author_list:       mData.author_list       || '',
         faction_list:      mData.faction_list      || ''
@@ -5445,8 +5491,6 @@ Object.assign(window, {openExportModal, closeExportModal, runExport})
               <div class="mfield-val meta" id="mSeries" style="flex:1;min-width:0"></div>
               <div style="display:flex;gap:.4rem;align-items:baseline;flex-shrink:0">
                 <div class="mfield-val meta" id="mBookNo" style="color:var(--gold);font-size:.82rem;opacity:.8"></div>
-                <span id="mOrderSep" style="color:var(--text-muted);opacity:.4;font-size:.6rem;display:none">·</span>
-                <div class="mfield-val meta" id="mChronoNo" style="color:#a8aab8;font-size:.82rem;opacity:.8"></div>
               </div>
             </div>
             <!-- Edit row: series input + book# input inline -->
@@ -5456,11 +5500,6 @@ Object.assign(window, {openExportModal, closeExportModal, runExport})
                 type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]{0,2}"
                 style="width:60px;text-align:center;flex-shrink:0"
                 placeholder="Pub #"/>
-              <span style="color:var(--text-muted);opacity:.5;font-size:.8rem">·</span>
-              <input class="inscribe-input" id="mChronoEdit"
-                type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]{0,2}"
-                style="width:60px;text-align:center;flex-shrink:0;border-color:rgba(168,170,184,.3);color:#a8aab8"
-                placeholder="⏱ #"/>
             </div>
             <!-- Extra series: listed below primary, no book# -->
             <div id="seriesExtraSection" style="display:none">
@@ -5485,7 +5524,30 @@ Object.assign(window, {openExportModal, closeExportModal, runExport})
             </div>
           </div>
         </div>
-        <div class="bindings-section">
+        <div class="timeline-section" id="mTimelineSection">
+          <span class="mfield-label">Timeline</span>
+          <div class="mfield-val meta" id="mTimeline" style="color:#c9b37e;font-family:'Cinzel',serif;letter-spacing:.06em"></div>
+          <div class="modal-edit-field" id="timelineEditRow" style="display:none;align-items:center;gap:.45rem;flex-wrap:wrap;margin-top:.25rem">
+            <input class="inscribe-input" id="mTimelineYear"
+              type="number" min="1" max="999" step="1"
+              style="width:74px;text-align:center"
+              placeholder="Year" oninput="updateTimelinePreview()" title="Year within the millennium (1–999). Leave blank for millennium only."/>
+            <span style="color:var(--text-muted);opacity:.6;font-size:.9rem">.</span>
+            <span style="color:#c9b37e;font-family:'Cinzel',serif;font-size:.85rem">M</span>
+            <input class="inscribe-input" id="mTimelineMill"
+              type="number" min="1" max="99" step="1"
+              style="width:64px;text-align:center"
+              placeholder="31" oninput="updateTimelinePreview()" title="Millennium, e.g. 31 for M31"/>
+            <label style="display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.75rem;color:var(--text-muted);margin-left:.3rem">
+              <input type="checkbox" id="mTimelineCirca" style="cursor:pointer" onchange="updateTimelinePreview()"/>
+              <span>circa</span>
+            </label>
+            <span id="mTimelinePreview" style="font-family:'Cinzel',serif;font-size:.8rem;color:#c9b37e;opacity:.75;margin-left:.35rem"></span>
+          </div>
+          <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.25rem">
+            Imperial dating: 203.M31 is the 203rd year of the 31st millennium. Tick <em>circa</em> when the exact year is uncertain.
+          </div>
+        </div>
           <span class="bindings-label">Bindings Owned</span>
           <div class="bindings-pills" id="bindingsPills">
             <button class="binding-pill" data-binding="Hardcover"      onclick="toggleBinding('Hardcover')">Hardcover</button>
