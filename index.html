@@ -510,6 +510,9 @@
       color:var(--gold-bright);font-family:'Cinzel',serif;font-size:.58rem;
       letter-spacing:.06em;padding:.22rem .5rem;border-radius:2px;
       white-space:nowrap;max-width:200px}
+    /* Free-text contained work with no catalogue entry — cannot receive a status cascade */
+    .tag-pill-unlinked{background:rgba(120,120,140,.15);border-color:rgba(160,160,180,.35);
+      color:#a8aab8;border-style:dashed}
     .tag-pill span{overflow:hidden;text-overflow:ellipsis}
     .tag-pill-remove{cursor:pointer;opacity:.6;font-size:.75rem;flex-shrink:0;
       background:none;border:none;color:var(--gold-bright);padding:0;line-height:1}
@@ -1861,23 +1864,28 @@ async function toggleStatus(bookId,field){
   userBooks[bookId]=updated
   updateCard(bookId); updateStats()
 
-  // Cascade to omnibus contents (owned/read only, not wishlist)
+  // Cascade to omnibus/anthology contents — owned, read AND want all cascade
   const cascadeIds=[]
-  if(field!=='wishlisted'){
+  {
     const contents=getCascadeIds(bookId)
     if(contents && contents.length){
       for(const cid of contents){
         const cp=userBooks[cid]||{owned:false,read:false,wishlisted:false,bindings:[]}
-        // only cascade ON (don't auto-remove when omnibus is unticked)
+        // only cascade ON (don't auto-remove when the parent is unticked)
         if(newVal && !cp[field]){
-          // Determine which binding to mark on the contained work
           const bk = BOOKS.find(bx=>bx.id===bookId)
           const cascadeBinding = bk && bk.type==='Anthology' ? 'In Anthology' : 'In Omnibus'
           const currentBindings = cp.bindings || []
-          const updatedBindings = currentBindings.includes(cascadeBinding)
-            ? currentBindings
-            : [...currentBindings, cascadeBinding]
-          userBooks[cid]={...cp,[field]:true, owned:true, bindings:updatedBindings}
+          // Owning or having read it implies the physical volume is owned, so the
+          // binding applies. Merely WANTING it does not — don't claim a binding
+          // for a book that isn't on the shelf.
+          const impliesOwnership = (field === 'owned' || field === 'read')
+          const updatedBindings = (impliesOwnership && !currentBindings.includes(cascadeBinding))
+            ? [...currentBindings, cascadeBinding]
+            : currentBindings
+          const patch = {...cp, [field]:true, bindings:updatedBindings}
+          if(impliesOwnership) patch.owned = true
+          userBooks[cid]=patch
           cascadeIds.push(cid)
         }
       }
@@ -3968,8 +3976,12 @@ function renderTagPills(){
   // Insert pills before input
   containedTags.forEach(t => {
     const pill = document.createElement('span')
-    pill.className = 'tag-pill'
-    pill.innerHTML = '<span>' + esc(t.title) + '</span>'
+    // A '_txt_' id means free text with no catalogue entry behind it — status
+    // can't cascade to a book that doesn't exist, so mark it plainly.
+    const unlinked = String(t.id).startsWith('_txt_')
+    pill.className = 'tag-pill' + (unlinked ? ' tag-pill-unlinked' : '')
+    if(unlinked) pill.title = 'Not linked to a catalogue entry — status will not sync to this title'
+    pill.innerHTML = '<span>' + esc(t.title) + (unlinked ? ' <span style="opacity:.6;font-size:.85em">⚠ unlinked</span>' : '') + '</span>'
       + '<button class="tag-pill-remove" onclick="removeTag(\'' + t.id.replace(/'/g,"\\'") + '\')" title="Remove">&#10005;</button>'
     wrap.insertBefore(pill, input)
   })
@@ -4289,25 +4301,39 @@ async function forceCascade(){
   const ub  = userBooks[modalBookId] || {}
   const bk  = BOOKS.find(b => b.id === modalBookId)
   const ids = getCascadeIds(modalBookId)
-  if(!ids || !ids.length){ showToast('No contained works linked.'); return }
+  // Count free-text entries that can't receive a cascade, so the report is honest
+  let unlinkedCount = 0
+  try{
+    const parsedCW = JSON.parse((globalBooks[modalBookId] || {}).contained_works || '[]')
+    if(Array.isArray(parsedCW)) unlinkedCount = parsedCW.filter(t => t.id && String(t.id).startsWith('_txt_')).length
+  }catch(e){}
+  if(!ids || !ids.length){
+    showToast(unlinkedCount
+      ? 'None of the ' + unlinkedCount + ' contained work' + (unlinkedCount===1?'':'s') + ' is linked to a catalogue entry — nothing to sync.'
+      : 'No contained works linked.')
+    return
+  }
 
   const cascadeBinding = bk && bk.type === 'Anthology' ? 'In Anthology' : 'In Omnibus'
   const btn = document.getElementById('cascadeBtn')
   if(btn){ btn.disabled = true; btn.textContent = '⏳ Syncing…' }
 
   const saves = []
+  const failures = []
   for(const cid of ids){
     const cp = userBooks[cid] || {owned:false, read:false, wishlisted:false, bindings:[]}
     const currentBindings = cp.bindings || []
-    // Always push the cascade binding; also push owned/read if parent has them
-    const updatedBindings = currentBindings.includes(cascadeBinding)
-      ? currentBindings
-      : [...currentBindings, cascadeBinding]
+    // The binding says the work is held inside a volume you have. Only claim it
+    // when the parent is owned or read — not when it's merely on the wishlist.
+    const parentHeld = !!(ub.owned || ub.read)
+    const updatedBindings = (parentHeld && !currentBindings.includes(cascadeBinding))
+      ? [...currentBindings, cascadeBinding]
+      : currentBindings
     const newOwned    = ub.owned    ? true : cp.owned
     const newRead     = ub.read     ? true : cp.read
-    const newWishlisted = cp.wishlisted  // don't cascade wishlist
+    const newWishlisted = ub.wishlisted ? true : cp.wishlisted   // Want now cascades too
 
-    userBooks[cid] = {...cp, owned:newOwned, read:newRead, bindings:updatedBindings}
+    userBooks[cid] = {...cp, owned:newOwned, read:newRead, wishlisted:newWishlisted, bindings:updatedBindings}
 
     const payload = {
       user_id:    currentUser.id,
@@ -4323,7 +4349,12 @@ async function forceCascade(){
         .upsert(payload, {onConflict:'user_id,book_id'})
         .select().single()
         .then(({data, error}) => {
-          if(!error && data) userBooks[cid].db_id = data.id
+          if(error){
+            console.error('Cascade save failed for', cid, error)
+            failures.push(cid)
+          } else if(data){
+            userBooks[cid].db_id = data.id
+          }
           updateCard(cid)
         })
     )
@@ -4334,10 +4365,16 @@ async function forceCascade(){
 
   if(btn){
     btn.disabled = false
-    btn.textContent = '✓ Synced!'
+    btn.textContent = failures.length ? '⚠ Partial' : '✓ Synced!'
     setTimeout(() => { btn.textContent = '↳ Sync Status to Contained Works' }, 2000)
   }
-  showToast('Status synced to ' + ids.length + ' contained work' + (ids.length===1?'':'s') + '.')
+  if(failures.length){
+    showToast('Sync failed for ' + failures.length + ' of ' + ids.length + ' works — see console (F12).')
+  } else {
+    const ok = ids.length - failures.length
+    showToast('Status synced to ' + ok + ' contained work' + (ok===1?'':'s') + '.'
+      + (unlinkedCount ? ' (' + unlinkedCount + ' unlinked title' + (unlinkedCount===1?'':'s') + ' skipped.)' : ''))
+  }
 }
 
 
