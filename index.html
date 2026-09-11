@@ -811,6 +811,8 @@
           border-radius:2px;color:var(--gold);cursor:pointer;font-size:.75rem">&#9881;</button>
         <select class="subj-sel" id="sortOrderSel" onchange="setSortOrder(this.value)" style="flex-shrink:0">
           <option value="publish">By Publish Date</option>
+          <option value="chrono">By Chronology</option>
+          <option value="title">By Title</option>
           <option value="az">Sort A to Z</option>
           <option value="za">Sort Z to A</option>
         </select>
@@ -2111,6 +2113,23 @@ function renderGrid(){
     if((globalBooks[b.id]||{}).series_position) subjectHasOrder[b.subject] = true
   }
   const sorted = [...books].sort((a, b) => {
+    // By Title: a flat A→Z sort on the title itself, ignoring grouping entirely.
+    // (Distinct from 'az'/'za', which sort by the active Browse By dimension.)
+    if(activeSortOrder === 'title'){
+      return a.title.localeCompare(b.title)
+    }
+    // By Chronology: in-universe order via chrono_position. Unplaced tomes sink
+    // to the end rather than clustering at the top, then fall back to title.
+    if(activeSortOrder === 'chrono'){
+      const chronoOf = (x) => {
+        const v = (globalBooks[x.id] || {}).chrono_position
+        const n = parseFloat(v)
+        return (v == null || v === '' || isNaN(n)) ? Infinity : n
+      }
+      const ca = chronoOf(a), cb = chronoOf(b)
+      if(ca !== cb) return ca - cb
+      return a.title.localeCompare(b.title)
+    }
     // Alphabetical modes: sort by the active Browse By dimension
     if(activeSortOrder === 'az' || activeSortOrder === 'za'){
       const keyOf = (x) => {
@@ -2212,6 +2231,16 @@ function renderCard(b){
     ? '<img src="' + gb2.cover_image + '" alt="" style="width:100%;height:100%;object-fit:contain"/>'
     : '<span class="ct-ph">&#9869;</span>'
   const cascade = ''  // cascade note removed
+  // Chronology marker — only while sorting by chronology, so it aids verifying
+  // placements without cluttering the card the rest of the time.
+  let chronoMark = ''
+  if(activeSortOrder === 'chrono'){
+    const cv = gb2.chrono_position
+    const cn = parseFloat(cv)
+    chronoMark = (cv == null || cv === '' || isNaN(cn))
+      ? ' <span class="card-order-sep">·</span> <span class="card-chrono-no">Unplaced</span>'
+      : ' <span class="card-order-sep">·</span> <span class="card-chrono-no">Chrono ' + (Number.isInteger(cn) ? cn : parseFloat(cn.toFixed(2))) + '</span>'
+  }
   // Gold top line & italic sub-line swap based on the active Browse By dimension
   const factionDisp = factionHierarchy(b.id)
   let topLine, subLine
@@ -2227,7 +2256,7 @@ function renderCard(b){
   return '<div class="card" id="card-' + esc(b.id) + '" onclick="OC(' + idx + ')">'
     + '<div class="card-body">'
     +   '<div class="card-meta-col">'
-    +     '<div class="card-subject">' + topLine + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + '</div>'
+    +     '<div class="card-subject">' + topLine + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + chronoMark + '</div>'
     +     '<div style="display:flex;flex-wrap:wrap;gap:.2rem">'
     + '<div class="card-format t-' + tc + '">' + esc(TYPE_LABEL(b.type)) + '</div>'
     + (function(){ const tl=(globalBooks[b.id]||{}).type_list||''; let ex=[]; try{const p=JSON.parse(tl);if(Array.isArray(p))ex=p.filter(t=>t!==b.type);}catch(e){} return ex.map(t=>'<div class="card-format t-'+t.replace(' ','')+'">' + TYPE_LABEL(t) + '</div>').join('') }())
