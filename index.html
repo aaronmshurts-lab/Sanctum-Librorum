@@ -2546,7 +2546,9 @@ function openModal(bookId){
         + '</li>'
       }).join('') + '</ul>'
     } else {
-      viewHtml = '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet.</em>'
+      viewHtml = isAdmin()
+        ? '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet — click the pencil to add titles.</em>'
+        : '<em style="color:var(--text-muted);font-style:italic;font-size:.85rem">No contents listed yet.</em>'
     }
     if(containedView) containedView.innerHTML = viewHtml
   }
@@ -2711,11 +2713,12 @@ function applyEditMode(on){
     const el = document.getElementById(id)
     if(el) el.style.display = canEditMeta ? 'none' : ''
   })
-  // Contained works section — in edit mode admins always get it; in view mode
-  // show it whenever the book actually HAS contained works, regardless of type
-  // (a Short Story or Novel can contain works too — type is not the test)
+  // Contained works section — admins always see it (so an empty Anthology or
+  // Omnibus is discoverable and can be filled in); non-admins only see it when
+  // the book actually HAS contents. Type is never the test — a Novel or Short
+  // Story can contain works too.
   const containedSection = document.getElementById('mContainedSection')
-  if(containedSection && isAdmin()) containedSection.style.display = on ? '' : (containedTags.length ? '' : 'none')
+  if(containedSection) containedSection.style.display = (isAdmin() || containedTags.length) ? '' : 'none'
   // Hide view panels in edit mode (RTE takes their place flush under tabs)
   const panelSum = document.getElementById('panelSummary')
   const panelSpo = document.getElementById('panelSpoiler')
