@@ -365,6 +365,16 @@
     /* ── BINDINGS ──────────────────────────────────────────── */
     .bindings-section{margin-top:.5rem}
     .timeline-section{margin-top:.7rem}
+    /* Co-starring factions — flat pills, deliberately NOT a hierarchy */
+    .also-wrap{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.2rem}
+    .also-pill{font-family:'Cinzel',serif;font-size:.54rem;letter-spacing:.07em;
+      text-transform:uppercase;padding:.18rem .45rem;border-radius:2px;white-space:nowrap;
+      background:var(--gold-dim);border:1px solid rgba(232,201,106,.3);color:var(--gold-bright)}
+    .also-pill.more{background:none;border-style:dashed;opacity:.7}
+    .card-also{display:flex;flex-wrap:wrap;gap:.2rem;margin-top:.3rem}
+    .card-also .also-pill{font-size:.48rem;padding:.14rem .36rem;opacity:.85}
+    .t-Setting{background:rgba(80,160,180,.15);border:1px solid rgba(80,160,180,.3);color:#90dcf0}
+    .t-Age{background:rgba(160,100,180,.15);border:1px solid rgba(160,100,180,.3);color:#c090f0}
     .bindings-label{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.16em;
       text-transform:uppercase;color:var(--gold);opacity:.7;margin-bottom:.4rem;display:block}
     .bindings-pills{display:flex;flex-wrap:wrap;gap:.3rem}
@@ -801,9 +811,11 @@
             color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem .2rem">&#10005;</button>
         </div>
         <select class="subj-sel" id="browseBy" onchange="updateBrowseDropdown()" style="flex-shrink:0">
-          <option value="subject">Subject/Faction</option>
+          <option value="subject">Faction</option>
           <option value="series">Series</option>
           <option value="author">Author</option>
+          <option value="setting">Setting</option>
+          <option value="age">Age</option>
         </select>
         <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)" style="min-width:180px">
           <option value="all">&mdash; All Series &mdash;</option>
@@ -1777,7 +1789,7 @@ async function loadGlobalBooks(){
   // Covers are fetched separately by loadCovers() after the grid renders.
   const cols = 'id,book_id,summary,spoiler,contained_works,faction,tags,'
     + 'avg_rating,rating_count,dramatis_personae,series_list,series_position,series_positions,'
-    + 'timeline_year,timeline_millennium,timeline_circa,type_list,author_list,faction_list,'
+    + 'timeline_year,timeline_millennium,timeline_circa,type_list,author_list,faction_list,setting,age,'
     + 'title_override,author_override,year_override,type_override,subject_override,'
     + 'cover_image'
   // Pull a lightweight flag for which books HAVE a cover, without the blob,
@@ -1810,6 +1822,8 @@ async function loadGlobalBooks(){
       type_list:        r.type_list        || '',
       author_list:      r.author_list      || '',
       faction_list:     r.faction_list     || '',
+      setting:          r.setting          || '',
+      age:              r.age              || '',
       title_override:   r.title_override  || null,
       author_override:  r.author_override || null,
       year_override:    r.year_override   || null,
@@ -2030,13 +2044,13 @@ function getFiltered(){
         try{ const al=JSON.parse(gbf.author_list||'[]'); if(Array.isArray(al)) extraAuthors=al }catch(e){}
         const allA = [b.author, ...extraAuthors]
         if(!allA.includes(activeSubject)) return false
+      } else if(activeBrowseBy === 'setting'){
+        if((gbf.setting||'') !== activeSubject) return false
+      } else if(activeBrowseBy === 'age'){
+        if((gbf.age||'') !== activeSubject) return false
       } else if(activeBrowseBy === 'subject'){
-        // Match primary faction or any sub-faction in faction_list
-        let fMatch = (gbf.faction||'') === activeSubject
-        if(!fMatch){
-          try{ const fl=JSON.parse(gbf.faction_list||'[]'); if(Array.isArray(fl)) fMatch = fl.includes(activeSubject) }catch(e){}
-        }
-        if(!fMatch) return false
+        // Match the parent faction, the sub-faction, or any co-starring faction
+        if(!allFactionsFor(b.id).includes(activeSubject)) return false
       } else {
         // Series mode: match primary subject or extra series
         let extraMatch = false
@@ -2054,7 +2068,8 @@ function getFiltered(){
       try{ const al=JSON.parse(gb.author_list||'[]');  if(Array.isArray(al)) extra += ' ' + al.join(' ') }catch(e){}
       try{ const fl=JSON.parse(gb.faction_list||'[]'); if(Array.isArray(fl)) extra += ' ' + fl.join(' ') }catch(e){}
       const hay = (b.title + ' ' + (b.subject||'') + ' ' + (b.author||'') + ' '
-                + (gb.faction||'') + ' ' + (gb.tags||'') + extra).toLowerCase()
+                + (gb.faction||'') + ' ' + (gb.setting||'') + ' ' + (gb.age||'') + ' '
+                + (gb.tags||'') + extra).toLowerCase()
       if(!hay.includes(q)) return false
     }
     return true
@@ -2155,6 +2170,16 @@ function renderGrid(){
     // By Chronology: in-universe Imperial dating (Year.Millennium). Undated
     // tomes sink to the end rather than clustering at the top.
     if(activeSortOrder === 'chrono'){
+      // Age is the coarse bucket; the Imperial date orders within it. A book with
+      // only an Age still sorts correctly — it just sits at the head of its age.
+      const ageKey = (x) => {
+        const v = (globalBooks[x.id] || {}).age
+        if(!v) return 999
+        const i = AGE_ORDER.indexOf(v)
+        return i === -1 ? 998 : i
+      }
+      const aa = ageKey(a), ab = ageKey(b)
+      if(aa !== ab) return aa - ab
       const ka = imperialSortKey(globalBooks[a.id])
       const kb = imperialSortKey(globalBooks[b.id])
       if(ka !== kb) return ka - kb
@@ -2221,6 +2246,10 @@ function updateTimelinePreview(){
   pv.textContent = out ? ('\u2192 ' + out) : ''
 }
 Object.assign(window, {updateTimelinePreview})
+
+// Imperial ages in chronological order — drives both the Age dropdown and sorting
+const AGE_ORDER = ['Dark Age of Technology','Age of Strife','Great Crusade','Horus Heresy',
+  'The Scouring','Age of Apostasy','M32-M40','Time of Ending','Era Indomitus']
 
 function typeClass(t){return t.replace(' ','')}
 // ── IMPERIAL DATING ───────────────────────────────────────────────────────
@@ -2298,8 +2327,9 @@ function renderCard(b){
   let chronoMark = ''
   if(activeSortOrder === 'chrono'){
     const impDate = formatImperialDate(gb2.timeline_year, gb2.timeline_millennium, gb2.timeline_circa)
+    const stamp = [gb2.age || '', impDate || ''].filter(Boolean).join(' \u00b7 ')
     chronoMark = ' <span class="card-order-sep">·</span> <span class="card-chrono-no">'
-      + (impDate || 'Undated') + '</span>'
+      + esc(stamp || 'Undated') + '</span>'
   }
   // Gold top line & italic sub-line swap based on the active Browse By dimension
   const factionDisp = factionHierarchy(b.id)
@@ -2320,8 +2350,14 @@ function renderCard(b){
     +     '<div style="display:flex;flex-wrap:wrap;gap:.2rem">'
     + '<div class="card-format t-' + tc + '">' + esc(TYPE_LABEL(b.type)) + '</div>'
     + (function(){ const tl=(globalBooks[b.id]||{}).type_list||''; let ex=[]; try{const p=JSON.parse(tl);if(Array.isArray(p))ex=p.filter(t=>t!==b.type);}catch(e){} return ex.map(t=>'<div class="card-format t-'+t.replace(' ','')+'">' + TYPE_LABEL(t) + '</div>').join('') }())
+    + (gb2.setting ? '<div class="card-format t-Setting">' + esc(gb2.setting) + '</div>' : '')
+    + (gb2.age     ? '<div class="card-format t-Age">'     + esc(gb2.age)     + '</div>' : '')
     + '</div>'
     +     '<div class="card-series-line">' + subLine + '</div>'
+    +     (function(){ const a = splitFaction(b.id).also; return a.length
+          ? '<div class="card-also">' + a.slice(0,4).map(x=>'<span class="also-pill">+ ' + esc(x) + '</span>').join('')
+            + (a.length>4 ? '<span class="also-pill more">+' + (a.length-4) + ' more</span>' : '') + '</div>'
+          : '' }())
     +     '<div style="flex:1;min-height:.3rem"></div>'
     +     '<div class="c-title">' + esc(b.title) + '</div>'
     +     '<div class="c-meta">' + esc(allAuthorsForCard(b)) + ' &middot; ' + b.year + '</div>'
@@ -2587,7 +2623,24 @@ function openModal(bookId){
   if(typeEdit)    typeEdit.value    = b.type    || 'Novel'
   if(subjectEdit) subjectEdit.value = b.subject || ''
   const factionEdit = document.getElementById('mFactionEdit')
-  if(factionEdit) factionEdit.value = (globalBooks[bookId] || {}).faction || ''
+  // Show the composed "Parent: Sub-Faction" form so a save migrates legacy rows
+  if(factionEdit) factionEdit.value = factionHierarchy(bookId) || ''
+  // ── Setting & Age ──
+  const gbSA = globalBooks[bookId] || {}
+  const setView = document.getElementById('mSetting')
+  const setEdit = document.getElementById('mSettingEdit')
+  const ageView = document.getElementById('mAge')
+  const ageEdit = document.getElementById('mAgeEdit')
+  if(setView) setView.textContent = gbSA.setting || '\u2014'
+  if(setEdit) setEdit.value = gbSA.setting || ''
+  if(ageView) ageView.textContent = gbSA.age || '\u2014'
+  if(ageEdit) ageEdit.value = gbSA.age || ''
+  const dl = document.getElementById('settingSuggest')
+  if(dl){
+    const seen = new Set()
+    for(const k in globalBooks){ const v = globalBooks[k].setting; if(v) seen.add(v) }
+    dl.innerHTML = [...seen].sort().map(s => '<option value="' + esc(s) + '"></option>').join('')
+  }
   const bookNoEl = document.getElementById('mBookNo')
   const bookNoEdit = document.getElementById('mBookNoEdit')
   const gbBookNo = (globalBooks[bookId] || {}).series_position || ''
@@ -2880,6 +2933,8 @@ async function saveModalEdits(){
     type_list:       serializeTypeList(),
     author_list:     serializeAuthorList(),
     faction_list:    serializeFactionList(),
+    setting:         (document.getElementById('mSettingEdit')||{}).value?.trim() || null,
+    age:             (document.getElementById('mAgeEdit')||{}).value || null,
     updated_at:      new Date().toISOString()
   }
   // Only send the cover blob if it actually changed (avoids re-uploading megabytes)
@@ -2915,6 +2970,8 @@ async function saveModalEdits(){
     type_list:         gData.type_list         || '',
     author_list:       gData.author_list       || '',
     faction_list:      gData.faction_list      || '',
+    setting:           gData.setting           || '',
+    age:               gData.age               || '',
     avg_rating:        gData.avg_rating        || null,
     rating_count:      gData.rating_count      || 0,
     title_override:    gData.title_override    || null,
@@ -2943,6 +3000,10 @@ async function saveModalEdits(){
     const dispNo = sp ? ('#' + (Number.isInteger(sp) ? sp : parseFloat(sp.toFixed(2)))) : ''
     mBookNoDisp.textContent = dispNo
   }
+  const setDisp = document.getElementById('mSetting')
+  if(setDisp) setDisp.textContent = gData.setting || '\u2014'
+  const ageDisp = document.getElementById('mAge')
+  if(ageDisp) ageDisp.textContent = gData.age || '\u2014'
   const mTlDisp = document.getElementById('mTimeline')
   if(mTlDisp){
     mTlDisp.textContent = formatImperialDate(gData.timeline_year, gData.timeline_millennium, gData.timeline_circa) || '\u2014'
@@ -3560,7 +3621,9 @@ function copyTome(){
     timeline_circa:      gb.timeline_circa      ?? false,
     type_list:         gb.type_list         || null,
     author_list:       gb.author_list       || null,
-    faction_list:      gb.faction_list      || null
+    faction_list:      gb.faction_list      || null,
+    setting:           gb.setting           || null,
+    age:               gb.age               || null
   }
   closeModal()
   openInscribeModal()               // resets the form (and clears copyPendingMeta)
@@ -3702,7 +3765,9 @@ async function saveInscribedTome(){
         timeline_circa:      mData.timeline_circa      ?? false,
         type_list:         mData.type_list         || '',
         author_list:       mData.author_list       || '',
-        faction_list:      mData.faction_list      || ''
+        faction_list:      mData.faction_list      || '',
+        setting:           mData.setting           || '',
+        age:               mData.age               || ''
       }
     }
     copyPendingMeta = null
@@ -5029,23 +5094,30 @@ function updateBrowseDropdown(skipRender){
   if(!subjSel) return
 
   const placeholder = {
-    subject: '— All Subjects —',
+    subject: '— All Factions —',
     series:  '— All Series —',
-    author:  '— All Authors —'
+    author:  '— All Authors —',
+    setting: '— All Settings —',
+    age:     '— All Ages —'
   }[activeBrowseBy] || '— All —'
 
   // Populate based on mode
   let options = []
   if(activeBrowseBy === 'subject'){
-    // Faction values from globalBooks — primary factions plus all sub-factions
+    // Every faction a book touches: parent, sub-faction and co-starring factions,
+    // each offered independently so "Imperial Fists" finds the Black Templars books too.
     const factions = new Set()
-    for(const id in globalBooks){
-      const f = globalBooks[id].faction
-      if(f) factions.add(f)
-      const fl = globalBooks[id].faction_list || ''
-      try{ const ex=JSON.parse(fl); if(Array.isArray(ex)) ex.forEach(x=>{ if(x) factions.add(x) }) }catch(e){}
-    }
+    for(const b of BOOKS) allFactionsFor(b.id).forEach(f => { if(f) factions.add(f) })
     options = [...factions].sort()
+  } else if(activeBrowseBy === 'setting'){
+    const s = new Set()
+    for(const id in globalBooks){ const v = globalBooks[id].setting; if(v) s.add(v) }
+    options = [...s].sort()
+  } else if(activeBrowseBy === 'age'){
+    const a = new Set()
+    for(const id in globalBooks){ const v = globalBooks[id].age; if(v) a.add(v) }
+    // Chronological, not alphabetical — an Age list sorted A-Z is useless
+    options = AGE_ORDER.filter(x => a.has(x)).concat([...a].filter(x => AGE_ORDER.indexOf(x) === -1).sort())
   } else if(activeBrowseBy === 'series'){
     // All subjects (primary + extras)
     const series = new Set()
@@ -5182,13 +5254,9 @@ function renderFactionTags(){
 }
 
 function loadFactionList(bookId){
-  extraFactionList = []
-  const gb  = globalBooks[bookId] || {}
-  const raw = gb.faction_list || ''
-  if(raw){
-    try{ const p=JSON.parse(raw); if(Array.isArray(p)) extraFactionList = p }
-    catch(e){}
-  }
+  // Only the co-starring factions land here. On a legacy row the first entry is
+  // the sub-faction, which splitFaction() has already folded into the gold line.
+  extraFactionList = splitFaction(bookId).also.slice()
   renderFactionTags()
   refreshFactionDisplay(bookId)
 }
@@ -5202,13 +5270,53 @@ function allAuthorsForCard(b){
   return [b.author, ...ex].filter(Boolean).join(', ')
 }
 
-// Build the hierarchical "Broad > Sub1 > Sub2" string for display
-function factionHierarchy(bookId){
+// ── FACTION MODEL ─────────────────────────────────────────────────────────
+// Stored form:  faction = "Imperial Fists: Black Templars"   (parent: sub-faction)
+//               faction_list = ["Adepta Sororitas","Blood Angels"]   (also features)
+// Legacy form:  faction = "Imperial Fists"
+//               faction_list = ["Black Templars","Adepta Sororitas"]   (mixed)
+//
+// splitFaction() reads BOTH. On a legacy row it promotes the first entry that
+// is not a major faction in its own right into the sub-faction slot and treats
+// the rest as co-starring factions. Saving a book writes the clean form, so the
+// data corrects itself through normal editing — no bulk rewrite needed.
+const MAJOR_FACTIONS = new Set(["Adepta Sororitas","Adeptus Arbites","Adeptus Astartes","Adeptus Custodes","Adeptus Mechanicus","Adeptus Ministorum","Aeldari","Alpha Legion","Astra Militarum","Blackshields","Blood Angels","Collegia Titanica","Dark Angels","Death Guard","Deathwatch","Drukhari","Emperor's Children","Genestealer Cults","Grey Knights","Imperial Fists","Imperial Knights","Imperial Navy","Imperium of Man","Inquisition","Iron Hands","Iron Warriors","Knights Errant","Mechanicum","Necrons","Night Lords","Officio Assassinorum","Orks","Perpetuals","Raven Guard","Red Corsairs","Rogue Traders","Salamanders","Shattered Legions","Sisters of Silence","Sons of Horus","Space Wolves","T'au Empire","Thousand Sons","Tyranids","Ultramarines","White Scars","Word Bearers","World Eaters","Men of Iron","Chaos","Heretic Astartes","Officio Prefectus","Navis Nobilite","Dark Mechanicum","Chaos Daemons","League of Votann","Luna Wolves","Black Legion"])
+
+function splitFaction(bookId){
   const gb = globalBooks[bookId] || {}
-  const primary = gb.faction || ''
+  const raw = (gb.faction || '').trim()
   let extras = []
-  try{ const p=JSON.parse(gb.faction_list||''); if(Array.isArray(p)) extras=p }catch(e){}
-  return [primary, ...extras].filter(Boolean).join(' \u203a ')  // › = \u203a
+  try{ const p = JSON.parse(gb.faction_list || '[]'); if(Array.isArray(p)) extras = p.filter(Boolean) }catch(e){}
+  if(raw.indexOf(':') !== -1){
+    const i = raw.indexOf(':')
+    return {parent: raw.slice(0,i).trim(), sub: raw.slice(i+1).trim(), also: extras.map(String)}
+  }
+  let sub = ''
+  const also = []
+  for(const e of extras){
+    const name = String(e).trim()
+    if(!name) continue
+    if(!sub && !MAJOR_FACTIONS.has(name)) sub = name
+    else also.push(name)
+  }
+  return {parent: raw, sub: sub, also: also}
+}
+
+// Gold display line: "Parent: Sub-Faction"
+function factionHierarchy(bookId){
+  const f = splitFaction(bookId)
+  if(!f.parent) return ''
+  return f.sub ? (f.parent + ': ' + f.sub) : f.parent
+}
+
+// Every faction a book touches — used by filters and search
+function allFactionsFor(bookId){
+  const f = splitFaction(bookId)
+  const out = []
+  if(f.parent) out.push(f.parent)
+  if(f.sub) out.push(f.sub)
+  f.also.forEach(a => { if(a) out.push(a) })
+  return out
 }
 
 function refreshFactionDisplay(bookId){
@@ -5216,6 +5324,13 @@ function refreshFactionDisplay(bookId){
   if(mSubject){
     const h = factionHierarchy(bookId)
     mSubject.textContent = h || '\u2014'
+  }
+  const alsoEl = document.getElementById('mAlsoFeatures')
+  if(alsoEl){
+    const also = splitFaction(bookId).also
+    alsoEl.innerHTML = also.length
+      ? also.map(a => '<span class="also-pill">' + esc(a) + '</span>').join('')
+      : '<em style="color:var(--text-muted);font-style:italic;font-size:.82rem">\u2014</em>'
   }
 }
 
@@ -5538,15 +5653,49 @@ Object.assign(window, {openExportModal, closeExportModal, runExport})
             </div>
           </div>
           <div class="mfield">
-            <span class="mfield-label">Faction / Subject</span>
+            <span class="mfield-label">Faction</span>
             <div class="mfield-val meta" id="mSubject"></div>
-            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="Broad subject, e.g. Astra Militarum"/>
-            <div class="modal-edit-field faction-extra-wrap" id="factionExtraWrap" style="display:none;margin-top:.3rem">
-              <div class="tag-input-wrap" id="factionTagWrap" onclick="document.getElementById('factionTagInput').focus()" style="min-height:34px">
-                <input class="tag-input-field" id="factionTagInput" placeholder="Add sub-faction (e.g. Catachan Jungle Fighters)…"
-                  autocomplete="off" onkeydown="factionTagKeydown(event)"/>
+            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="Parent: Sub-Faction — e.g. Imperial Fists: Black Templars"/>
+            <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">
+              Formal name first, then a colon and the successor Chapter, Order or regiment.
+            </div>
+            <div style="margin-top:.6rem">
+              <span class="mfield-label">Also Features</span>
+              <div id="mAlsoFeatures" class="also-wrap"></div>
+              <div class="modal-edit-field faction-extra-wrap" id="factionExtraWrap" style="display:none;margin-top:.3rem">
+                <div class="tag-input-wrap" id="factionTagWrap" onclick="document.getElementById('factionTagInput').focus()" style="min-height:34px">
+                  <input class="tag-input-field" id="factionTagInput" placeholder="Add a co-starring faction…"
+                    autocomplete="off" onkeydown="factionTagKeydown(event)"/>
+                </div>
+                <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Other armies appearing in the story — flat, not nested.</div>
               </div>
-              <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Shown as a hierarchy: Broad &rsaquo; Sub-faction</div>
+            </div>
+          </div>
+        </div>
+        <div class="timeline-section">
+          <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+            <div class="mfield" style="flex:1;min-width:180px">
+              <span class="mfield-label">Setting</span>
+              <div class="mfield-val meta" id="mSetting" style="color:#90dcf0"></div>
+              <input class="inscribe-input modal-edit-field" id="mSettingEdit" style="display:none"
+                placeholder="e.g. Armageddon: Hive Tartarus" list="settingSuggest"/>
+              <datalist id="settingSuggest"></datalist>
+            </div>
+            <div class="mfield" style="flex:1;min-width:180px">
+              <span class="mfield-label">Age</span>
+              <div class="mfield-val meta" id="mAge" style="color:#c090f0"></div>
+              <select class="inscribe-select modal-edit-field" id="mAgeEdit" style="display:none">
+                <option value="">— Not set —</option>
+                <option value="Dark Age of Technology">Dark Age of Technology</option>
+                <option value="Age of Strife">Age of Strife</option>
+                <option value="Great Crusade">Great Crusade</option>
+                <option value="Horus Heresy">Horus Heresy</option>
+                <option value="The Scouring">The Scouring</option>
+                <option value="Age of Apostasy">Age of Apostasy</option>
+                <option value="M32-M40">M32–M40</option>
+                <option value="Time of Ending">Time of Ending</option>
+                <option value="Era Indomitus">Era Indomitus</option>
+              </select>
             </div>
           </div>
         </div>
