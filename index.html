@@ -169,9 +169,6 @@
     /* Equal heights per row so the status buttons line up across the grid */
     .card.card-plate{height:100%}
     .card-plate .c-meta{font-size:.84rem;font-style:italic;color:#9a94a0;margin-bottom:.6rem}
-    .plate-type{font-family:'Cinzel',serif;font-style:normal;font-size:.5rem;
-      letter-spacing:.11em;text-transform:uppercase;color:var(--text-muted);opacity:.7;
-      margin-left:.15rem;white-space:nowrap}
     .plate-chrono{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;
       text-transform:uppercase;color:#a8aab8;opacity:.75;margin:-.35rem 0 .55rem}
     .card-plate .c-actions{margin-top:auto}
@@ -2434,8 +2431,8 @@ function renderCard(b){
     + (function(){
         const byline = allAuthorsForCard(b) + ' \u00b7 ' + b.year
         const tag = cardTypeTag(b, byline)
-        return '<div class="c-meta">' + esc(byline)
-          + (tag ? ' <span class="plate-type">\u00b7 ' + esc(tag) + '</span>' : '') + '</div>'
+        // Same separator, size and colour as the rest of the byline — one line of text.
+        return '<div class="c-meta">' + esc(tag ? (byline + ' \u00b7 ' + tag) : byline) + '</div>'
       }())
     + (chronoMark ? '<div class="plate-chrono">' + chronoMark.replace(/<span class="card-order-sep">[^<]*<\/span>/, '') + '</div>' : '')
     + '<div class="c-actions">'
