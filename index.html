@@ -150,16 +150,21 @@
     .plate-ph-mark{font-size:1.5rem;color:var(--gold);opacity:.3}
     .plate-ph-title{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.05em;
       color:var(--text-muted);opacity:.65;line-height:1.5}
-    .plate-flag{position:absolute;left:0;right:0;bottom:0;padding:.5rem .55rem .45rem;
-      background:linear-gradient(transparent,rgba(7,6,12,.93) 48%);
-      font-family:'Cinzel',serif;font-size:.54rem;letter-spacing:.1em;text-transform:uppercase;
-      color:var(--gold-bright);line-height:1.4;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+    /* Faction sits BELOW the artwork — Black Library prints its own title in the
+       lower third of almost every cover, so any overlay there fights it. */
+    .plate-faction{font-family:'Cinzel',serif;font-size:.54rem;letter-spacing:.1em;
+      text-transform:uppercase;color:var(--gold-bright);line-height:1.45;
+      margin:.55rem 0 .2rem;opacity:.92}
+    .plate-rule{height:1px;margin:.3rem 0 .4rem;
+      background:linear-gradient(90deg,var(--gold),transparent)}
     .plate-custom{position:absolute;top:.4rem;right:.45rem;font-size:.6rem;color:var(--gold-bright);
       text-shadow:0 1px 3px rgba(0,0,0,.9)}
     .card-plate .c-title{font-family:'EB Garamond',serif;font-size:1.02rem;font-weight:600;
       letter-spacing:0;text-transform:none;color:var(--text);line-height:1.25;
-      margin:.6rem 0 .12rem}
-    .card-plate .c-meta{font-size:.84rem;font-style:italic;color:#9a94a0;margin-bottom:.55rem}
+      margin:0 0 .1rem}
+    /* Equal heights per row so the status buttons line up across the grid */
+    .card.card-plate{height:100%}
+    .card-plate .c-meta{font-size:.84rem;font-style:italic;color:#9a94a0;margin-bottom:.6rem}
     .plate-chrono{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;
       text-transform:uppercase;color:#a8aab8;opacity:.75;margin:-.35rem 0 .55rem}
     .card-plate .c-actions{margin-top:auto}
@@ -2398,10 +2403,11 @@ function renderCard(b){
   return '<div class="card card-plate" id="card-' + esc(b.id) + '" onclick="OC(' + idx + ')">'
     + '<div class="' + thumbCls + '">'
     +   coverHtml
-    +   (topLine ? '<div class="plate-flag">' + topLine + '</div>' : '')
     +   (b._isCustom ? '<span class="plate-custom" title="Inscribed tome">&#10022;</span>' : '')
     + '</div>'
+    + (topLine ? '<div class="plate-faction">' + topLine + '</div>' : '<div style="height:.55rem"></div>')
     + '<div class="c-title">' + esc(b.title) + '</div>'
+    + '<div class="plate-rule"></div>'
     + '<div class="c-meta">' + esc(allAuthorsForCard(b)) + ' &middot; ' + b.year + '</div>'
     + (chronoMark ? '<div class="plate-chrono">' + chronoMark.replace(/<span class="card-order-sep">[^<]*<\/span>/, '') + '</div>' : '')
     + '<div class="c-actions">'
