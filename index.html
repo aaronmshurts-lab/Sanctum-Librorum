@@ -2362,13 +2362,13 @@ function renderCard(b){
             + '</div>'
           : '')
     +     '<div class="card-series-line">' + subLine + '</div>'
+    +     '<div style="flex:1;min-height:.3rem"></div>'
+    +     '<div class="c-title">' + esc(b.title) + '</div>'
+    +     '<div class="c-meta">' + esc(allAuthorsForCard(b)) + ' &middot; ' + b.year + '</div>'
     +     (function(){ const a = splitFaction(b.id).also; return a.length
           ? '<div class="card-also">' + a.slice(0,4).map(x=>'<span class="also-pill">+ ' + esc(x) + '</span>').join('')
             + (a.length>4 ? '<span class="also-pill more">+' + (a.length-4) + ' more</span>' : '') + '</div>'
           : '' }())
-    +     '<div style="flex:1;min-height:.3rem"></div>'
-    +     '<div class="c-title">' + esc(b.title) + '</div>'
-    +     '<div class="c-meta">' + esc(allAuthorsForCard(b)) + ' &middot; ' + b.year + '</div>'
     +   '</div>'
     +   '<div class="card-cover-col">'
     +     '<div class="' + thumbCls + '">' + coverHtml + '</div>'
