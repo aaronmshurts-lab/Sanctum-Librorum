@@ -132,7 +132,38 @@
       background:var(--bg);border-bottom:1px solid var(--border)}
 
     /* ── GRID & CARDS ── */
-    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);margin:0 2rem}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));
+      gap:1.45rem 1.25rem;background:none;margin:0 2rem;padding:1.4rem 0}
+    @media(max-width:680px){ .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+      gap:1.1rem .9rem;margin:0 1rem} }
+
+    /* ── PLATE CARD — the cover is the card ─────────────────────── */
+    .card.card-plate{background:none;padding:0;display:flex;flex-direction:column;cursor:pointer}
+    .card.card-plate:hover .plate-shot{border-color:rgba(232,201,106,.45)}
+    .plate-shot{position:relative;width:100%;aspect-ratio:2/3;overflow:hidden;
+      background:#0a0a14;border:1px solid var(--border);transition:border-color .15s;
+      display:flex;align-items:center;justify-content:center}
+    .plate-shot img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
+    .plate-ph{display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:.6rem;padding:1rem;text-align:center;height:100%;
+      background:repeating-linear-gradient(135deg,#0d0c16,#0d0c16 7px,#110f1b 7px,#110f1b 14px)}
+    .plate-ph-mark{font-size:1.5rem;color:var(--gold);opacity:.3}
+    .plate-ph-title{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.05em;
+      color:var(--text-muted);opacity:.65;line-height:1.5}
+    .plate-flag{position:absolute;left:0;right:0;bottom:0;padding:.5rem .55rem .45rem;
+      background:linear-gradient(transparent,rgba(7,6,12,.93) 48%);
+      font-family:'Cinzel',serif;font-size:.54rem;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--gold-bright);line-height:1.4;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+    .plate-custom{position:absolute;top:.4rem;right:.45rem;font-size:.6rem;color:var(--gold-bright);
+      text-shadow:0 1px 3px rgba(0,0,0,.9)}
+    .card-plate .c-title{font-family:'EB Garamond',serif;font-size:1.02rem;font-weight:600;
+      letter-spacing:0;text-transform:none;color:var(--text);line-height:1.25;
+      margin:.6rem 0 .12rem}
+    .card-plate .c-meta{font-size:.84rem;font-style:italic;color:#9a94a0;margin-bottom:.55rem}
+    .plate-chrono{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;
+      text-transform:uppercase;color:#a8aab8;opacity:.75;margin:-.35rem 0 .55rem}
+    .card-plate .c-actions{margin-top:auto}
+    .card-plate .sbtn{font-size:.52rem;padding:.4rem .15rem}
     
     
     
@@ -392,6 +423,10 @@
       color:var(--gold-bright);box-shadow:0 0 8px rgba(232,201,106,.5)}
 
     /* Limited Edition glow on card thumbnail */
+    .plate-shot.ltd-ed{
+      border-color:var(--gold-bright);
+      box-shadow:0 0 10px rgba(232,201,106,.6),0 0 20px rgba(232,201,106,.25);
+      animation:ltdPulse 2.5s ease-in-out infinite}
     .card-thumb.ltd-ed{
       border-color:var(--gold-bright);
       box-shadow:0 0 10px rgba(232,201,106,.6),0 0 20px rgba(232,201,106,.25);
@@ -839,6 +874,8 @@
         </select>
         <button class="inscribe-btn" onclick="openInscribeModal()" style="white-space:nowrap;flex-shrink:0">✦ Inscribe Tome</button>
         <button class="inscribe-btn" onclick="openExportModal()" style="white-space:nowrap;flex-shrink:0">⇩ Export Tomes</button>
+        <button class="inscribe-btn" onclick="openImportPicker()" style="white-space:nowrap;flex-shrink:0">⇧ Import Edits</button>
+        <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none" onchange="handleImportFile(event)"/>
       </div>
     </div>
     <div class="ctrl-row">
@@ -1793,7 +1830,7 @@ async function loadGlobalBooks(){
   // Covers are fetched separately by loadCovers() after the grid renders.
   const cols = 'id,book_id,summary,spoiler,contained_works,faction,tags,'
     + 'avg_rating,rating_count,dramatis_personae,series_list,series_position,series_positions,'
-    + 'timeline_year,timeline_millennium,timeline_circa,type_list,author_list,faction_list,setting,age,characters,'
+    + 'timeline_year,timeline_millennium,timeline_circa,type_list,author_list,faction_list,setting,setting_list,age,characters,'
     + 'title_override,author_override,year_override,type_override,subject_override,'
     + 'cover_image'
   // Pull a lightweight flag for which books HAVE a cover, without the blob,
@@ -1827,6 +1864,7 @@ async function loadGlobalBooks(){
       author_list:      r.author_list      || '',
       faction_list:     r.faction_list     || '',
       setting:          r.setting          || '',
+      setting_list:     r.setting_list     || '',
       characters:       r.characters       || '',
       age:              r.age              || '',
       title_override:   r.title_override  || null,
@@ -1873,9 +1911,13 @@ function applyCoversToCards(){
     if(!cover) continue
     const card = document.getElementById('card-' + id)
     if(!card) continue
-    const thumb = card.querySelector('.card-thumb')
+    // Plate cards use .plate-shot; keep .card-thumb as a fallback for any
+    // other surface that still renders the old thumbnail.
+    const thumb = card.querySelector('.plate-shot') || card.querySelector('.card-thumb')
     if(thumb && !thumb.querySelector('img')){
-      thumb.innerHTML = '<img src="' + cover + '" alt="" style="width:100%;height:100%;object-fit:contain"/>'
+      const ph = thumb.querySelector('.plate-ph')
+      if(ph) ph.remove()
+      thumb.insertAdjacentHTML('afterbegin', '<img src="' + cover + '" alt=""/>')
     }
   }
 }
@@ -2050,7 +2092,7 @@ function getFiltered(){
         const allA = [b.author, ...extraAuthors]
         if(!allA.includes(activeSubject)) return false
       } else if(activeBrowseBy === 'setting'){
-        if((gbf.setting||'') !== activeSubject) return false
+        if(!allSettingsFor(b.id).includes(activeSubject)) return false
       } else if(activeBrowseBy === 'age'){
         if((gbf.age||'') !== activeSubject) return false
       } else if(activeBrowseBy === 'character'){
@@ -2075,6 +2117,7 @@ function getFiltered(){
       try{ const al=JSON.parse(gb.author_list||'[]');  if(Array.isArray(al)) extra += ' ' + al.join(' ') }catch(e){}
       try{ const fl=JSON.parse(gb.faction_list||'[]'); if(Array.isArray(fl)) extra += ' ' + fl.join(' ') }catch(e){}
       try{ const ch=JSON.parse(gb.characters||'[]'); if(Array.isArray(ch)) extra += ' ' + ch.join(' ') }catch(e){}
+      try{ const st=JSON.parse(gb.setting_list||'[]'); if(Array.isArray(st)) extra += ' ' + st.join(' ') }catch(e){}
       const hay = (b.title + ' ' + (b.subject||'') + ' ' + (b.author||'') + ' '
                 + (gb.faction||'') + ' ' + (gb.setting||'') + ' ' + (gb.age||'') + ' '
                 + (gb.tags||'') + extra).toLowerCase()
@@ -2325,10 +2368,11 @@ function renderCard(b){
   const isLtd    = (ub2.bindings||[]).includes('Limited Edition')
                 || b.type === 'Limited Edition'
                 || extraTypesLtd.includes('Limited Edition')
-  const thumbCls = 'card-thumb' + (isLtd ? ' ltd-ed' : '')
+  const thumbCls = 'plate-shot' + (isLtd ? ' ltd-ed' : '')
   const coverHtml = gb2.cover_image
-    ? '<img src="' + gb2.cover_image + '" alt="" style="width:100%;height:100%;object-fit:contain"/>'
-    : '<span class="ct-ph">&#9869;</span>'
+    ? '<img src="' + gb2.cover_image + '" alt=""/>'
+    : '<div class="plate-ph"><span class="plate-ph-mark">&#9876;</span>'
+      + '<span class="plate-ph-title">' + esc(b.title) + '</span></div>'
   const cascade = ''  // cascade note removed
   // Chronology marker — only while sorting by chronology, so it aids verifying
   // placements without cluttering the card the rest of the time.
@@ -2351,29 +2395,15 @@ function renderCard(b){
     topLine = factionDisp ? esc(factionDisp) : seriesWithNums
     subLine = seriesWithNums
   }
-  return '<div class="card" id="card-' + esc(b.id) + '" onclick="OC(' + idx + ')">'
-    + '<div class="card-body">'
-    +   '<div class="card-meta-col">'
-    +     '<div class="card-subject">' + topLine + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + chronoMark + '</div>'
-    +     ((gb2.setting || gb2.age)
-          ? '<div style="display:flex;flex-wrap:wrap;gap:.2rem">'
-            + (gb2.setting ? '<div class="card-format t-Setting">' + esc(gb2.setting) + '</div>' : '')
-            + (gb2.age     ? '<div class="card-format t-Age">'     + esc(gb2.age)     + '</div>' : '')
-            + '</div>'
-          : '')
-    +     '<div class="card-series-line">' + subLine + '</div>'
-    +     '<div style="flex:1;min-height:.3rem"></div>'
-    +     '<div class="c-title">' + esc(b.title) + '</div>'
-    +     '<div class="c-meta">' + esc(allAuthorsForCard(b)) + ' &middot; ' + b.year + '</div>'
-    +     (function(){ const a = splitFaction(b.id).also; return a.length
-          ? '<div class="card-also">' + a.slice(0,4).map(x=>'<span class="also-pill">+ ' + esc(x) + '</span>').join('')
-            + (a.length>4 ? '<span class="also-pill more">+' + (a.length-4) + ' more</span>' : '') + '</div>'
-          : '' }())
-    +   '</div>'
-    +   '<div class="card-cover-col">'
-    +     '<div class="' + thumbCls + '">' + coverHtml + '</div>'
-    +   '</div>'
+  return '<div class="card card-plate" id="card-' + esc(b.id) + '" onclick="OC(' + idx + ')">'
+    + '<div class="' + thumbCls + '">'
+    +   coverHtml
+    +   (topLine ? '<div class="plate-flag">' + topLine + '</div>' : '')
+    +   (b._isCustom ? '<span class="plate-custom" title="Inscribed tome">&#10022;</span>' : '')
     + '</div>'
+    + '<div class="c-title">' + esc(b.title) + '</div>'
+    + '<div class="c-meta">' + esc(allAuthorsForCard(b)) + ' &middot; ' + b.year + '</div>'
+    + (chronoMark ? '<div class="plate-chrono">' + chronoMark.replace(/<span class="card-order-sep">[^<]*<\/span>/, '') + '</div>' : '')
     + '<div class="c-actions">'
     +   '<button class="sbtn' + owned + '" onclick="event.stopPropagation();SC(' + idx + ',0,this)">' + oIcon + '&nbsp;Owned</button>'
     +   '<button class="sbtn' + read  + '" onclick="event.stopPropagation();SC(' + idx + ',1)">' + rIcon + '&nbsp;Read</button>'
@@ -2564,6 +2594,7 @@ function openModal(bookId){
   // Extra factions (subject hierarchy)
   loadFactionList(bookId)
   loadCharacterList(bookId)
+  loadSettingList(bookId)
   // Extra series
   loadExtraSeries(bookId)
 
@@ -2640,7 +2671,10 @@ function openModal(bookId){
   const setEdit = document.getElementById('mSettingEdit')
   const ageView = document.getElementById('mAge')
   const ageEdit = document.getElementById('mAgeEdit')
-  if(setView) setView.textContent = gbSA.setting || '\u2014'
+  if(setView){
+    const all = allSettingsFor(bookId)
+    setView.textContent = all.length ? all.join('  \u00b7  ') : '\u2014'
+  }
   if(setEdit) setEdit.value = gbSA.setting || ''
   if(ageView) ageView.textContent = gbSA.age || '\u2014'
   if(ageEdit) ageEdit.value = gbSA.age || ''
@@ -2945,6 +2979,7 @@ async function saveModalEdits(){
     author_list:     serializeAuthorList(),
     faction_list:    serializeFactionList(),
     setting:         (document.getElementById('mSettingEdit')||{}).value?.trim() || null,
+    setting_list:    serializeSettings(),
     characters:      serializeCharacters(),
     age:             (document.getElementById('mAgeEdit')||{}).value || null,
     updated_at:      new Date().toISOString()
@@ -2983,6 +3018,7 @@ async function saveModalEdits(){
     author_list:       gData.author_list       || '',
     faction_list:      gData.faction_list      || '',
     setting:           gData.setting           || '',
+    setting_list:      gData.setting_list      || '',
     characters:        gData.characters        || '',
     age:               gData.age               || '',
     avg_rating:        gData.avg_rating        || null,
@@ -3014,7 +3050,10 @@ async function saveModalEdits(){
     mBookNoDisp.textContent = dispNo
   }
   const setDisp = document.getElementById('mSetting')
-  if(setDisp) setDisp.textContent = gData.setting || '\u2014'
+  if(setDisp){
+    const all = allSettingsFor(modalBookId)
+    setDisp.textContent = all.length ? all.join('  \u00b7  ') : '\u2014'
+  }
   const ageDisp = document.getElementById('mAge')
   if(ageDisp) ageDisp.textContent = gData.age || '\u2014'
   const mTlDisp = document.getElementById('mTimeline')
@@ -3026,6 +3065,7 @@ async function saveModalEdits(){
   loadExtraSeries(modalBookId)
   loadFactionList(modalBookId)
   loadCharacterList(modalBookId)
+  loadSettingList(modalBookId)
 
   // Refresh DP view
   const dpViewEl = document.getElementById('mDPView')
@@ -3637,6 +3677,7 @@ function copyTome(){
     author_list:       gb.author_list       || null,
     faction_list:      gb.faction_list      || null,
     setting:           gb.setting           || null,
+    setting_list:      gb.setting_list      || null,
     characters:        gb.characters        || null,
     age:               gb.age               || null
   }
@@ -3782,6 +3823,7 @@ async function saveInscribedTome(){
         author_list:       mData.author_list       || '',
         faction_list:      mData.faction_list      || '',
         setting:           mData.setting           || '',
+        setting_list:      mData.setting_list      || '',
         characters:        mData.characters        || '',
         age:               mData.age               || ''
       }
@@ -5130,7 +5172,7 @@ function updateBrowseDropdown(skipRender){
     options = allCharacters()
   } else if(activeBrowseBy === 'setting'){
     const s = new Set()
-    for(const id in globalBooks){ const v = globalBooks[id].setting; if(v) s.add(v) }
+    for(const b of BOOKS) allSettingsFor(b.id).forEach(v => { if(v) s.add(v) })
     options = [...s].sort()
   } else if(activeBrowseBy === 'age'){
     const a = new Set()
@@ -5409,6 +5451,62 @@ function serializeCharacters(){
   return characterList.length ? JSON.stringify(characterList) : null
 }
 
+// ── ADDITIONAL SETTINGS ───────────────────────────────────────────────────
+// setting = primary (may nest with a colon, e.g. "Armageddon: Hive Tartarus")
+// setting_list = JSON array of further settings the story also visits
+let settingList = []
+
+function loadSettingList(bookId){
+  settingList = []
+  const gb = globalBooks[bookId] || {}
+  try{ const p = JSON.parse(gb.setting_list || '[]'); if(Array.isArray(p)) settingList = p.filter(Boolean).map(String) }
+  catch(e){ settingList = String(gb.setting_list || '').split(';').map(s=>s.trim()).filter(Boolean) }
+  renderSettingTags()
+}
+
+function renderSettingTags(){
+  const wrap = document.getElementById('settingTagWrap')
+  const input = document.getElementById('settingTagInput')
+  if(!wrap || !input) return
+  wrap.querySelectorAll('.tag-pill').forEach(el => el.remove())
+  settingList.forEach((s, i) => {
+    const pill = document.createElement('span')
+    pill.className = 'tag-pill'
+    pill.innerHTML = '<span>' + esc(s) + '</span>'
+      + '<button class="tag-pill-remove" onclick="removeSetting(' + i + ')" title="Remove">&#10005;</button>'
+    wrap.insertBefore(pill, input)
+  })
+}
+
+function settingTagKeydown(e){
+  const input = e.target
+  if(e.key === 'Enter' || e.key === ';'){
+    e.preventDefault()
+    const val = input.value.trim().replace(/;$/,'')
+    if(val && !settingList.some(s => s.toLowerCase() === val.toLowerCase())){
+      settingList.push(val); renderSettingTags()
+    }
+    input.value = ''
+  } else if(e.key === 'Backspace' && !input.value && settingList.length){
+    settingList.pop(); renderSettingTags()
+  }
+}
+
+function removeSetting(i){ settingList.splice(i,1); renderSettingTags() }
+function serializeSettings(){ return settingList.length ? JSON.stringify(settingList) : null }
+
+// Primary plus every additional setting — used by filters and search
+function allSettingsFor(bookId){
+  const gb = globalBooks[bookId] || {}
+  const out = []
+  if(gb.setting) out.push(gb.setting)
+  try{ const p = JSON.parse(gb.setting_list || '[]')
+    if(Array.isArray(p)) p.forEach(s => { if(s && !out.includes(s)) out.push(String(s)) }) }catch(e){}
+  return out
+}
+
+Object.assign(window, {settingTagKeydown, removeSetting})
+
 // Every character across the archive — powers the Browse By dropdown
 function allCharacters(){
   const s = new Set()
@@ -5462,6 +5560,7 @@ function openExportModal(){
       + '<div style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:1.3rem">'
       +   '<label style="cursor:pointer"><input type="radio" name="expFmt" value="xlsx" checked> Excel workbook (.xlsx)</label>'
       +   '<label style="cursor:pointer"><input type="radio" name="expFmt" value="pdf"> Presentation PDF (.pdf)</label>'
+      +   '<label style="cursor:pointer"><input type="radio" name="expFmt" value="full"> Full data (.xlsx) — edit and re-import</label>'
       + '</div>'
       + '<div style="display:flex;gap:.6rem;justify-content:flex-end">'
       +   '<button onclick="closeExportModal()" style="background:none;border:1px solid var(--border,#444);color:var(--text-muted);padding:.45rem .9rem;cursor:pointer">Cancel</button>'
@@ -5538,7 +5637,10 @@ async function runExport(){
   try{
     const groups = buildExportGroups(dim)
     if(!groups.length){ alert('Nothing to export — the current view is empty.'); closeExportModal(); return }
-    if(fmt === 'xlsx'){
+    if(fmt === 'full'){
+      await loadExtScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')
+      exportFullData()
+    } else if(fmt === 'xlsx'){
       await loadExtScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')
       exportExcel(groups, dim)
     } else {
@@ -5619,6 +5721,289 @@ function exportPdf(groups, dim){
 }
 
 Object.assign(window, {openExportModal, closeExportModal, runExport})
+
+// ════════════════════════════════════════════════════════════════════
+//  FULL-DATA ROUND TRIP — export every editable field, edit in Excel,
+//  re-import. Keyed on book_id; only changed cells are written back.
+// ════════════════════════════════════════════════════════════════════
+const RT_SEP = '; '
+// [header, key, editable] — reference columns are exported for context but
+// ignored on import, because Title/Author/Year/Type/Series write through
+// override columns that behave differently for custom tomes.
+const RT_COLS = [
+  ['book_id',          'book_id',      false],
+  ['Title',            'title',        false],
+  ['Author(s)',        'authors',      false],
+  ['Year',             'year',         false],
+  ['Type',             'type',         false],
+  ['Primary Series',   'series',       false],
+  ['Book #',           'series_position', true],
+  ['Extra Series',     'series_list',  true],
+  ['Extra Series #',   'series_positions', true],
+  ['Faction',          'faction',      true],
+  ['Also Features',    'faction_list', true],
+  ['Setting',          'setting',      true],
+  ['Also Set In',      'setting_list', true],
+  ['Age',              'age',          true],
+  ['Characters',       'characters',   true],
+  ['Tags',             'tags',         true],
+  ['Extra Types',      'type_list',    true],
+  ['Extra Authors',    'author_list',  true],
+  ['Timeline Year',    'timeline_year', true],
+  ['Timeline Mill',    'timeline_millennium', true],
+  ['Circa',            'timeline_circa', true],
+  ['Owned',            'owned',        true],
+  ['Read',             'read',         true],
+  ['Want',             'wishlisted',   true],
+  ['Bindings',         'bindings',     true]
+]
+const RT_GLOBAL_FIELDS = ['series_position','series_list','series_positions','faction','faction_list',
+  'setting','setting_list','age','characters','tags','type_list','author_list',
+  'timeline_year','timeline_millennium','timeline_circa']
+const RT_USER_FIELDS = ['owned','read','wishlisted','bindings']
+
+function rtJoin(v){
+  try{ const p = JSON.parse(v || '[]'); if(Array.isArray(p)) return p.filter(Boolean).join(RT_SEP) }catch(e){}
+  return v ? String(v) : ''
+}
+function rtSplit(s){
+  const a = String(s == null ? '' : s).split(';').map(x => x.trim()).filter(Boolean)
+  return a.length ? JSON.stringify(a) : null
+}
+function rtPosJoin(v){
+  try{ const m = JSON.parse(v || '{}')
+    if(m && typeof m === 'object') return Object.keys(m).map(k => k + '=' + m[k]).join(RT_SEP) }catch(e){}
+  return ''
+}
+function rtPosSplit(s){
+  const out = {}
+  String(s == null ? '' : s).split(';').forEach(part => {
+    const i = part.lastIndexOf('=')
+    if(i > 0){
+      const k = part.slice(0, i).trim(), n = parseFloat(part.slice(i + 1))
+      if(k && !isNaN(n)) out[k] = n
+    }
+  })
+  return Object.keys(out).length ? JSON.stringify(out) : null
+}
+const rtYN  = b => b ? 'Y' : ''
+const rtBool = s => /^(y|yes|true|1|x)$/i.test(String(s == null ? '' : s).trim())
+
+function rtRowFor(b){
+  const gb = globalBooks[b.id] || {}, ub = userBooks[b.id] || {}
+  return {
+    book_id: b.id,
+    title: b.title,
+    authors: allAuthorsForCard(b),
+    year: b.year,
+    type: b.type,
+    series: b.subject || '',
+    series_position: gb.series_position == null ? '' : gb.series_position,
+    series_list: rtJoin(gb.series_list),
+    series_positions: rtPosJoin(gb.series_positions),
+    faction: factionHierarchy(b.id) || '',
+    faction_list: splitFaction(b.id).also.join(RT_SEP),
+    setting: gb.setting || '',
+    setting_list: rtJoin(gb.setting_list),
+    age: gb.age || '',
+    characters: rtJoin(gb.characters),
+    tags: gb.tags || '',
+    type_list: rtJoin(gb.type_list),
+    author_list: rtJoin(gb.author_list),
+    timeline_year: gb.timeline_year == null ? '' : gb.timeline_year,
+    timeline_millennium: gb.timeline_millennium == null ? '' : gb.timeline_millennium,
+    timeline_circa: rtYN(gb.timeline_circa),
+    owned: rtYN(ub.owned),
+    read: rtYN(ub.read),
+    wishlisted: rtYN(ub.wishlisted),
+    bindings: (ub.bindings || []).join(RT_SEP)
+  }
+}
+
+function exportFullData(){
+  const books = getFiltered()
+  const aoa = [RT_COLS.map(c => c[0])]
+  books.forEach(b => { const r = rtRowFor(b); aoa.push(RT_COLS.map(c => r[c[1]])) })
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+  ws['!cols'] = [{wch:14},{wch:40},{wch:24},{wch:6},{wch:13},{wch:24},{wch:7},{wch:26},{wch:22},
+    {wch:34},{wch:30},{wch:24},{wch:24},{wch:18},{wch:34},{wch:26},{wch:18},{wch:22},
+    {wch:8},{wch:8},{wch:6},{wch:7},{wch:6},{wch:6},{wch:26}]
+  ws['!freeze'] = {xSplit:1, ySplit:1}
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Tomes')
+  const notes = [
+    ['SANCTUM LIBRORUM — FULL DATA ROUND TRIP'],[''],
+    ['Edit the Tomes tab, save, then use "Import Edits" in the app.'],[''],
+    ['RULES'],
+    ['book_id','Never change or delete this. It is how a row is matched on import.'],
+    ['Multi-value cells','Separate with a semicolon:  Blood Angels; Orks; Astra Militarum'],
+    ['Faction','Written as  Parent: Sub-Faction  — e.g.  Imperial Fists: Black Templars'],
+    ['Extra Series #','Name=Number pairs:  Black Legion=2; Dawn of Fire=4'],
+    ['Y/N columns','Y, Yes, True, 1 or X all mean yes. Anything else means no.'],
+    ['Blank a cell','Clears that field on import. The preview tells you before it happens.'],
+    ['Deleting a row','Nothing happens. Only rows present in the file are considered.'],[''],
+    ['REFERENCE COLUMNS (edits ignored on import)'],
+    ['','Title, Author(s), Year, Type, Primary Series — change these in the app.']
+  ]
+  const ws2 = XLSX.utils.aoa_to_sheet(notes)
+  ws2['!cols'] = [{wch:20},{wch:92}]
+  XLSX.utils.book_append_sheet(wb, ws2, 'Read Me')
+  XLSX.writeFile(wb, 'sanctum-librorum-full-data.xlsx')
+  showToast('Exported ' + books.length.toLocaleString() + ' tomes with every editable field.')
+}
+
+// ── IMPORT ────────────────────────────────────────────────────────────────
+let rtPending = null
+
+function openImportPicker(){
+  if(!isAdmin()){ showToast('Only the archivist may import edits.'); return }
+  const el = document.getElementById('importFileInput')
+  if(el){ el.value = ''; el.click() }
+}
+
+async function handleImportFile(ev){
+  const file = ev.target.files && ev.target.files[0]
+  if(!file) return
+  try{
+    showToast('Reading ' + file.name + '…')
+    await loadExtScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')
+    const buf = await file.arrayBuffer()
+    const wb = XLSX.read(new Uint8Array(buf), {type:'array'})
+    const sheet = wb.Sheets['Tomes'] || wb.Sheets[wb.SheetNames[0]]
+    const rows = XLSX.utils.sheet_to_json(sheet, {defval:'', raw:false})
+    if(!rows.length){ showToast('That sheet is empty.'); return }
+    if(!('book_id' in rows[0])){
+      showToast('No book_id column found — export with "Full data" first.'); return
+    }
+    buildImportPreview(rows)
+  }catch(err){
+    console.error('Import failed:', err)
+    showToast('Could not read that file: ' + err.message)
+  }
+}
+
+function buildImportPreview(rows){
+  const changes = []       // {bookId, title, global:{}, user:{}, diffs:[]}
+  let unknown = 0
+  const H = {}; RT_COLS.forEach(c => { H[c[0]] = c })
+  for(const row of rows){
+    const id = String(row['book_id'] || '').trim()
+    if(!id) continue
+    const b = BOOKS.find(x => x.id === id)
+    if(!b){ unknown++; continue }
+    const cur = rtRowFor(b)
+    const g = {}, u = {}, diffs = []
+    for(const [hdr, key, editable] of RT_COLS){
+      if(!editable || !(hdr in row)) continue
+      const nv = String(row[hdr] == null ? '' : row[hdr]).trim()
+      const ov = String(cur[key] == null ? '' : cur[key]).trim()
+      if(nv === ov) continue
+      diffs.push({field: hdr, from: ov, to: nv})
+      if(RT_USER_FIELDS.indexOf(key) !== -1){
+        u[key] = (key === 'bindings') ? nv.split(';').map(s=>s.trim()).filter(Boolean) : rtBool(nv)
+      } else if(key === 'series_list' || key === 'setting_list' || key === 'characters'
+             || key === 'type_list'   || key === 'author_list' || key === 'faction_list'){
+        g[key] = rtSplit(nv)
+      } else if(key === 'series_positions'){
+        g[key] = rtPosSplit(nv)
+      } else if(key === 'series_position' || key === 'timeline_year' || key === 'timeline_millennium'){
+        const n = parseFloat(nv); g[key] = isNaN(n) ? null : n
+      } else if(key === 'timeline_circa'){
+        g[key] = rtBool(nv)
+      } else {
+        g[key] = nv || null
+      }
+    }
+    if(diffs.length) changes.push({bookId:id, title:b.title, global:g, user:u, diffs})
+  }
+  rtPending = changes
+  const totalFields = changes.reduce((n,c) => n + c.diffs.length, 0)
+  const clears = changes.reduce((n,c) => n + c.diffs.filter(d => d.to === '').length, 0)
+
+  let m = document.getElementById('importModal')
+  if(!m){
+    m = document.createElement('div')
+    m.id = 'importModal'; m.className = 'modal-overlay'
+    m.onclick = (e)=>{ if(e.target === m) closeImportModal() }
+    document.body.appendChild(m)
+  }
+  const sample = changes.slice(0, 80).map(c =>
+    '<div style="padding:.4rem 0;border-bottom:1px solid var(--border)">'
+    + '<div style="color:var(--gold-bright);font-size:.82rem">' + esc(c.title) + '</div>'
+    + c.diffs.map(d =>
+        '<div style="font-size:.76rem;color:var(--text-muted);margin-left:.6rem">'
+        + esc(d.field) + ': <span style="color:#e07070">' + (esc(d.from) || '(blank)') + '</span>'
+        + ' &rarr; <span style="color:#6dcfa6">' + (esc(d.to) || '(blank)') + '</span></div>').join('')
+    + '</div>').join('')
+
+  m.innerHTML =
+    '<div class="modal-panel" onclick="event.stopPropagation()" style="max-width:720px;max-height:82vh;display:flex;flex-direction:column">'
+    + '<div style="padding:1.3rem 1.5rem .8rem">'
+    +   '<div style="font-family:\'Cinzel\',serif;font-size:1.05rem;letter-spacing:.1em;color:var(--gold-bright);margin-bottom:.5rem">⇧ REVIEW IMPORT</div>'
+    +   (changes.length
+        ? '<div style="font-size:.88rem">' + changes.length.toLocaleString() + ' tome' + (changes.length===1?'':'s')
+          + ' will change &middot; ' + totalFields.toLocaleString() + ' field' + (totalFields===1?'':'s')
+          + (clears ? ' &middot; <span style="color:#e07070">' + clears + ' will be cleared</span>' : '') + '</div>'
+        : '<div style="font-size:.88rem;color:var(--text-muted)">No differences found — nothing to apply.</div>')
+    +   (unknown ? '<div style="font-size:.78rem;color:#e0a070;margin-top:.3rem">' + unknown + ' row' + (unknown===1?'':'s') + ' skipped: book_id not in the archive.</div>' : '')
+    + '</div>'
+    + '<div style="flex:1;overflow-y:auto;padding:0 1.5rem">' + sample
+    +   (changes.length > 80 ? '<div style="padding:.6rem 0;font-style:italic;color:var(--text-muted);font-size:.8rem">…and ' + (changes.length-80) + ' more.</div>' : '')
+    + '</div>'
+    + '<div style="padding:1rem 1.5rem;display:flex;gap:.6rem;justify-content:flex-end;border-top:1px solid var(--border)">'
+    +   '<button onclick="closeImportModal()" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:.45rem .9rem;cursor:pointer">Cancel</button>'
+    +   (changes.length ? '<button id="rtApplyBtn" class="inscribe-btn" onclick="applyImport()">Apply ' + changes.length + ' change' + (changes.length===1?'':'s') + '</button>' : '')
+    + '</div></div>'
+  m.style.display = 'flex'
+}
+
+function closeImportModal(){
+  const m = document.getElementById('importModal')
+  if(m) m.style.display = 'none'
+  rtPending = null
+}
+
+async function applyImport(){
+  if(!rtPending || !rtPending.length) return
+  const btn = document.getElementById('rtApplyBtn')
+  if(btn){ btn.disabled = true; btn.textContent = 'Applying…' }
+  const gRows = [], uRows = []
+  for(const c of rtPending){
+    if(Object.keys(c.global).length)
+      gRows.push(Object.assign({book_id: c.bookId}, c.global, {updated_at: new Date().toISOString()}))
+    if(Object.keys(c.user).length){
+      const prev = userBooks[c.bookId] || {owned:false, read:false, wishlisted:false, bindings:[]}
+      uRows.push(Object.assign({user_id: currentUser.id, book_id: c.bookId,
+        owned: prev.owned, read: prev.read, wishlisted: prev.wishlisted, bindings: prev.bindings || []}, c.user))
+    }
+  }
+  let ok = 0, failed = 0
+  const chunk = (arr, n) => { const o = []; for(let i=0;i<arr.length;i+=n) o.push(arr.slice(i,i+n)); return o }
+  for(const batch of chunk(gRows, 200)){
+    const {error} = await supabase.from('books_global').upsert(batch, {onConflict:'book_id'})
+    if(error){ console.error('books_global batch failed:', error); failed += batch.length }
+    else{
+      ok += batch.length
+      batch.forEach(r => { globalBooks[r.book_id] = Object.assign({}, globalBooks[r.book_id] || {}, r) })
+    }
+  }
+  for(const batch of chunk(uRows, 200)){
+    const {error} = await supabase.from('user_books').upsert(batch, {onConflict:'user_id,book_id'})
+    if(error){ console.error('user_books batch failed:', error); failed += batch.length }
+    else{
+      ok += batch.length
+      batch.forEach(r => { userBooks[r.book_id] = Object.assign({}, userBooks[r.book_id] || {}, r) })
+    }
+  }
+  closeImportModal()
+  updateBrowseDropdown(true); renderGrid(); updateStats()
+  showToast(failed
+    ? 'Applied with problems — ' + failed + ' row(s) failed. See console (F12).'
+    : 'Imported successfully. ' + ok.toLocaleString() + ' record(s) updated.')
+}
+
+Object.assign(window, {exportFullData, openImportPicker, handleImportFile, closeImportModal, applyImport})
+
 
 </script>
 
@@ -5766,8 +6151,15 @@ Object.assign(window, {openExportModal, closeExportModal, runExport})
               <span class="mfield-label">Setting</span>
               <div class="mfield-val meta" id="mSetting" style="color:#90dcf0"></div>
               <input class="inscribe-input modal-edit-field" id="mSettingEdit" style="display:none"
-                placeholder="e.g. Armageddon: Hive Tartarus" list="settingSuggest"/>
+                placeholder="Primary — e.g. Armageddon: Hive Tartarus" list="settingSuggest"/>
               <datalist id="settingSuggest"></datalist>
+              <div class="modal-edit-field" id="settingEditWrap" style="display:none;margin-top:.3rem">
+                <div class="tag-input-wrap" id="settingTagWrap" onclick="document.getElementById('settingTagInput').focus()" style="min-height:34px">
+                  <input class="tag-input-field" id="settingTagInput" placeholder="Also set in…"
+                    autocomplete="off" onkeydown="settingTagKeydown(event)" list="settingSuggest"/>
+                </div>
+                <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Further worlds or locations the story visits.</div>
+              </div>
             </div>
             <div class="mfield" style="flex:1;min-width:180px">
               <span class="mfield-label">Age</span>
