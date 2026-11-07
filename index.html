@@ -404,6 +404,21 @@
   
     /* ── BINDINGS ──────────────────────────────────────────── */
     .bindings-section{margin-top:.5rem}
+    /* Age of Sigmar visibility switch */
+    .aos-toggle{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;
+      flex-shrink:0;user-select:none;white-space:nowrap}
+    .aos-toggle input{position:absolute;opacity:0;width:0;height:0}
+    .aos-track{width:30px;height:15px;border-radius:9px;background:rgba(255,255,255,.08);
+      border:1px solid var(--border);position:relative;transition:background .18s,border-color .18s}
+    .aos-knob{position:absolute;top:1px;left:1px;width:11px;height:11px;border-radius:50%;
+      background:var(--text-muted);transition:transform .18s,background .18s}
+    .aos-toggle input:checked + .aos-track{background:rgba(232,201,106,.22);border-color:rgba(232,201,106,.5)}
+    .aos-toggle input:checked + .aos-track .aos-knob{transform:translateX(15px);background:var(--gold-bright)}
+    .aos-toggle input:focus-visible + .aos-track{outline:2px solid var(--gold-bright);outline-offset:2px}
+    .aos-label{font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.1em;
+      text-transform:uppercase;color:var(--text-muted)}
+    .aos-toggle input:checked ~ .aos-label{color:var(--gold-bright)}
+
     .timeline-section{margin-top:.7rem}
     /* Co-starring factions — flat pills, deliberately NOT a hierarchy */
     .also-wrap{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.2rem}
@@ -885,12 +900,16 @@
         <button class="inscribe-btn" onclick="openExportModal()" style="white-space:nowrap;flex-shrink:0">⇩ Export Tomes</button>
         <button class="inscribe-btn" onclick="openImportPicker()" style="white-space:nowrap;flex-shrink:0">⇧ Import Edits</button>
         <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none" onchange="handleImportFile(event)"/>
+        <label class="aos-toggle" title="Show Age of Sigmar and Warhammer Fantasy entries. Mixed anthologies stay visible either way.">
+          <input type="checkbox" id="aosToggle" onchange="setAosVisible(this.checked)"/>
+          <span class="aos-track"><span class="aos-knob"></span></span>
+          <span class="aos-label">Age of Sigmar</span>
+        </label>
       </div>
     </div>
     <div class="ctrl-row">
       <span class="rl">Tome Classification</span>
       <button class="pill active" data-type="all"         onclick="setType('all')">All Tomes</button>
-      <button class="pill"        data-type="Series"      onclick="setType('Series')">Series</button>
       <button class="pill"        data-type="Novel"       onclick="setType('Novel')">Novel</button>
       <button class="pill"        data-type="Novella"     onclick="setType('Novella')">Novella</button>
       <button class="pill"        data-type="Short Story"    onclick="setType('Short Story')">Short Story</button>
@@ -2116,6 +2135,8 @@ function getFiltered(){
         if(b.subject !== activeSubject && !extraMatch) return false
       }
     }
+    // Age of Sigmar entries are hidden unless the switch is on
+    if(!aosVisible && isAosOnly(b)) return false
     if(searchQuery){
       const q   = searchQuery.toLowerCase()
       const gb  = globalBooks[b.id] || {}
@@ -5234,6 +5255,8 @@ function updateBrowseDropdown(skipRender){
   subjSel.innerHTML = `<option value="all">${placeholder}</option>`
     + options.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')
 
+  const aosBox = document.getElementById('aosToggle')
+  if(aosBox && aosBox.checked !== aosVisible) aosBox.checked = aosVisible
   if(!skipRender) renderGrid()
 }
 
@@ -5481,6 +5504,41 @@ function removeCharacter(i){ characterList.splice(i,1); renderCharacterTags() }
 function serializeCharacters(){
   return characterList.length ? JSON.stringify(characterList) : null
 }
+
+// ── AGE OF SIGMAR VISIBILITY ──────────────────────────────────────────────
+// A tome counts as Age of Sigmar when an AoS marker appears anywhere in its
+// series or faction data AND no 40K faction does. That second clause is what
+// keeps a mixed anthology — 40K stories alongside AoS ones — visible with the
+// switch off, without needing to inspect its contained works.
+const AOS_MARKERS = new Set(['Age of Sigmar','Mortal Realms','Warhammer Fantasy','Blood Bowl',
+  'Grand Alliance Order','Grand Alliance Death','Grand Alliance Chaos','Stormcast Eternals',
+  'Nighthaunt','Skaven','Kharadron Overlords','Sylvaneth','Ossiarch Bonereapers','Dispossessed',
+  'Order of Azyr','Order Serpentis','Iron Golems','Ironhunters of Chamon','Soulblight Gravelords',
+  'Seraphon','Fyreslayers','Idoneth Deepkin','Lumineth Realm-lords','Cities of Sigmar'])
+
+let aosVisible = false
+try{ aosVisible = localStorage.getItem('sl_aos') === '1' }catch(e){}
+
+function isAosOnly(b){
+  const gb = globalBooks[b.id] || {}
+  const marks = []
+  if(b.subject) marks.push(b.subject)
+  try{ const sl = JSON.parse(gb.series_list || '[]'); if(Array.isArray(sl)) sl.forEach(x => marks.push(x)) }catch(e){}
+  const facs = allFactionsFor(b.id)
+  facs.forEach(f => marks.push(f))
+  if(!marks.some(m => AOS_MARKERS.has(m))) return false
+  // Any 40K faction present means this is a crossover, not a pure AoS entry.
+  return !facs.some(f => f && !AOS_MARKERS.has(f))
+}
+
+function setAosVisible(on){
+  aosVisible = !!on
+  try{ localStorage.setItem('sl_aos', aosVisible ? '1' : '0') }catch(e){}
+  updateBrowseDropdown(true)
+  renderGrid()
+  updateStats()
+}
+Object.assign(window, {setAosVisible})
 
 // ── ADDITIONAL SETTINGS ───────────────────────────────────────────────────
 // setting = primary (may nest with a colon, e.g. "Armageddon: Hive Tartarus")
