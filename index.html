@@ -371,6 +371,9 @@
       text-transform:uppercase;padding:.18rem .45rem;border-radius:2px;white-space:nowrap;
       background:var(--gold-dim);border:1px solid rgba(232,201,106,.3);color:var(--gold-bright)}
     .also-pill.more{background:none;border-style:dashed;opacity:.7}
+    .char-pill{font-family:'Cinzel',serif;font-size:.54rem;letter-spacing:.07em;
+      text-transform:uppercase;padding:.18rem .45rem;border-radius:2px;white-space:nowrap;
+      background:rgba(200,140,50,.13);border:1px solid rgba(200,140,50,.3);color:#f0c070}
     .card-also{display:flex;flex-wrap:wrap;gap:.2rem;margin-top:.3rem}
     .card-also .also-pill{font-size:.48rem;padding:.14rem .36rem;opacity:.85}
     .t-Setting{background:rgba(80,160,180,.15);border:1px solid rgba(80,160,180,.3);color:#90dcf0}
@@ -816,6 +819,7 @@
           <option value="author">Author</option>
           <option value="setting">Setting</option>
           <option value="age">Age</option>
+          <option value="character">Character</option>
         </select>
         <select class="subj-sel" id="subjSel" onchange="setSubject(this.value)" style="min-width:180px">
           <option value="all">&mdash; All Series &mdash;</option>
@@ -1789,7 +1793,7 @@ async function loadGlobalBooks(){
   // Covers are fetched separately by loadCovers() after the grid renders.
   const cols = 'id,book_id,summary,spoiler,contained_works,faction,tags,'
     + 'avg_rating,rating_count,dramatis_personae,series_list,series_position,series_positions,'
-    + 'timeline_year,timeline_millennium,timeline_circa,type_list,author_list,faction_list,setting,age,'
+    + 'timeline_year,timeline_millennium,timeline_circa,type_list,author_list,faction_list,setting,age,characters,'
     + 'title_override,author_override,year_override,type_override,subject_override,'
     + 'cover_image'
   // Pull a lightweight flag for which books HAVE a cover, without the blob,
@@ -1823,6 +1827,7 @@ async function loadGlobalBooks(){
       author_list:      r.author_list      || '',
       faction_list:     r.faction_list     || '',
       setting:          r.setting          || '',
+      characters:       r.characters       || '',
       age:              r.age              || '',
       title_override:   r.title_override  || null,
       author_override:  r.author_override || null,
@@ -2048,6 +2053,8 @@ function getFiltered(){
         if((gbf.setting||'') !== activeSubject) return false
       } else if(activeBrowseBy === 'age'){
         if((gbf.age||'') !== activeSubject) return false
+      } else if(activeBrowseBy === 'character'){
+        if(!bookHasCharacter(b.id, activeSubject)) return false
       } else if(activeBrowseBy === 'subject'){
         // Match the parent faction, the sub-faction, or any co-starring faction
         if(!allFactionsFor(b.id).includes(activeSubject)) return false
@@ -2067,6 +2074,7 @@ function getFiltered(){
       try{ const sl=JSON.parse(gb.series_list||'[]');  if(Array.isArray(sl)) extra += ' ' + sl.join(' ') }catch(e){}
       try{ const al=JSON.parse(gb.author_list||'[]');  if(Array.isArray(al)) extra += ' ' + al.join(' ') }catch(e){}
       try{ const fl=JSON.parse(gb.faction_list||'[]'); if(Array.isArray(fl)) extra += ' ' + fl.join(' ') }catch(e){}
+      try{ const ch=JSON.parse(gb.characters||'[]'); if(Array.isArray(ch)) extra += ' ' + ch.join(' ') }catch(e){}
       const hay = (b.title + ' ' + (b.subject||'') + ' ' + (b.author||'') + ' '
                 + (gb.faction||'') + ' ' + (gb.setting||'') + ' ' + (gb.age||'') + ' '
                 + (gb.tags||'') + extra).toLowerCase()
@@ -2347,12 +2355,12 @@ function renderCard(b){
     + '<div class="card-body">'
     +   '<div class="card-meta-col">'
     +     '<div class="card-subject">' + topLine + (b._isCustom ? ' <span class="custom-badge">✦ Custom</span>' : '') + chronoMark + '</div>'
-    +     '<div style="display:flex;flex-wrap:wrap;gap:.2rem">'
-    + '<div class="card-format t-' + tc + '">' + esc(TYPE_LABEL(b.type)) + '</div>'
-    + (function(){ const tl=(globalBooks[b.id]||{}).type_list||''; let ex=[]; try{const p=JSON.parse(tl);if(Array.isArray(p))ex=p.filter(t=>t!==b.type);}catch(e){} return ex.map(t=>'<div class="card-format t-'+t.replace(' ','')+'">' + TYPE_LABEL(t) + '</div>').join('') }())
-    + (gb2.setting ? '<div class="card-format t-Setting">' + esc(gb2.setting) + '</div>' : '')
-    + (gb2.age     ? '<div class="card-format t-Age">'     + esc(gb2.age)     + '</div>' : '')
-    + '</div>'
+    +     ((gb2.setting || gb2.age)
+          ? '<div style="display:flex;flex-wrap:wrap;gap:.2rem">'
+            + (gb2.setting ? '<div class="card-format t-Setting">' + esc(gb2.setting) + '</div>' : '')
+            + (gb2.age     ? '<div class="card-format t-Age">'     + esc(gb2.age)     + '</div>' : '')
+            + '</div>'
+          : '')
     +     '<div class="card-series-line">' + subLine + '</div>'
     +     (function(){ const a = splitFaction(b.id).also; return a.length
           ? '<div class="card-also">' + a.slice(0,4).map(x=>'<span class="also-pill">+ ' + esc(x) + '</span>').join('')
@@ -2555,6 +2563,7 @@ function openModal(bookId){
   loadAuthorList(bookId)
   // Extra factions (subject hierarchy)
   loadFactionList(bookId)
+  loadCharacterList(bookId)
   // Extra series
   loadExtraSeries(bookId)
 
@@ -2641,6 +2650,8 @@ function openModal(bookId){
     for(const k in globalBooks){ const v = globalBooks[k].setting; if(v) seen.add(v) }
     dl.innerHTML = [...seen].sort().map(s => '<option value="' + esc(s) + '"></option>').join('')
   }
+  const cdl = document.getElementById('characterSuggest')
+  if(cdl) cdl.innerHTML = allCharacters().map(c => '<option value="' + esc(c) + '"></option>').join('')
   const bookNoEl = document.getElementById('mBookNo')
   const bookNoEdit = document.getElementById('mBookNoEdit')
   const gbBookNo = (globalBooks[bookId] || {}).series_position || ''
@@ -2934,6 +2945,7 @@ async function saveModalEdits(){
     author_list:     serializeAuthorList(),
     faction_list:    serializeFactionList(),
     setting:         (document.getElementById('mSettingEdit')||{}).value?.trim() || null,
+    characters:      serializeCharacters(),
     age:             (document.getElementById('mAgeEdit')||{}).value || null,
     updated_at:      new Date().toISOString()
   }
@@ -2971,6 +2983,7 @@ async function saveModalEdits(){
     author_list:       gData.author_list       || '',
     faction_list:      gData.faction_list      || '',
     setting:           gData.setting           || '',
+    characters:        gData.characters        || '',
     age:               gData.age               || '',
     avg_rating:        gData.avg_rating        || null,
     rating_count:      gData.rating_count      || 0,
@@ -3012,6 +3025,7 @@ async function saveModalEdits(){
   // Re-load extra series from updated globalBooks cache
   loadExtraSeries(modalBookId)
   loadFactionList(modalBookId)
+  loadCharacterList(modalBookId)
 
   // Refresh DP view
   const dpViewEl = document.getElementById('mDPView')
@@ -3623,6 +3637,7 @@ function copyTome(){
     author_list:       gb.author_list       || null,
     faction_list:      gb.faction_list      || null,
     setting:           gb.setting           || null,
+    characters:        gb.characters        || null,
     age:               gb.age               || null
   }
   closeModal()
@@ -3767,6 +3782,7 @@ async function saveInscribedTome(){
         author_list:       mData.author_list       || '',
         faction_list:      mData.faction_list      || '',
         setting:           mData.setting           || '',
+        characters:        mData.characters        || '',
         age:               mData.age               || ''
       }
     }
@@ -5098,7 +5114,8 @@ function updateBrowseDropdown(skipRender){
     series:  '— All Series —',
     author:  '— All Authors —',
     setting: '— All Settings —',
-    age:     '— All Ages —'
+    age:     '— All Ages —',
+    character: '— All Characters —'
   }[activeBrowseBy] || '— All —'
 
   // Populate based on mode
@@ -5109,6 +5126,8 @@ function updateBrowseDropdown(skipRender){
     const factions = new Set()
     for(const b of BOOKS) allFactionsFor(b.id).forEach(f => { if(f) factions.add(f) })
     options = [...factions].sort()
+  } else if(activeBrowseBy === 'character'){
+    options = allCharacters()
   } else if(activeBrowseBy === 'setting'){
     const s = new Set()
     for(const id in globalBooks){ const v = globalBooks[id].setting; if(v) s.add(v) }
@@ -5337,6 +5356,75 @@ function refreshFactionDisplay(bookId){
 function serializeFactionList(){
   return extraFactionList.length ? JSON.stringify(extraFactionList) : null
 }
+
+// ── CHARACTERS ────────────────────────────────────────────────────────────
+// Stored as a JSON array on books_global.characters, same shape as faction_list.
+let characterList = []
+
+function loadCharacterList(bookId){
+  characterList = []
+  const gb = globalBooks[bookId] || {}
+  try{ const p = JSON.parse(gb.characters || '[]'); if(Array.isArray(p)) characterList = p.filter(Boolean).map(String) }
+  catch(e){ characterList = String(gb.characters || '').split(',').map(s=>s.trim()).filter(Boolean) }
+  renderCharacterTags()
+}
+
+function renderCharacterTags(){
+  const view = document.getElementById('mCharacters')
+  if(view){
+    view.innerHTML = characterList.length
+      ? characterList.map(c => '<span class="char-pill">' + esc(c) + '</span>').join('')
+      : '<em style="color:var(--text-muted);font-style:italic;font-size:.82rem">\u2014</em>'
+  }
+  const wrap = document.getElementById('characterTagWrap')
+  const input = document.getElementById('characterTagInput')
+  if(!wrap || !input) return
+  wrap.querySelectorAll('.tag-pill').forEach(el => el.remove())
+  characterList.forEach((c, i) => {
+    const pill = document.createElement('span')
+    pill.className = 'tag-pill'
+    pill.innerHTML = '<span>' + esc(c) + '</span>'
+      + '<button class="tag-pill-remove" onclick="removeCharacter(' + i + ')" title="Remove">&#10005;</button>'
+    wrap.insertBefore(pill, input)
+  })
+}
+
+function characterTagKeydown(e){
+  const input = e.target
+  if(e.key === 'Enter' || e.key === ','){
+    e.preventDefault()
+    const val = input.value.trim().replace(/,$/,'')
+    if(val && !characterList.some(c => c.toLowerCase() === val.toLowerCase())){
+      characterList.push(val); renderCharacterTags()
+    }
+    input.value = ''
+  } else if(e.key === 'Backspace' && !input.value && characterList.length){
+    characterList.pop(); renderCharacterTags()
+  }
+}
+
+function removeCharacter(i){ characterList.splice(i,1); renderCharacterTags() }
+
+function serializeCharacters(){
+  return characterList.length ? JSON.stringify(characterList) : null
+}
+
+// Every character across the archive — powers the Browse By dropdown
+function allCharacters(){
+  const s = new Set()
+  for(const id in globalBooks){
+    try{ const p = JSON.parse(globalBooks[id].characters || '[]')
+      if(Array.isArray(p)) p.forEach(c => { if(c) s.add(String(c)) }) }catch(e){}
+  }
+  return [...s].sort()
+}
+
+function bookHasCharacter(bookId, name){
+  try{ const p = JSON.parse((globalBooks[bookId]||{}).characters || '[]')
+    return Array.isArray(p) && p.includes(name) }catch(e){ return false }
+}
+
+Object.assign(window, {characterTagKeydown, removeCharacter})
 
 // ════════════════════════════════════════════════════════════
 //  EXPORT TOMES — Excel / presentation PDF, grouped by dimension
@@ -5696,6 +5784,18 @@ Object.assign(window, {openExportModal, closeExportModal, runExport})
                 <option value="Time of Ending">Time of Ending</option>
                 <option value="Era Indomitus">Era Indomitus</option>
               </select>
+            </div>
+          </div>
+          <div class="mfield" style="margin-top:.7rem">
+            <span class="mfield-label">Main Characters</span>
+            <div id="mCharacters" class="also-wrap"></div>
+            <div class="modal-edit-field" id="characterEditWrap" style="display:none;margin-top:.3rem">
+              <div class="tag-input-wrap" id="characterTagWrap" onclick="document.getElementById('characterTagInput').focus()" style="min-height:34px">
+                <input class="tag-input-field" id="characterTagInput" placeholder="Add a character, then Enter…"
+                  autocomplete="off" onkeydown="characterTagKeydown(event)" list="characterSuggest"/>
+              </div>
+              <datalist id="characterSuggest"></datalist>
+              <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Point-of-view and major characters. Browsable from the Character filter.</div>
             </div>
           </div>
         </div>
