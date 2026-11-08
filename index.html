@@ -436,12 +436,14 @@
       box-shadow:0 0 20px rgba(232,201,106,.3)}
 
     /* ── Stat tiles double as the status filter ─────────── */
-    .stat{background:none;border:1px solid transparent;border-radius:3px;cursor:pointer;
+    .stat{background:none;border:none;cursor:pointer;
       font:inherit;padding:.3rem .85rem;transition:all .18s}
-    .stat:hover{background:rgba(232,201,106,.08);border-color:rgba(232,201,106,.3)}
-    .stat.active{background:rgba(232,201,106,.14);border-color:var(--gold)}
-    .stat.active .sl{color:var(--gold-bright)}
+    .stat .sv,.stat .sl{transition:color .18s,text-shadow .18s}
+    .stat:hover .sl{color:var(--gold)}
+    .stat.active .sl{color:var(--gold-bright);font-weight:700}
+    .stat.active .sv{text-shadow:0 0 14px rgba(232,201,106,.5)}
     .stats-aos{margin-left:auto;flex-shrink:0}
+    .ctrl-aos{margin-left:auto;flex-shrink:0}
 
     /* Age of Sigmar visibility switch */
     .aos-toggle{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;
@@ -885,7 +887,6 @@
       <span class="h-sub">&middot; Black Library Complete Catalogue</span>
     </div>
     <div class="h-right">
-      <button class="inscribe-hero" onclick="openInscribeModal()">&#10022; Inscribe Tome</button>
       <button class="sub-badge hidden" id="subBadge" onclick="openReviewPanel()">&#128236; Submissions <span class="sub-count" id="subCount">0</span></button>
       <span class="h-email" id="hEmail"></span>
       <button class="btn-logout" onclick="doLogout()">Abandon Post</button>
@@ -902,11 +903,7 @@
       <button class="stat" data-filter="wishlist" onclick="setFilter('wishlist')" title="Show wishlist"><div class="sv" id="sWish">0</div><div class="sl">Wishlist</div></button>
     <div class="sdiv"></div>
       <button class="stat" data-filter="untracked" onclick="setFilter('untracked')" title="Show untracked"><div class="sv" id="sUntracked">0</div><div class="sl">Untracked</div></button>
-    <label class="aos-toggle stats-aos" title="Show Age of Sigmar and Warhammer Fantasy entries. Mixed anthologies stay visible either way.">
-      <input type="checkbox" id="aosToggle" onchange="setAosVisible(this.checked)"/>
-      <span class="aos-track"><span class="aos-knob"></span></span>
-      <span class="aos-label">Age of Sigmar</span>
-    </label>
+    <button class="inscribe-hero stats-aos" onclick="openInscribeModal()">&#10022; Inscribe Tome</button>
   </div>
 
   <div class="ctrl-wrap">
@@ -946,6 +943,11 @@
           <option value="az">Sort A to Z</option>
           <option value="za">Sort Z to A</option>
         </select>
+        <label class="aos-toggle ctrl-aos" title="Show Age of Sigmar and Warhammer Fantasy entries. Mixed anthologies stay visible either way.">
+          <input type="checkbox" id="aosToggle" onchange="setAosVisible(this.checked)"/>
+          <span class="aos-track"><span class="aos-knob"></span></span>
+          <span class="aos-label">Age of Sigmar</span>
+        </label>
       </div>
     </div>
     <div class="ctrl-row">
