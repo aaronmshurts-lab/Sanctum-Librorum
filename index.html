@@ -350,6 +350,12 @@
     .dossier-tail .content-tabs .content-tab.active{border-color:var(--border-gold);
       background:rgba(232,201,106,.07)}
 
+    /* Off the Summary tab, the data block steps aside and the panel takes
+       the whole column. */
+    #bookModal .modal-panel:not(.tab-summary) .dossier-grid{display:none}
+    #bookModal .modal-panel:not(.tab-summary) .dossier-prose{flex:1;min-height:0}
+    #bookModal .modal-panel:not(.tab-summary) .rte-editor{min-height:260px}
+
     .dossier-prose{display:flex;flex-direction:column;min-height:120px}
     .dossier-prose > .mfield{flex:1;min-height:0}
     .modal-panel.editing .rte-editor,
@@ -2847,6 +2853,8 @@ function openModal(bookId){
   const tabAI4 = document.getElementById('tabAI')
   // Other Works now holds Contained Works too, so the tab is always offered.
   if(tabAI4){ tabAI4.classList.remove('active'); tabAI4.style.display='' }
+  const mp0 = document.querySelector('#bookModal .modal-panel')
+  if(mp0) mp0.classList.add('tab-summary')
   document.getElementById('tabSummary').classList.add('active')
   document.getElementById('tabSpoiler').classList.remove('active')
   const tabDP2 = document.getElementById('tabDP')
@@ -4713,6 +4721,11 @@ Object.assign(window, {switchContentTab, revealSpoilers, rteCmdS})
 
 function switchContentTab(tab){
   activeContentTab = tab
+  // Only the Summary tab carries the book's data block. On the other tabs the
+  // column belongs entirely to that tab's own text, which is what makes them
+  // workable to edit.
+  const mp = document.querySelector('#bookModal .modal-panel')
+  if(mp) mp.classList.toggle('tab-summary', tab==='summary')
   document.getElementById('tabSummary').classList.toggle('active', tab==='summary')
   document.getElementById('tabSpoiler').classList.toggle('active', tab==='spoiler')
   const tabDP = document.getElementById('tabDP')
@@ -6535,6 +6548,10 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
           <!-- Appears In panel (view only) -->
           <div class="content-panel" id="panelAI" style="display:none">
             <div style="padding-top:.6rem;flex:1;overflow-y:auto">
+              <div class="ow-sub" style="margin-top:0">Appears in</div>
+              <ul class="appears-in-list" id="appearsInList">
+                <li><em style="color:var(--text-muted);font-style:italic;font-size:.85rem">Not found in any anthology or omnibus.</em></li>
+              </ul>
           <div id="mContainedSection" style="display:none;margin-bottom:.8rem;flex-shrink:1;min-height:0">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem">
               <span class="mfield-label">Contained Works</span>
@@ -6558,10 +6575,6 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
               </div>
             </div>
           </div>
-              <div class="ow-sub">Appears in</div>
-              <ul class="appears-in-list" id="appearsInList">
-                <li><em style="color:var(--text-muted);font-style:italic;font-size:.85rem">Not found in any anthology or omnibus.</em></li>
-              </ul>
             </div>
           </div>
 
