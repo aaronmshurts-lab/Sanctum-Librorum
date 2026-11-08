@@ -133,6 +133,16 @@
       background:var(--bg);border-bottom:1px solid var(--border)}
 
     /* ── GRID & CARDS ── */
+    /* A full-width row that forces the next card onto a new line and names
+       the group it starts. */
+    .grid-break{grid-column:1 / -1;display:flex;align-items:center;gap:.7rem;
+      margin:.55rem 0 -.35rem;min-height:1.1rem}
+    .grid-break:first-child{margin-top:0}
+    .grid-break span{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.16em;
+      text-transform:uppercase;color:var(--gold);opacity:.9;white-space:nowrap;flex-shrink:0}
+    .grid-break::after{content:'';flex:1;height:1px;
+      background:linear-gradient(90deg,rgba(232,201,106,.3),transparent)}
+
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));
       gap:1.45rem 1.25rem;background:none;margin:0 2rem;padding:1.4rem 0}
     @media(max-width:680px){ .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
@@ -2607,7 +2617,30 @@ function renderGrid(){
     return a.title.localeCompare(b.title)
   })
 
-  grid.innerHTML=sorted.map(renderCard).join('')
+  // Break to a new row whenever the grouping value changes, so the grid
+  // reads as sections instead of one unbroken run of covers. Only where a
+  // grouping is actually in play: By Title and By Chronology deliberately
+  // ignore it, and a filtered-to-one-value view has nothing to break on.
+  const grouped = activeSubject === 'all'
+    && activeSortOrder !== 'title' && activeSortOrder !== 'chrono'
+
+  if(!grouped){
+    grid.innerHTML = sorted.map(renderCard).join('')
+    return
+  }
+
+  let last = null
+  const out = []
+  for(const bk of sorted){
+    const key = groupKeyFor(bk)
+    if(key !== last){
+      const name = key === '\uffff' ? 'Unfiled' : key.replace(/^0\d{3}/, '')
+      out.push('<div class="grid-break"><span>' + esc(name) + '</span></div>')
+      last = key
+    }
+    out.push(renderCard(bk))
+  }
+  grid.innerHTML = out.join('')
 }
 
 // Live preview of the formatted date while editing the Timeline fields
