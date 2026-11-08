@@ -2461,7 +2461,8 @@ function renderCard(b){
   // Build series segments with per-series numbers
   const fmtNum = n => Number.isInteger(n) ? n : parseFloat(Number(n).toFixed(2))
   let seriesSegs = []
-  if(b.subject) seriesSegs.push({name:b.subject, pos:gb2.series_position})
+  // 'Standalone' is the absence of a series, not a series — never show it.
+  if(b.subject && b.subject !== 'Standalone') seriesSegs.push({name:b.subject, pos:gb2.series_position})
   try{ const sl=gb2.series_list; if(sl){ const ex=JSON.parse(sl); if(Array.isArray(ex)&&ex.length){
     let posMap={}
     try{ const p=JSON.parse(gb2.series_positions||'{}'); if(p&&typeof p==='object') posMap=p }catch(e){}
@@ -2571,7 +2572,8 @@ function populateSubjects(){
     if(!sl) continue
     try{ const ex=JSON.parse(sl); if(Array.isArray(ex)) extraSubjects.push(...ex) } catch(e){}
   }
-  const subjects = [...new Set([...fromBooks, ...extraSubjects, ...customSubjects])].sort()
+  const subjects = [...new Set([...fromBooks, ...extraSubjects, ...customSubjects])]
+    .filter(s => s && s !== 'Standalone').sort()
   const sel=document.getElementById('subjSel')
   sel.innerHTML=`<option value="all">&mdash; All Subjects &mdash;</option>`
     +subjects.map(s=>`<option value="${esc(s)}"${s===activeSubject?' selected':''}>${esc(s)}</option>`).join('')
@@ -5318,6 +5320,10 @@ function updateBrowseDropdown(skipRender){
     // "Standalone" is the absence of a series, not a series — it would
     // otherwise be far and away the largest entry in this list.
     series.delete('Standalone')
+    // faction-migration.sql moved the Age of Sigmar factions into
+    // series_list, so they surface here as series. Hide them in step with
+    // the toggle instead of padding the list with them.
+    if(!aosVisible) AOS_MARKERS.forEach(m => series.delete(m))
     options = [...series].sort()
   } else if(activeBrowseBy === 'author'){
     // All authors (primary + extras)
@@ -5605,8 +5611,16 @@ function isAosOnly(b){
   const facs = allFactionsFor(b.id)
   facs.forEach(f => marks.push(f))
   if(!marks.some(m => AOS_MARKERS.has(m))) return false
-  // Any 40K faction present means this is a crossover, not a pure AoS entry.
-  return !facs.some(f => f && !AOS_MARKERS.has(f))
+  // A genuine 40K crossover declares itself in the ROOT faction field.
+  // Sub-factions out of faction_list do NOT count: the Chaos gods (Khorne,
+  // Nurgle, Tzeentch, Slaanesh) and similar exist in both settings, so
+  // treating them as 40K evidence left every Warhammer Horror AoS title
+  // visible with the toggle off. faction-migration.sql nulls faction on
+  // pure-AoS entries, which is exactly the signal we want.
+  const root = (gb.faction || '').trim()
+  if(!root) return true
+  const parent = root.indexOf(':') !== -1 ? root.slice(0, root.indexOf(':')).trim() : root
+  return AOS_MARKERS.has(root) || AOS_MARKERS.has(parent)
 }
 
 function setAosVisible(on){
