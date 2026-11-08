@@ -429,6 +429,17 @@
       font-style:italic;color:var(--text-muted) !important;margin-left:.5rem}
     #panelAI .appears-in-list li{display:flex;align-items:baseline;gap:0}
 
+    /* Contained Works owns the tab now, so drop the 150px cap it carried
+       from when it sat squeezed above the summary. The panel's own
+       scroller takes over only if the list outgrows the whole column. */
+    #panelAI #mContainedView{max-height:none !important;overflow:visible !important;
+      line-height:1.5 !important}
+    #panelAI #mContainedSection{flex-shrink:0;margin-bottom:0}
+    /* Two columns, filled down then across, so a numbered contents list
+       stays contiguous. */
+    #panelAI #mContainedView ul{columns:2;column-gap:1.8rem}
+    #panelAI #mContainedView ul li{break-inside:avoid;-webkit-column-break-inside:avoid}
+
     .ow-sub{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.14em;
       text-transform:uppercase;color:var(--gold);opacity:.85;margin:1rem 0 .35rem}
 
