@@ -114,7 +114,8 @@
     .pill.ltd-pill.active{background:rgba(232,201,106,.15);border-color:var(--gold);color:var(--gold-bright);box-shadow:0 0 8px rgba(232,201,106,.3)}
     .pill[data-type="Graphic Novel"].active{background:rgba(120,80,160,.15);border-color:#8855bb;color:#c090f0}
     .pill[data-type="Series"].active{background:rgba(180,150,50,.18);border-color:#b49632;color:#f0d070}
-    .ctrl-right{margin-left:auto;display:flex;gap:.5rem}
+    .ctrl-right{margin-left:auto;display:flex;gap:.5rem;align-items:flex-start}
+    .import-stack{display:flex;flex-direction:column;align-items:center;gap:.32rem;flex-shrink:0}
     .srch{padding:.38rem .82rem;background:var(--surface);border:1px solid var(--border);color:var(--text);
       font-family:'EB Garamond',serif;font-size:.92rem;outline:none;border-radius:var(--radius);
       width:190px;transition:border-color .2s}
@@ -406,7 +407,7 @@
     .bindings-section{margin-top:.5rem}
     /* Age of Sigmar visibility switch */
     .aos-toggle{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;
-      flex-shrink:0;user-select:none;white-space:nowrap}
+      user-select:none;white-space:nowrap;padding:.1rem 0}
     .aos-toggle input{position:absolute;opacity:0;width:0;height:0}
     .aos-track{width:30px;height:15px;border-radius:9px;background:rgba(255,255,255,.08);
       border:1px solid var(--border);position:relative;transition:background .18s,border-color .18s}
@@ -898,13 +899,15 @@
         </select>
         <button class="inscribe-btn" onclick="openInscribeModal()" style="white-space:nowrap;flex-shrink:0">✦ Inscribe Tome</button>
         <button class="inscribe-btn" onclick="openExportModal()" style="white-space:nowrap;flex-shrink:0">⇩ Export Tomes</button>
-        <button class="inscribe-btn" onclick="openImportPicker()" style="white-space:nowrap;flex-shrink:0">⇧ Import Edits</button>
-        <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none" onchange="handleImportFile(event)"/>
-        <label class="aos-toggle" title="Show Age of Sigmar and Warhammer Fantasy entries. Mixed anthologies stay visible either way.">
-          <input type="checkbox" id="aosToggle" onchange="setAosVisible(this.checked)"/>
-          <span class="aos-track"><span class="aos-knob"></span></span>
-          <span class="aos-label">Age of Sigmar</span>
-        </label>
+        <div class="import-stack">
+          <button class="inscribe-btn" onclick="openImportPicker()" style="white-space:nowrap">⇧ Import Edits</button>
+          <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none" onchange="handleImportFile(event)"/>
+          <label class="aos-toggle" title="Show Age of Sigmar and Warhammer Fantasy entries. Mixed anthologies stay visible either way.">
+            <input type="checkbox" id="aosToggle" onchange="setAosVisible(this.checked)"/>
+            <span class="aos-track"><span class="aos-knob"></span></span>
+            <span class="aos-label">Age of Sigmar</span>
+          </label>
+        </div>
       </div>
     </div>
     <div class="ctrl-row">
