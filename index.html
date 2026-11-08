@@ -375,7 +375,9 @@
     /* Order comes from the DOM now — the fields are emitted in reading
        order, so a plain 2-column grid lands them where they belong.
        CSS placement was fighting the flattened wrappers. */
-    .dossier-grid .mfield:has(#mSeries){grid-column:1 / -1;
+    .dossier-grid .mfield:has(#mSeries){grid-column:1;
+      border-top:1px solid var(--border);padding-top:.75rem;margin-top:.45rem}
+    .dossier-grid .mfield:has(#mTopic){grid-column:2;
       border-top:1px solid var(--border);padding-top:.75rem;margin-top:.45rem}
     .dossier-grid > .tags-footer{grid-column:1 / -1;
       border-top:1px solid var(--border);padding:.7rem 0 .2rem;margin-top:.1rem}
@@ -1102,6 +1104,7 @@
         <select class="subj-sel" id="browseBy" onchange="updateBrowseDropdown()" style="flex-shrink:0">
           <option value="subject">Faction</option>
           <option value="series">Series</option>
+          <option value="topic">Subject</option>
           <option value="author">Author</option>
           <option value="setting">Setting</option>
           <option value="age">Age</option>
@@ -2089,7 +2092,7 @@ async function loadGlobalBooks(){
   // Fast load: everything EXCEPT the heavy cover_image base64 blobs.
   // Covers are fetched separately by loadCovers() after the grid renders.
   const cols = 'id,book_id,summary,spoiler,contained_works,faction,tags,'
-    + 'avg_rating,rating_count,dramatis_personae,series_list,series_position,series_positions,'
+    + 'avg_rating,rating_count,dramatis_personae,series_list,series_position,series_positions,topic,'
     + 'timeline_year,timeline_millennium,timeline_circa,type_list,author_list,faction_list,setting,setting_list,age,characters,'
     + 'title_override,author_override,year_override,type_override,subject_override,'
     + 'cover_image'
@@ -2127,6 +2130,7 @@ async function loadGlobalBooks(){
       setting_list:     r.setting_list     || '',
       characters:       r.characters       || '',
       age:              r.age              || '',
+      topic:            r.topic            || '',
       title_override:   r.title_override  || null,
       author_override:  r.author_override || null,
       year_override:    r.year_override   || null,
@@ -2360,6 +2364,13 @@ function getFiltered(){
       } else if(activeBrowseBy === 'subject'){
         // Match the parent faction, the sub-faction, or any co-starring faction
         if(!allFactionsFor(b.id).includes(activeSubject)) return false
+      } else if(activeBrowseBy === 'topic'){
+        // Series OR Subject — either route reaches the book.
+        let extra = false
+        try{ const sl=gbf.series_list; if(sl){ const ex=JSON.parse(sl); if(Array.isArray(ex)) extra=ex.includes(activeSubject) } }catch(e){}
+        const topicMatch  = (gbf.topic || '').trim() === activeSubject
+        const seriesMatch = b.subject === activeSubject && b.subject !== 'Standalone'
+        if(!seriesMatch && !extra && !topicMatch) return false
       } else {
         // Series mode: match primary subject or extra series
         let extraMatch = false
@@ -2912,6 +2923,12 @@ function openModal(bookId){
   // Series = b.subject (series grouper), Faction = separate field from globalBooks
   const mSeriesEl = document.getElementById('mSeries')
   if(mSeriesEl) mSeriesEl.textContent = b.subject || 'Standalone'
+  const gbTopic = (globalBooks[b.id] || {}).topic || ''
+  const mTopicEl = document.getElementById('mTopic')
+  if(mTopicEl) mTopicEl.textContent = gbTopic.trim() || '\u2014'
+  const mTopicIn = document.getElementById('mTopicEdit')
+  if(mTopicIn) mTopicIn.value = gbTopic
+  loadTopicList()
   const gbForFaction = globalBooks[bookId] || {}
   document.getElementById('mSubject').textContent = gbForFaction.faction || '—'
   document.getElementById('mFormat').innerHTML    = `<span class="tbadge t-${b.type.replace(' ','')}">${TYPE_LABEL(b.type)}</span>`
@@ -3176,7 +3193,7 @@ function applyEditMode(on){
   // list was written, so their view values stayed on screen beside their own
   // inputs — "Armageddon" twice, once as text and once in a box.
   const staticFields = ['mTitle','mAuthor','mYear','mFormatWrap','mSubject','mSeries',
-                        'mBookNo','mSetting','mAge','mTimeline','mCharacters','mAlsoFeatures']
+                        'mBookNo','mSetting','mAge','mTimeline','mCharacters','mAlsoFeatures','mTopic']
   staticFields.forEach(id => {
     const el = document.getElementById(id)
     if(el) el.style.display = canEditMeta ? 'none' : ''
@@ -3334,6 +3351,7 @@ async function saveModalEdits(){
     setting_list:    serializeSettings(),
     characters:      serializeCharacters(),
     age:             (document.getElementById('mAgeEdit')||{}).value || null,
+    topic:           (document.getElementById('mTopicEdit')||{}).value?.trim() || null,
     updated_at:      new Date().toISOString()
   }
   // Only send the cover blob if it actually changed (avoids re-uploading megabytes)
@@ -3379,7 +3397,8 @@ async function saveModalEdits(){
     author_override:   gData.author_override   || null,
     year_override:     gData.year_override     || null,
     type_override:     gData.type_override     || null,
-    subject_override:  gData.subject_override  || null
+    subject_override:  gData.subject_override  || null,
+    topic:             gData.topic             || null
   }
   pendingCover = null
 
@@ -3512,6 +3531,8 @@ async function saveModalEdits(){
       document.getElementById('mYear').textContent   = bk.year
       const mSeriesEl = document.getElementById('mSeries')
       if(mSeriesEl) mSeriesEl.textContent = bk.subject || 'Standalone'
+      const mTopicEl2 = document.getElementById('mTopic')
+      if(mTopicEl2) mTopicEl2.textContent = ((globalBooks[bk.id]||{}).topic || '').trim() || '\u2014'
       document.getElementById('mFormat').innerHTML =
         '<span class="tbadge t-'+bk.type.replace(' ','')+'">' + TYPE_LABEL(bk.type) + '</span>'
     }
@@ -5513,6 +5534,7 @@ function updateBrowseDropdown(skipRender){
   const placeholder = {
     subject: '— All Factions —',
     series:  '— All Series —',
+    topic:   '— All Subjects —',
     author:  '— All Authors —',
     setting: '— All Settings —',
     age:     '— All Ages —',
@@ -5555,6 +5577,18 @@ function updateBrowseDropdown(skipRender){
     // the toggle instead of padding the list with them.
     if(!aosVisible) AOS_MARKERS.forEach(m => series.delete(m))
     options = [...series].sort()
+  } else if(activeBrowseBy === 'topic'){
+    // Subject is the wide net: every series name plus every Subject, so
+    // "Blackstone Fortress" reaches the numbered books and the loose ones.
+    const s = new Set()
+    for(const b of BOOKS){
+      if(b.subject && b.subject !== 'Standalone') s.add(b.subject)
+      const sl = (globalBooks[b.id]||{}).series_list || ''
+      try{ const ex=JSON.parse(sl); if(Array.isArray(ex)) ex.forEach(x=>s.add(x)) }catch(e){}
+    }
+    allTopics().forEach(t => s.add(t))
+    if(!aosVisible) AOS_MARKERS.forEach(m => s.delete(m))
+    options = [...s].sort()
   } else if(activeBrowseBy === 'author'){
     // All authors (primary + extras)
     const authors = new Set()
@@ -5907,6 +5941,21 @@ function removeSetting(i){ settingList.splice(i,1); renderSettingTags() }
 function serializeSettings(){ return settingList.length ? JSON.stringify(settingList) : null }
 
 // Primary plus every additional setting — used by filters and search
+// Every distinct Subject in use. A Subject is the broad topic a book belongs
+// to — Blackstone Fortress, say — whether or not it sits in a numbered series.
+function allTopics(){
+  const s = new Set()
+  for(const id in globalBooks){
+    const v = (globalBooks[id].topic || '').trim()
+    if(v) s.add(v)
+  }
+  return [...s].sort()
+}
+function loadTopicList(){
+  const dl = document.getElementById('topicSuggest')
+  if(dl) dl.innerHTML = allTopics().map(t => '<option value="' + esc(t) + '"></option>').join('')
+}
+
 function allSettingsFor(bookId){
   const gb = globalBooks[bookId] || {}
   const out = []
@@ -6771,6 +6820,16 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
                   style="width:100%;font-size:.82rem" autocomplete="off"
                   onkeydown="seriesExtraKeydown(event)"/>
               </div>
+            </div>
+          </div>
+          <div class="mfield">
+            <span class="mfield-label">Subject</span>
+            <div class="mfield-val meta" id="mTopic"></div>
+            <input class="inscribe-input modal-edit-field" id="mTopicEdit" style="display:none"
+              placeholder="General topic — e.g. Blackstone Fortress" list="topicSuggest"/>
+            <datalist id="topicSuggest"></datalist>
+            <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">
+              The broad topic a book belongs to, whether or not it is part of a numbered series.
             </div>
           </div>
       <div class="tags-footer" id="tagsFooter">
