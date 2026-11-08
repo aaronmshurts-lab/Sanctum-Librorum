@@ -343,7 +343,6 @@
     /* Spoilers / Dramatis Personae live at the foot of the column now, so the
        summary is simply the first thing you read. */
     .dossier-tail{margin-top:auto;flex-shrink:0;display:flex;flex-direction:column;gap:.1rem}
-    .dossier-tail .tags-footer{padding:.65rem 0 .5rem;border-top:1px solid var(--border)}
     .dossier-tail .content-tabs{border-bottom:none;border-top:1px solid var(--border);
       padding-top:.45rem;gap:.4rem}
     .dossier-tail .content-tabs .content-tab{flex:1;justify-content:center;text-align:center;
@@ -366,6 +365,42 @@
     .dossier-grid .mfield-label{color:var(--gold);opacity:.85}
     .dossier-grid .also-wrap .tag-pill,
     .dossier-grid .tag-pill{font-style:normal;color:#ebe5da}
+
+    /* Order comes from the DOM now — the fields are emitted in reading
+       order, so a plain 2-column grid lands them where they belong.
+       CSS placement was fighting the flattened wrappers. */
+    .dossier-grid .mfield:has(#mSeries){grid-column:1 / -1;
+      border-top:1px solid var(--border);padding-top:.75rem;margin-top:.45rem}
+    .dossier-grid > .tags-footer{grid-column:1 / -1;
+      border-top:1px solid var(--border);padding:.7rem 0 .2rem;margin-top:.1rem}
+
+    /* Co-starring factions and characters are values, not chips. */
+    .dossier-grid .also-pill,
+    .dossier-grid .char-pill{background:none !important;border:none !important;
+      padding:0 !important;margin:0 !important;border-radius:0 !important;
+      color:#ebe5da !important;font-family:inherit !important;font-size:.95rem !important;
+      font-weight:500 !important;letter-spacing:0 !important;text-transform:none !important;
+      font-style:normal !important}
+    .dossier-grid .also-wrap{gap:0;margin-top:.1rem}
+    .dossier-grid .also-pill:not(:last-child)::after,
+    .dossier-grid .char-pill:not(:last-child)::after{content:'\00b7';
+      color:var(--text-muted);opacity:.6;margin:0 .4rem;font-weight:400}
+
+    /* Tags keep their boxes. */
+    .dossier-grid .tags-view .tag-chip{font-size:.55rem;padding:.2rem .5rem;margin:.1rem .2rem .1rem 0}
+
+    /* The type colour comes from a per-type class, so an ID beats it. */
+    #bookModal .dossier-head #mFormat,
+    #bookModal .dossier-head #mFormatExtra .tbadge{
+      background:none !important;border:none !important;box-shadow:none !important;
+      padding:0 !important;font-family:'EB Garamond',Georgia,serif !important;
+      font-size:.9rem !important;letter-spacing:0 !important;text-transform:none !important;
+      color:var(--text-muted) !important;font-style:italic !important}
+    #bookModal .dossier-head #mFormatExtra .tbadge::before{content:'\00b7';
+      opacity:.55;margin:0 .35rem}
+
+    .ow-sub{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--gold);opacity:.85;margin:1rem 0 .35rem}
 
     .dossier-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
       gap:.7rem 1.4rem;border-top:1px solid var(--border);padding-top:.75rem;
@@ -2810,7 +2845,8 @@ function openModal(bookId){
   const panelAI4 = document.getElementById('panelAI')
   if(panelAI4){ panelAI4.classList.remove('active'); panelAI4.style.display='none' }
   const tabAI4 = document.getElementById('tabAI')
-  if(tabAI4){ tabAI4.classList.remove('active'); tabAI4.style.display='none' }
+  // Other Works now holds Contained Works too, so the tab is always offered.
+  if(tabAI4){ tabAI4.classList.remove('active'); tabAI4.style.display='' }
   document.getElementById('tabSummary').classList.add('active')
   document.getElementById('tabSpoiler').classList.remove('active')
   const tabDP2 = document.getElementById('tabDP')
@@ -5124,8 +5160,10 @@ function loadAppearsIn(bookId){
   const appearsIn = computeAppearsIn(bookId)
 
   // Show tab if has collection binding OR appears in something
-  const showTab = hasCollectionBinding || appearsIn.length > 0
-  if(tab) tab.style.display = showTab ? '' : 'none'
+  // The tab carries Contained Works as well as Appears In, so it stays
+  // available even when the book is in no collection — otherwise an empty
+  // omnibus would have nowhere to add its contents.
+  if(tab) tab.style.display = ''
 
   // Render list
   const list = document.getElementById('appearsInList')
@@ -6442,29 +6480,6 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
         <div class="dossier-prose">
         <div class="mfield" style="flex:1;min-height:0;display:flex;flex-direction:column">
           <!-- Contained Works (Omnibus only) -->
-          <div id="mContainedSection" style="display:none;margin-bottom:.8rem;flex-shrink:1;min-height:0">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem">
-              <span class="mfield-label">Contained Works</span>
-              <button class="cascade-btn" id="cascadeBtn" onclick="forceCascade()"
-                title="Push Owned/Read/Want and binding status to all contained works">
-                &#8627; Sync Status to Contained Works
-              </button>
-            </div>
-            <div id="mContainedView" style="font-size:.85rem;color:#b8b2ac;line-height:1.8;margin-top:.3rem;max-height:150px;overflow-y:auto;padding-right:.3rem"></div>
-            <div class="modal-edit-field" id="mContainedEditWrap" style="position:relative">
-              <div class="tag-input-wrap" id="containedTagWrap" onclick="focusTagInput()">
-                <input class="tag-input-field" id="containedTagInput"
-                  placeholder="Type a title to search…"
-                  oninput="tagAutocomplete(this.value)"
-                  onkeydown="tagKeydown(event)"
-                  autocomplete="off"/>
-              </div>
-              <div class="tag-autocomplete" id="containedAcList" style="display:none"></div>
-              <div class="contained-cascade-note" id="containedCascadeNote">
-                ✦ Owned/Read/Want will cascade to these titles
-              </div>
-            </div>
-          </div>
           <!-- Summary / Spoiler tab strip -->
 
           <!-- Summary panel -->
@@ -6520,6 +6535,30 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
           <!-- Appears In panel (view only) -->
           <div class="content-panel" id="panelAI" style="display:none">
             <div style="padding-top:.6rem;flex:1;overflow-y:auto">
+          <div id="mContainedSection" style="display:none;margin-bottom:.8rem;flex-shrink:1;min-height:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem">
+              <span class="mfield-label">Contained Works</span>
+              <button class="cascade-btn" id="cascadeBtn" onclick="forceCascade()"
+                title="Push Owned/Read/Want and binding status to all contained works">
+                &#8627; Sync Status to Contained Works
+              </button>
+            </div>
+            <div id="mContainedView" style="font-size:.85rem;color:#b8b2ac;line-height:1.8;margin-top:.3rem;max-height:150px;overflow-y:auto;padding-right:.3rem"></div>
+            <div class="modal-edit-field" id="mContainedEditWrap" style="position:relative">
+              <div class="tag-input-wrap" id="containedTagWrap" onclick="focusTagInput()">
+                <input class="tag-input-field" id="containedTagInput"
+                  placeholder="Type a title to search…"
+                  oninput="tagAutocomplete(this.value)"
+                  onkeydown="tagKeydown(event)"
+                  autocomplete="off"/>
+              </div>
+              <div class="tag-autocomplete" id="containedAcList" style="display:none"></div>
+              <div class="contained-cascade-note" id="containedCascadeNote">
+                ✦ Owned/Read/Want will cascade to these titles
+              </div>
+            </div>
+          </div>
+              <div class="ow-sub">Appears in</div>
               <ul class="appears-in-list" id="appearsInList">
                 <li><em style="color:var(--text-muted);font-style:italic;font-size:.85rem">Not found in any anthology or omnibus.</em></li>
               </ul>
@@ -6574,7 +6613,91 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
         </div>
         </div>
         <div class="dossier-grid">
-        <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+          <div class="mfield">
+            <span class="mfield-label">Faction</span>
+            <div class="mfield-val meta" id="mSubject"></div>
+            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="Parent: Sub-Faction — e.g. Imperial Fists: Black Templars"/>
+            <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">
+              Formal name first, then a colon and the successor Chapter, Order or regiment.
+            </div>
+          </div>
+            <div class="mfield" style="flex:1;min-width:180px">
+              <span class="mfield-label">Setting</span>
+              <div class="mfield-val meta" id="mSetting" style="color:#90dcf0"></div>
+              <input class="inscribe-input modal-edit-field" id="mSettingEdit" style="display:none"
+                placeholder="Primary — e.g. Armageddon: Hive Tartarus" list="settingSuggest"/>
+              <datalist id="settingSuggest"></datalist>
+              <div class="modal-edit-field" id="settingEditWrap" style="display:none;margin-top:.3rem">
+                <div class="tag-input-wrap" id="settingTagWrap" onclick="document.getElementById('settingTagInput').focus()" style="min-height:34px">
+                  <input class="tag-input-field" id="settingTagInput" placeholder="Also set in…"
+                    autocomplete="off" onkeydown="settingTagKeydown(event)" list="settingSuggest"/>
+                </div>
+                <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Further worlds or locations the story visits.</div>
+              </div>
+            </div>
+          <div class="mfield">
+              <span class="mfield-label">Also Features</span>
+              <div id="mAlsoFeatures" class="also-wrap"></div>
+              <div class="modal-edit-field faction-extra-wrap" id="factionExtraWrap" style="display:none;margin-top:.3rem">
+                <div class="tag-input-wrap" id="factionTagWrap" onclick="document.getElementById('factionTagInput').focus()" style="min-height:34px">
+                  <input class="tag-input-field" id="factionTagInput" placeholder="Add a co-starring faction…"
+                    autocomplete="off" onkeydown="factionTagKeydown(event)"/>
+                </div>
+                <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Other armies appearing in the story — flat, not nested.</div>
+              </div>
+          </div>
+        <div class="timeline-section" id="mTimelineSection">
+          <span class="mfield-label">Timeline</span>
+          <div class="mfield-val meta" id="mTimeline" style="color:#c9b37e;font-family:'Cinzel',serif;letter-spacing:.06em"></div>
+          <div class="modal-edit-field" id="timelineEditRow" style="display:none;align-items:center;gap:.45rem;flex-wrap:wrap;margin-top:.25rem">
+            <input class="inscribe-input" id="mTimelineYear"
+              type="number" min="1" max="999" step="1"
+              style="width:74px;text-align:center"
+              placeholder="Year" oninput="updateTimelinePreview()" title="Year within the millennium (1–999). Leave blank for millennium only."/>
+            <span style="color:var(--text-muted);opacity:.6;font-size:.9rem">.</span>
+            <span style="color:#c9b37e;font-family:'Cinzel',serif;font-size:.85rem">M</span>
+            <input class="inscribe-input" id="mTimelineMill"
+              type="number" min="1" max="99" step="1"
+              style="width:64px;text-align:center"
+              placeholder="31" oninput="updateTimelinePreview()" title="Millennium, e.g. 31 for M31"/>
+            <label style="display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.75rem;color:var(--text-muted);margin-left:.3rem">
+              <input type="checkbox" id="mTimelineCirca" style="cursor:pointer" onchange="updateTimelinePreview()"/>
+              <span>circa</span>
+            </label>
+            <span id="mTimelinePreview" style="font-family:'Cinzel',serif;font-size:.8rem;color:#c9b37e;opacity:.75;margin-left:.35rem"></span>
+          </div>
+          <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.25rem">
+            Imperial dating: 203.M31 is the 203rd year of the 31st millennium. Tick <em>circa</em> when the exact year is uncertain.
+          </div>
+        </div>
+          <div class="mfield" style="margin-top:.7rem">
+            <span class="mfield-label">Main Characters</span>
+            <div id="mCharacters" class="also-wrap"></div>
+            <div class="modal-edit-field" id="characterEditWrap" style="display:none;margin-top:.3rem">
+              <div class="tag-input-wrap" id="characterTagWrap" onclick="document.getElementById('characterTagInput').focus()" style="min-height:34px">
+                <input class="tag-input-field" id="characterTagInput" placeholder="Add a character, then Enter…"
+                  autocomplete="off" onkeydown="characterTagKeydown(event)" list="characterSuggest"/>
+              </div>
+              <datalist id="characterSuggest"></datalist>
+              <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Point-of-view and major characters. Browsable from the Character filter.</div>
+            </div>
+          </div>
+            <div class="mfield" style="flex:1;min-width:180px">
+              <span class="mfield-label">Age</span>
+              <div class="mfield-val meta" id="mAge" style="color:#c090f0"></div>
+              <select class="inscribe-select modal-edit-field" id="mAgeEdit" style="display:none">
+                <option value="">— Not set —</option>
+                <option value="Dark Age of Technology">Dark Age of Technology</option>
+                <option value="Age of Strife">Age of Strife</option>
+                <option value="Great Crusade">Great Crusade</option>
+                <option value="Horus Heresy">Horus Heresy</option>
+                <option value="The Scouring">The Scouring</option>
+                <option value="Age of Apostasy">Age of Apostasy</option>
+                <option value="M32-M40">M32–M40</option>
+                <option value="Time of Ending">Time of Ending</option>
+                <option value="Era Indomitus">Era Indomitus</option>
+              </select>
+            </div>
           <div class="mfield">
             <span class="mfield-label">Series</span>
             <!-- Primary series row: name + book number inline -->
@@ -6602,98 +6725,6 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
               </div>
             </div>
           </div>
-          <div class="mfield">
-            <span class="mfield-label">Faction</span>
-            <div class="mfield-val meta" id="mSubject"></div>
-            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="Parent: Sub-Faction — e.g. Imperial Fists: Black Templars"/>
-            <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">
-              Formal name first, then a colon and the successor Chapter, Order or regiment.
-            </div>
-            <div style="margin-top:.6rem">
-              <span class="mfield-label">Also Features</span>
-              <div id="mAlsoFeatures" class="also-wrap"></div>
-              <div class="modal-edit-field faction-extra-wrap" id="factionExtraWrap" style="display:none;margin-top:.3rem">
-                <div class="tag-input-wrap" id="factionTagWrap" onclick="document.getElementById('factionTagInput').focus()" style="min-height:34px">
-                  <input class="tag-input-field" id="factionTagInput" placeholder="Add a co-starring faction…"
-                    autocomplete="off" onkeydown="factionTagKeydown(event)"/>
-                </div>
-                <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Other armies appearing in the story — flat, not nested.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="timeline-section">
-          <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
-            <div class="mfield" style="flex:1;min-width:180px">
-              <span class="mfield-label">Setting</span>
-              <div class="mfield-val meta" id="mSetting" style="color:#90dcf0"></div>
-              <input class="inscribe-input modal-edit-field" id="mSettingEdit" style="display:none"
-                placeholder="Primary — e.g. Armageddon: Hive Tartarus" list="settingSuggest"/>
-              <datalist id="settingSuggest"></datalist>
-              <div class="modal-edit-field" id="settingEditWrap" style="display:none;margin-top:.3rem">
-                <div class="tag-input-wrap" id="settingTagWrap" onclick="document.getElementById('settingTagInput').focus()" style="min-height:34px">
-                  <input class="tag-input-field" id="settingTagInput" placeholder="Also set in…"
-                    autocomplete="off" onkeydown="settingTagKeydown(event)" list="settingSuggest"/>
-                </div>
-                <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Further worlds or locations the story visits.</div>
-              </div>
-            </div>
-            <div class="mfield" style="flex:1;min-width:180px">
-              <span class="mfield-label">Age</span>
-              <div class="mfield-val meta" id="mAge" style="color:#c090f0"></div>
-              <select class="inscribe-select modal-edit-field" id="mAgeEdit" style="display:none">
-                <option value="">— Not set —</option>
-                <option value="Dark Age of Technology">Dark Age of Technology</option>
-                <option value="Age of Strife">Age of Strife</option>
-                <option value="Great Crusade">Great Crusade</option>
-                <option value="Horus Heresy">Horus Heresy</option>
-                <option value="The Scouring">The Scouring</option>
-                <option value="Age of Apostasy">Age of Apostasy</option>
-                <option value="M32-M40">M32–M40</option>
-                <option value="Time of Ending">Time of Ending</option>
-                <option value="Era Indomitus">Era Indomitus</option>
-              </select>
-            </div>
-          </div>
-          <div class="mfield" style="margin-top:.7rem">
-            <span class="mfield-label">Main Characters</span>
-            <div id="mCharacters" class="also-wrap"></div>
-            <div class="modal-edit-field" id="characterEditWrap" style="display:none;margin-top:.3rem">
-              <div class="tag-input-wrap" id="characterTagWrap" onclick="document.getElementById('characterTagInput').focus()" style="min-height:34px">
-                <input class="tag-input-field" id="characterTagInput" placeholder="Add a character, then Enter…"
-                  autocomplete="off" onkeydown="characterTagKeydown(event)" list="characterSuggest"/>
-              </div>
-              <datalist id="characterSuggest"></datalist>
-              <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Point-of-view and major characters. Browsable from the Character filter.</div>
-            </div>
-          </div>
-        </div>
-        <div class="timeline-section" id="mTimelineSection">
-          <span class="mfield-label">Timeline</span>
-          <div class="mfield-val meta" id="mTimeline" style="color:#c9b37e;font-family:'Cinzel',serif;letter-spacing:.06em"></div>
-          <div class="modal-edit-field" id="timelineEditRow" style="display:none;align-items:center;gap:.45rem;flex-wrap:wrap;margin-top:.25rem">
-            <input class="inscribe-input" id="mTimelineYear"
-              type="number" min="1" max="999" step="1"
-              style="width:74px;text-align:center"
-              placeholder="Year" oninput="updateTimelinePreview()" title="Year within the millennium (1–999). Leave blank for millennium only."/>
-            <span style="color:var(--text-muted);opacity:.6;font-size:.9rem">.</span>
-            <span style="color:#c9b37e;font-family:'Cinzel',serif;font-size:.85rem">M</span>
-            <input class="inscribe-input" id="mTimelineMill"
-              type="number" min="1" max="99" step="1"
-              style="width:64px;text-align:center"
-              placeholder="31" oninput="updateTimelinePreview()" title="Millennium, e.g. 31 for M31"/>
-            <label style="display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.75rem;color:var(--text-muted);margin-left:.3rem">
-              <input type="checkbox" id="mTimelineCirca" style="cursor:pointer" onchange="updateTimelinePreview()"/>
-              <span>circa</span>
-            </label>
-            <span id="mTimelinePreview" style="font-family:'Cinzel',serif;font-size:.8rem;color:#c9b37e;opacity:.75;margin-left:.35rem"></span>
-          </div>
-          <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.25rem">
-            Imperial dating: 203.M31 is the 203rd year of the 31st millennium. Tick <em>circa</em> when the exact year is uncertain.
-          </div>
-        </div>
-        </div>
-          <div class="dossier-tail">
       <div class="tags-footer" id="tagsFooter">
         <span class="tags-label">&#127991; Tags</span>
         <div class="tags-view" id="mTagsView"><em style="opacity:.4">No tags</em></div>
@@ -6702,11 +6733,13 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
           <div class="tags-hint">Comma-separated · searchable across all books</div>
         </div>
       </div>
+        </div>
+          <div class="dossier-tail">
             <div class="content-tabs" id="contentTabs">
               <button class="content-tab active" id="tabSummary" onclick="switchContentTab('summary')">&#128214; Summary</button>
               <button class="content-tab spoiler-tab" id="tabSpoiler" onclick="switchContentTab('spoiler')">&#9888; Spoilers</button>
-              <button class="content-tab" id="tabDP" onclick="switchContentTab('dp')">&#9876; Dramatis Personae</button>
-              <button class="content-tab" id="tabAI" style="display:none" onclick="switchContentTab('ai')">&#9654; Appears In</button>
+              <button class="content-tab" id="tabDP" onclick="switchContentTab('dp')">&#9876; Personae</button>
+              <button class="content-tab" id="tabAI" onclick="switchContentTab('ai')">&#9654; Other Works</button>
             </div>
           </div>
       </div>
