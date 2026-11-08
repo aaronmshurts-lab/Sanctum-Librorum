@@ -275,6 +275,9 @@
     .modal-edit-btn,.modal-close-btn{width:30px;height:30px;border-radius:2px;border:1px solid #3a3650;
       background:none;color:#b8b2ac;font-size:.85rem;cursor:pointer;display:flex;align-items:center;
       justify-content:center;transition:all .15s}
+    /* Text labels read better than glyphs in the Dossier's top bar. */
+    .modal-edit-btn.mtxt,.modal-close-btn.mtxt{width:auto;height:auto;padding:.3rem .7rem;
+      font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase}
     .modal-edit-btn:hover{border-color:var(--gold);color:var(--gold-bright)}
     .modal-edit-btn.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-bright)}
     .modal-close-btn:hover{border-color:#c85050;color:#f09090}
@@ -311,10 +314,25 @@
     /* Identity as a 2-up grid: stacked, these four fields ate a third of
        the panel in edit mode, where each is an input rather than a line. */
     .dossier-head{display:grid;grid-template-columns:1fr 1fr;gap:.4rem .9rem;
-      align-items:start;flex-shrink:0;border-bottom:1px solid var(--border);padding-bottom:.65rem}
+      align-items:start;flex-shrink:0;padding-bottom:.6rem;position:relative}
+    /* the fading gold rule from the card treatment */
+    .dossier-head::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;
+      background:linear-gradient(90deg,var(--gold),transparent)}
+
+    /* VIEW: Author · Year · Type reads as one byline, not three columns with
+       the year flung to the far right. */
+    #bookModal .modal-panel:not(.editing) .dossier-head{
+      display:flex;flex-wrap:wrap;align-items:baseline;gap:.1rem .45rem}
+    #bookModal .modal-panel:not(.editing) .dossier-head > .mfield:nth-of-type(1){
+      flex:1 0 100%;margin-bottom:.1rem}
+    #bookModal .modal-panel:not(.editing) .dossier-head .mfield-val:not(.title){
+      font-style:italic;color:var(--text-muted);font-size:.9rem}
+    #bookModal .modal-panel:not(.editing) .dossier-head #mAuthor::after,
+    #bookModal .modal-panel:not(.editing) .dossier-head #mYear::after{
+      content:' \00b7';color:var(--text-muted);opacity:.55}
     .dossier-head > .mfield{min-width:0}
     .dossier-head > .mfield:nth-of-type(1){grid-column:1 / -1}
-    .dossier-head > div[style*="flex-wrap:wrap"]{display:contents}
+    .dossier-head > div[style*="flex-wrap:wrap"]{display:contents !important}
     .dossier-head > div[style*="flex-wrap:wrap"] > .mfield:last-child{grid-column:1 / -1}
     .dossier-head .mfield-val.title{font-size:1.32rem;line-height:1.14}
     /* The big title and the byline say what they are; the labels are noise. */
@@ -333,8 +351,12 @@
     .dossier-grid > div{margin-top:0}
     .dossier-grid .timeline-section{margin-top:0}
     /* rows that were side-by-side pairs flatten into the grid */
-    .dossier-grid > div[style*="flex-wrap:wrap"]{display:contents}
-    .dossier-grid > div[style*="flex-wrap:wrap"] > .mfield{min-width:0}
+    /* Flatten every wrapper so the pairing is designed, not incidental:
+       Series | Faction, Setting | Age, Characters | Timeline. */
+    .dossier-grid > div[style*="flex-wrap:wrap"],
+    .dossier-grid > .timeline-section{display:contents !important}
+    .dossier-grid > div[style*="flex-wrap:wrap"] > .mfield,
+    .dossier-grid > .timeline-section > .mfield{min-width:0}
 
     /* Edit mode: inputs are taller than text, so let the panel grow first. */
     .modal-panel.editing{max-height:94vh}
@@ -6297,10 +6319,10 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
     <div class="modal-top">
       <div class="modal-top-id"><span id="mTopCrumb"></span></div>
       <div class="modal-ctrl">
-        <button class="modal-edit-btn" id="modalEditBtn" title="Edit" onclick="toggleEditMode()">&#9998;</button>
-        <button class="modal-edit-btn" id="modalDeleteBtn" title="Delete Entry" style="display:none;border-color:rgba(180,60,60,.4);color:#e07070" onclick="deleteCustomTome()">&#128465;</button>
-        <button class="modal-edit-btn" id="modalCopyBtn" title="Copy Tome (everything except the cover)" onclick="copyTome()">&#10697;</button>
-        <button class="modal-close-btn" title="Close" onclick="smartClose()">&#10005;</button>
+        <button class="modal-edit-btn mtxt" id="modalEditBtn" title="Edit" onclick="toggleEditMode()">Edit</button>
+        <button class="modal-edit-btn mtxt" id="modalDeleteBtn" title="Delete Entry" style="display:none;border-color:rgba(180,60,60,.4);color:#e07070" onclick="deleteCustomTome()">Delete</button>
+        <button class="modal-edit-btn mtxt" id="modalCopyBtn" title="Copy Tome (everything except the cover)" onclick="copyTome()">Copy</button>
+        <button class="modal-close-btn mtxt" title="Close" onclick="smartClose()">Close</button>
       </div>
     </div>
 
@@ -6540,7 +6562,7 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
             <span class="mfield-label">Series</span>
             <!-- Primary series row: name + book number inline -->
             <div style="display:flex;align-items:baseline;gap:.75rem;flex-wrap:nowrap">
-              <div class="mfield-val meta" id="mSeries" style="flex:1;min-width:0"></div>
+              <div class="mfield-val meta" id="mSeries" style="flex:0 1 auto;min-width:0"></div>
               <div style="display:flex;gap:.4rem;align-items:baseline;flex-shrink:0">
                 <div class="mfield-val meta" id="mBookNo" style="color:var(--gold);font-size:.82rem;opacity:.8"></div>
               </div>
