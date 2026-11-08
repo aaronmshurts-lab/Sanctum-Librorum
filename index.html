@@ -2294,6 +2294,31 @@ function sortSubject(bk){
   return allSubjects(bk).sort()[0] || bk.subject
 }
 
+// The grid groups by whatever Browse By is set to. Previously it always
+// grouped by series, so switching Faction/Author/Setting/Age/Character
+// left the order looking identical.
+function groupKeyFor(bk){
+  const gx = globalBooks[bk.id] || {}
+  switch(activeBrowseBy){
+    case 'author':    return bk.author || '\uffff'
+    case 'series':    return sortSubject(bk) || '\uffff'
+    case 'setting':   return (allSettingsFor(bk.id)[0] || '\uffff')
+    case 'character': {
+      try{ const p = JSON.parse(gx.characters || '[]')
+        if(Array.isArray(p) && p.length) return [...p].sort()[0] }catch(e){}
+      return '\uffff'
+    }
+    case 'age': {
+      // Ages sort chronologically, not A-Z.
+      const v = gx.age
+      if(!v) return '\uffff'
+      const i = AGE_ORDER.indexOf(v)
+      return (i === -1 ? '998' : String(900 + i).padStart(4,'0')) + v
+    }
+    default:          return factionHierarchy(bk.id) || sortSubject(bk) || '\uffff'
+  }
+}
+
 function renderGrid(){
   const grid=document.getElementById('grid')
   const books=getFiltered()
@@ -2311,6 +2336,7 @@ function renderGrid(){
   // Otherwise sort alphabetically by title.
   const subjectHasOrder = {}
   for(const b of books){
+    if(b.subject === 'Standalone') continue
     if((globalBooks[b.id]||{}).series_position) subjectHasOrder[b.subject] = true
   }
   const sorted = [...books].sort((a, b) => {
@@ -2356,7 +2382,7 @@ function renderGrid(){
       return a.title.localeCompare(b.title)
     }
     if(activeSubject === 'all'){
-      const subjCmp = sortSubject(a).localeCompare(sortSubject(b))
+      const subjCmp = groupKeyFor(a).localeCompare(groupKeyFor(b))
       if(subjCmp !== 0) return subjCmp
     }
     // 1. Series position (publish order) — when a specific series is selected,
@@ -2376,6 +2402,12 @@ function renderGrid(){
     const posA = posIn(a)
     const posB = posIn(b)
     if(posA !== posB) return posA - posB
+    // 1b. Publication year. The dropdown has always said "By Publish Date"
+    //     but the comparator never looked at the year — it fell straight
+    //     through to type and title, so the grid barely moved.
+    const yrA = parseInt(a.year, 10) || 9999
+    const yrB = parseInt(b.year, 10) || 9999
+    if(yrA !== yrB) return yrA - yrB
     // 2. Tome Classification order (Novel → Novella → Short Story → Anthology → Omnibus → Audio → eBook)
     const typeA = TYPE_ORDER[a.type] || 99
     const typeB = TYPE_ORDER[b.type] || 99
