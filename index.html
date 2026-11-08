@@ -5315,6 +5315,9 @@ function updateBrowseDropdown(skipRender){
       try{ const ex=JSON.parse(sl); if(Array.isArray(ex)) ex.forEach(s=>series.add(s)) }catch(e){}
     }
     customSubjects.forEach(s => series.add(s))
+    // "Standalone" is the absence of a series, not a series — it would
+    // otherwise be far and away the largest entry in this list.
+    series.delete('Standalone')
     options = [...series].sort()
   } else if(activeBrowseBy === 'author'){
     // All authors (primary + extras)
