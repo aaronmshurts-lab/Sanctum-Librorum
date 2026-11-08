@@ -413,6 +413,7 @@
 
     /* Both lists read as data block values: upright, near-white, same size. */
     #panelAI .appears-in-list li,
+    #panelAI .appears-in-list li .appears-in-link,
     #panelAI #mContainedView ul li,
     #panelAI #mContainedView ul li .contained-link{
       color:#ebe5da !important;font-family:inherit !important;font-size:.95rem !important;
@@ -422,6 +423,11 @@
     #panelAI .appears-in-list li{padding:.22rem 0}
     #panelAI #mContainedView ul li .contained-link-arrow{font-size:.7rem !important;
       color:var(--gold) !important;opacity:.7}
+    /* the type sits after the title as a muted aside, same as a data value's
+       secondary text */
+    #panelAI .appears-in-list li .appears-in-type{font-size:.8rem !important;
+      font-style:italic;color:var(--text-muted) !important;margin-left:.5rem}
+    #panelAI .appears-in-list li{display:flex;align-items:baseline;gap:0}
 
     .ow-sub{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.14em;
       text-transform:uppercase;color:var(--gold);opacity:.85;margin:1rem 0 .35rem}
