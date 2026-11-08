@@ -2629,10 +2629,22 @@ function renderGrid(){
     return
   }
 
+  // Break at the PARENT, not the full value: Imperial Fists: Black Templars,
+  // Imperial Fists: Crimson Fists and Imperial Fists: Soul Drinkers all sit
+  // under one IMPERIAL FISTS header, and the card caption still carries the
+  // successor, so the header and the card no longer say the same thing.
+  // Sorting is unchanged — a shared parent prefix already clusters them.
+  const breakKey = (bk) => {
+    const k = groupKeyFor(bk)
+    if(k === '\uffff') return '\uffff'
+    const i = k.indexOf(':')
+    return (i === -1 ? k : k.slice(0, i)).trim()
+  }
+
   let last = null
   const out = []
   for(const bk of sorted){
-    const key = groupKeyFor(bk)
+    const key = breakKey(bk)
     if(key !== last){
       const name = key === '\uffff' ? 'Unfiled' : key.replace(/^0\d{3}/, '')
       out.push('<div class="grid-break"><span>' + esc(name) + '</span></div>')
