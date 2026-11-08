@@ -280,7 +280,66 @@
     .modal-close-btn:hover{border-color:#c85050;color:#f09090}
 
     /* body layout */
-    .modal-body{display:flex;gap:1.5rem;padding:1.2rem 1.2rem 1.4rem;flex:1;min-height:0;overflow:hidden}
+    .modal-body{display:flex;gap:1.4rem;padding:1.1rem 1.2rem 1.2rem;flex:1;min-height:0;overflow:hidden}
+
+    /* ── Dossier detail panel ───────────────────────────────────
+       Left rail = your copy of the book (never moves, never scrolls).
+       Main column = the work itself, and the only thing that scrolls.
+       In edit mode the panel grows taller before the column scrolls. */
+    /* The Dossier splits the panel in two, so it needs more room than the
+       single-column layout it replaces. Scoped to the book modal only. */
+    #bookModal .modal-panel{max-width:900px;max-height:86vh}
+
+    .modal-rail{flex-shrink:0;width:186px;display:flex;flex-direction:column;gap:.5rem;
+      overflow-y:auto;overflow-x:hidden}
+    .modal-rail::-webkit-scrollbar{width:0}
+    .modal-rail .modal-cover{width:186px}
+    .modal-rail .modal-status-row{flex-direction:column;gap:.3rem}
+    .modal-rail .msbtn{justify-content:flex-start;width:100%}
+    .modal-rail .rating-row{flex-direction:row;align-items:center;justify-content:space-between;
+      gap:.4rem;padding:.5rem 0 0;border-bottom:none;border-top:1px solid var(--border);
+      background:none;flex-shrink:0}
+    .modal-rail .rating-block{gap:.15rem}
+    .modal-rail .rating-label{font-size:.5rem}
+    .modal-rail .bindings-section{margin-top:.1rem}
+
+    .modal-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:.85rem;
+      overflow-y:auto;overflow-x:hidden;padding-right:.35rem}
+    .modal-main::-webkit-scrollbar{width:7px}
+    .modal-main::-webkit-scrollbar-thumb{background:rgba(232,201,106,.22);border-radius:4px}
+
+    /* Identity as a 2-up grid: stacked, these four fields ate a third of
+       the panel in edit mode, where each is an input rather than a line. */
+    .dossier-head{display:grid;grid-template-columns:1fr 1fr;gap:.4rem .9rem;
+      align-items:start;flex-shrink:0;border-bottom:1px solid var(--border);padding-bottom:.65rem}
+    .dossier-head > .mfield{min-width:0}
+    .dossier-head > .mfield:nth-of-type(1){grid-column:1 / -1}
+    .dossier-head > div[style*="flex-wrap:wrap"]{display:contents}
+    .dossier-head > div[style*="flex-wrap:wrap"] > .mfield:last-child{grid-column:1 / -1}
+    .dossier-head .mfield-val.title{font-size:1.32rem;line-height:1.14}
+    /* The big title and the byline say what they are; the labels are noise. */
+    .dossier-head .mfield-label{display:none}
+    .modal-panel.editing .dossier-head .mfield-label{display:block}
+
+    .dossier-prose{display:flex;flex-direction:column;min-height:210px}
+    .dossier-prose > .mfield{flex:1;min-height:0}
+    .modal-panel.editing .rte-editor,
+    .modal-panel.editing .rte-wrap-spoiler .rte-editor{min-height:132px}
+
+    /* Classification: two columns, so six fields cost the height of three */
+    .dossier-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:.7rem 1.4rem;border-top:1px solid var(--border);padding-top:.75rem;
+      padding-bottom:.2rem;flex-shrink:0}
+    .dossier-grid > div{margin-top:0}
+    .dossier-grid .timeline-section{margin-top:0}
+    /* rows that were side-by-side pairs flatten into the grid */
+    .dossier-grid > div[style*="flex-wrap:wrap"]{display:contents}
+    .dossier-grid > div[style*="flex-wrap:wrap"] > .mfield{min-width:0}
+
+    /* Edit mode: inputs are taller than text, so let the panel grow first. */
+    .modal-panel.editing{max-height:94vh}
+    .modal-panel.editing .dossier-prose{min-height:190px}
+
     .modal-left{flex-shrink:0;width:230px;display:flex;flex-direction:column;gap:.7rem;overflow-y:auto}
     .modal-right{flex:1;min-width:0;display:flex;flex-direction:column;gap:.9rem}
 
@@ -2989,7 +3048,11 @@ function applyEditMode(on){
   const cView = document.getElementById('mContainedView')
   if(cView) cView.style.display = canEditMeta ? 'none' : ''
   // In edit mode hide static labels; in view mode show them
-  const staticFields = ['mTitle','mAuthor','mYear','mFormatWrap','mSubject','mSeries']
+  // Setting, Age, Characters, Also Features and Timeline were added after this
+  // list was written, so their view values stayed on screen beside their own
+  // inputs — "Armageddon" twice, once as text and once in a box.
+  const staticFields = ['mTitle','mAuthor','mYear','mFormatWrap','mSubject','mSeries',
+                        'mBookNo','mSetting','mAge','mTimeline','mCharacters','mAlsoFeatures']
   staticFields.forEach(id => {
     const el = document.getElementById(id)
     if(el) el.style.display = canEditMeta ? 'none' : ''
@@ -3049,6 +3112,10 @@ function applyEditMode(on){
   document.getElementById('modalEditBtn').classList.toggle('active',on)
   // Save row
   document.getElementById('modalSaveRow').classList.toggle('visible',on)
+  // Edit mode needs ~160px more height than view mode: let the panel grow
+  // before the main column starts scrolling.
+  const mp = document.querySelector('#bookModal .modal-panel')
+  if(mp) mp.classList.toggle('editing', !!on)
 }
 
 function cancelEditMode(){
@@ -6226,13 +6293,9 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
     <span class="modal-corner mc-tl"></span><span class="modal-corner mc-tr"></span>
     <span class="modal-corner mc-bl"></span><span class="modal-corner mc-br"></span>
 
-    <!-- top bar: status buttons + edit/close -->
+    <!-- top bar: controls only; status moved to the rail -->
     <div class="modal-top">
-      <div class="modal-status-row">
-        <button class="msbtn" id="mBtnOwned"    onclick="modalToggle('owned')">&#9675;&nbsp;Owned</button>
-        <button class="msbtn" id="mBtnRead"     onclick="modalToggle('read')">&#9675;&nbsp;Read</button>
-        <button class="msbtn" id="mBtnWishlist" onclick="modalToggle('wishlisted')">&#9734;&nbsp;Want</button>
-      </div>
+      <div class="modal-top-id"><span id="mTopCrumb"></span></div>
       <div class="modal-ctrl">
         <button class="modal-edit-btn" id="modalEditBtn" title="Edit" onclick="toggleEditMode()">&#9998;</button>
         <button class="modal-edit-btn" id="modalDeleteBtn" title="Delete Entry" style="display:none;border-color:rgba(180,60,60,.4);color:#e07070" onclick="deleteCustomTome()">&#128465;</button>
@@ -6241,26 +6304,11 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
       </div>
     </div>
 
-
-    <!-- Rating row -->
-    <div class="rating-row" id="ratingRow">
-      <div class="rating-block">
-        <span class="rating-label">My Review</span>
-        <div class="stars" id="myStars" style="cursor:pointer" onmousemove="starsMove(event)" onmouseleave="starsLeave()" onclick="starsClick(event)"></div>
-        <span class="rating-val" id="myRatingVal">&mdash;</span>
-      </div>
-      <div class="rating-block">
-        <span class="rating-label">Avg Rating</span>
-        <div class="stars" id="avgStars"></div>
-        <span class="rating-val" id="avgRatingVal">&mdash;</span>
-        <span class="rating-count" id="avgRatingCount"></span>
-      </div>
-    </div>
-
-    <!-- body -->
+    <!-- body: fixed rail + scrolling main -->
     <div class="modal-body">
-      <!-- LEFT: cover + metadata -->
-      <div class="modal-left">
+
+      <!-- RAIL: your copy of this book -->
+      <div class="modal-rail">
         <div class="modal-cover" id="modalCoverWrap">
           <img class="modal-cover-img" id="modalCoverImg" onclick="openLightbox(this.src)" alt="Book cover"/>
           <div class="modal-cover-ph">
@@ -6275,6 +6323,41 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
           <input type="file" id="modalFileInput" accept="image/*" style="display:none"
             onchange="handleCoverUpload(this)"/>
         </div>
+      <div class="modal-status-row">
+        <button class="msbtn" id="mBtnOwned"    onclick="modalToggle('owned')">&#9675;&nbsp;Owned</button>
+        <button class="msbtn" id="mBtnRead"     onclick="modalToggle('read')">&#9675;&nbsp;Read</button>
+        <button class="msbtn" id="mBtnWishlist" onclick="modalToggle('wishlisted')">&#9734;&nbsp;Want</button>
+      </div>
+        <div class="bindings-section">
+          <span class="bindings-label">Bindings Owned</span>
+          <div class="bindings-pills" id="bindingsPills">
+            <button class="binding-pill" data-binding="Hardcover"      onclick="toggleBinding('Hardcover')">Hardcover</button>
+            <button class="binding-pill" data-binding="Paperback"      onclick="toggleBinding('Paperback')">Paperback</button>
+            <button class="binding-pill" data-binding="eBook"          onclick="toggleBinding('eBook')">eBook</button>
+            <button class="binding-pill" data-binding="Audio Book"     onclick="toggleBinding('Audio Book')">Audio Book</button>
+            <button class="binding-pill ltd" data-binding="Limited Edition" onclick="toggleBinding('Limited Edition')">Ltd Edition</button>
+            <button class="binding-pill" data-binding="In Omnibus"   onclick="toggleBinding('In Omnibus')">In Omnibus</button>
+            <button class="binding-pill" data-binding="In Anthology" onclick="toggleBinding('In Anthology')">In Anthology</button>
+          </div>
+        </div>
+    <div class="rating-row" id="ratingRow">
+      <div class="rating-block">
+        <span class="rating-label">My Review</span>
+        <div class="stars" id="myStars" style="cursor:pointer" onmousemove="starsMove(event)" onmouseleave="starsLeave()" onclick="starsClick(event)"></div>
+        <span class="rating-val" id="myRatingVal">&mdash;</span>
+      </div>
+      <div class="rating-block">
+        <span class="rating-label">Avg Rating</span>
+        <div class="stars" id="avgStars"></div>
+        <span class="rating-val" id="avgRatingVal">&mdash;</span>
+        <span class="rating-count" id="avgRatingCount"></span>
+      </div>
+    </div>
+      </div>
+
+      <!-- MAIN: the work itself -->
+      <div class="modal-main">
+        <div class="dossier-head">
         <div class="mfield">
           <span class="mfield-label">Title</span>
           <div class="mfield-val title" id="mTitle"></div>
@@ -6310,140 +6393,8 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
             </div>
           </div>
         </div>
-        <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
-          <div class="mfield">
-            <span class="mfield-label">Series</span>
-            <!-- Primary series row: name + book number inline -->
-            <div style="display:flex;align-items:baseline;gap:.75rem;flex-wrap:nowrap">
-              <div class="mfield-val meta" id="mSeries" style="flex:1;min-width:0"></div>
-              <div style="display:flex;gap:.4rem;align-items:baseline;flex-shrink:0">
-                <div class="mfield-val meta" id="mBookNo" style="color:var(--gold);font-size:.82rem;opacity:.8"></div>
-              </div>
-            </div>
-            <!-- Edit row: series input + book# input inline -->
-            <div class="modal-edit-field" style="display:none;gap:.5rem;align-items:center" id="seriesEditRow">
-              <input class="inscribe-input" id="mSubjectEdit" style="flex:1" placeholder="Series"/>
-              <input class="inscribe-input" id="mBookNoEdit"
-                type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]{0,2}"
-                style="width:60px;text-align:center;flex-shrink:0"
-                placeholder="Pub #"/>
-            </div>
-            <!-- Extra series: listed below primary, no book# -->
-            <div id="seriesExtraSection" style="display:none">
-              <div class="series-extra-pills" id="seriesExtraPills" style="margin-top:.1rem"></div>
-              <div class="series-extra-input modal-edit-field" style="display:none;margin-top:.3rem">
-                <input class="inscribe-input" id="seriesExtraInput" placeholder="Add another series…"
-                  style="width:100%;font-size:.82rem" autocomplete="off"
-                  onkeydown="seriesExtraKeydown(event)"/>
-              </div>
-            </div>
-          </div>
-          <div class="mfield">
-            <span class="mfield-label">Faction</span>
-            <div class="mfield-val meta" id="mSubject"></div>
-            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="Parent: Sub-Faction — e.g. Imperial Fists: Black Templars"/>
-            <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">
-              Formal name first, then a colon and the successor Chapter, Order or regiment.
-            </div>
-            <div style="margin-top:.6rem">
-              <span class="mfield-label">Also Features</span>
-              <div id="mAlsoFeatures" class="also-wrap"></div>
-              <div class="modal-edit-field faction-extra-wrap" id="factionExtraWrap" style="display:none;margin-top:.3rem">
-                <div class="tag-input-wrap" id="factionTagWrap" onclick="document.getElementById('factionTagInput').focus()" style="min-height:34px">
-                  <input class="tag-input-field" id="factionTagInput" placeholder="Add a co-starring faction…"
-                    autocomplete="off" onkeydown="factionTagKeydown(event)"/>
-                </div>
-                <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Other armies appearing in the story — flat, not nested.</div>
-              </div>
-            </div>
-          </div>
         </div>
-        <div class="timeline-section">
-          <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
-            <div class="mfield" style="flex:1;min-width:180px">
-              <span class="mfield-label">Setting</span>
-              <div class="mfield-val meta" id="mSetting" style="color:#90dcf0"></div>
-              <input class="inscribe-input modal-edit-field" id="mSettingEdit" style="display:none"
-                placeholder="Primary — e.g. Armageddon: Hive Tartarus" list="settingSuggest"/>
-              <datalist id="settingSuggest"></datalist>
-              <div class="modal-edit-field" id="settingEditWrap" style="display:none;margin-top:.3rem">
-                <div class="tag-input-wrap" id="settingTagWrap" onclick="document.getElementById('settingTagInput').focus()" style="min-height:34px">
-                  <input class="tag-input-field" id="settingTagInput" placeholder="Also set in…"
-                    autocomplete="off" onkeydown="settingTagKeydown(event)" list="settingSuggest"/>
-                </div>
-                <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Further worlds or locations the story visits.</div>
-              </div>
-            </div>
-            <div class="mfield" style="flex:1;min-width:180px">
-              <span class="mfield-label">Age</span>
-              <div class="mfield-val meta" id="mAge" style="color:#c090f0"></div>
-              <select class="inscribe-select modal-edit-field" id="mAgeEdit" style="display:none">
-                <option value="">— Not set —</option>
-                <option value="Dark Age of Technology">Dark Age of Technology</option>
-                <option value="Age of Strife">Age of Strife</option>
-                <option value="Great Crusade">Great Crusade</option>
-                <option value="Horus Heresy">Horus Heresy</option>
-                <option value="The Scouring">The Scouring</option>
-                <option value="Age of Apostasy">Age of Apostasy</option>
-                <option value="M32-M40">M32–M40</option>
-                <option value="Time of Ending">Time of Ending</option>
-                <option value="Era Indomitus">Era Indomitus</option>
-              </select>
-            </div>
-          </div>
-          <div class="mfield" style="margin-top:.7rem">
-            <span class="mfield-label">Main Characters</span>
-            <div id="mCharacters" class="also-wrap"></div>
-            <div class="modal-edit-field" id="characterEditWrap" style="display:none;margin-top:.3rem">
-              <div class="tag-input-wrap" id="characterTagWrap" onclick="document.getElementById('characterTagInput').focus()" style="min-height:34px">
-                <input class="tag-input-field" id="characterTagInput" placeholder="Add a character, then Enter…"
-                  autocomplete="off" onkeydown="characterTagKeydown(event)" list="characterSuggest"/>
-              </div>
-              <datalist id="characterSuggest"></datalist>
-              <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Point-of-view and major characters. Browsable from the Character filter.</div>
-            </div>
-          </div>
-        </div>
-        <div class="timeline-section" id="mTimelineSection">
-          <span class="mfield-label">Timeline</span>
-          <div class="mfield-val meta" id="mTimeline" style="color:#c9b37e;font-family:'Cinzel',serif;letter-spacing:.06em"></div>
-          <div class="modal-edit-field" id="timelineEditRow" style="display:none;align-items:center;gap:.45rem;flex-wrap:wrap;margin-top:.25rem">
-            <input class="inscribe-input" id="mTimelineYear"
-              type="number" min="1" max="999" step="1"
-              style="width:74px;text-align:center"
-              placeholder="Year" oninput="updateTimelinePreview()" title="Year within the millennium (1–999). Leave blank for millennium only."/>
-            <span style="color:var(--text-muted);opacity:.6;font-size:.9rem">.</span>
-            <span style="color:#c9b37e;font-family:'Cinzel',serif;font-size:.85rem">M</span>
-            <input class="inscribe-input" id="mTimelineMill"
-              type="number" min="1" max="99" step="1"
-              style="width:64px;text-align:center"
-              placeholder="31" oninput="updateTimelinePreview()" title="Millennium, e.g. 31 for M31"/>
-            <label style="display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.75rem;color:var(--text-muted);margin-left:.3rem">
-              <input type="checkbox" id="mTimelineCirca" style="cursor:pointer" onchange="updateTimelinePreview()"/>
-              <span>circa</span>
-            </label>
-            <span id="mTimelinePreview" style="font-family:'Cinzel',serif;font-size:.8rem;color:#c9b37e;opacity:.75;margin-left:.35rem"></span>
-          </div>
-          <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.25rem">
-            Imperial dating: 203.M31 is the 203rd year of the 31st millennium. Tick <em>circa</em> when the exact year is uncertain.
-          </div>
-        </div>
-        <div class="bindings-section">
-          <span class="bindings-label">Bindings Owned</span>
-          <div class="bindings-pills" id="bindingsPills">
-            <button class="binding-pill" data-binding="Hardcover"      onclick="toggleBinding('Hardcover')">Hardcover</button>
-            <button class="binding-pill" data-binding="Paperback"      onclick="toggleBinding('Paperback')">Paperback</button>
-            <button class="binding-pill" data-binding="eBook"          onclick="toggleBinding('eBook')">eBook</button>
-            <button class="binding-pill" data-binding="Audio Book"     onclick="toggleBinding('Audio Book')">Audio Book</button>
-            <button class="binding-pill ltd" data-binding="Limited Edition" onclick="toggleBinding('Limited Edition')">Ltd Edition</button>
-            <button class="binding-pill" data-binding="In Omnibus"   onclick="toggleBinding('In Omnibus')">In Omnibus</button>
-            <button class="binding-pill" data-binding="In Anthology" onclick="toggleBinding('In Anthology')">In Anthology</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- RIGHT: summary -->
-      <div class="modal-right">
+        <div class="dossier-prose">
         <div class="mfield" style="flex:1;min-height:0;display:flex;flex-direction:column">
           <!-- Contained Works (Omnibus only) -->
           <div id="mContainedSection" style="display:none;margin-bottom:.8rem;flex-shrink:1;min-height:0">
@@ -6582,8 +6533,129 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
               placeholder="Enter dramatis personae…"></div>
           </div>
         </div>
-      </div></div>
-
+        </div>
+        <div class="dossier-grid">
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+          <div class="mfield">
+            <span class="mfield-label">Series</span>
+            <!-- Primary series row: name + book number inline -->
+            <div style="display:flex;align-items:baseline;gap:.75rem;flex-wrap:nowrap">
+              <div class="mfield-val meta" id="mSeries" style="flex:1;min-width:0"></div>
+              <div style="display:flex;gap:.4rem;align-items:baseline;flex-shrink:0">
+                <div class="mfield-val meta" id="mBookNo" style="color:var(--gold);font-size:.82rem;opacity:.8"></div>
+              </div>
+            </div>
+            <!-- Edit row: series input + book# input inline -->
+            <div class="modal-edit-field" style="display:none;gap:.5rem;align-items:center" id="seriesEditRow">
+              <input class="inscribe-input" id="mSubjectEdit" style="flex:1" placeholder="Series"/>
+              <input class="inscribe-input" id="mBookNoEdit"
+                type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]{0,2}"
+                style="width:60px;text-align:center;flex-shrink:0"
+                placeholder="Pub #"/>
+            </div>
+            <!-- Extra series: listed below primary, no book# -->
+            <div id="seriesExtraSection" style="display:none">
+              <div class="series-extra-pills" id="seriesExtraPills" style="margin-top:.1rem"></div>
+              <div class="series-extra-input modal-edit-field" style="display:none;margin-top:.3rem">
+                <input class="inscribe-input" id="seriesExtraInput" placeholder="Add another series…"
+                  style="width:100%;font-size:.82rem" autocomplete="off"
+                  onkeydown="seriesExtraKeydown(event)"/>
+              </div>
+            </div>
+          </div>
+          <div class="mfield">
+            <span class="mfield-label">Faction</span>
+            <div class="mfield-val meta" id="mSubject"></div>
+            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="Parent: Sub-Faction — e.g. Imperial Fists: Black Templars"/>
+            <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">
+              Formal name first, then a colon and the successor Chapter, Order or regiment.
+            </div>
+            <div style="margin-top:.6rem">
+              <span class="mfield-label">Also Features</span>
+              <div id="mAlsoFeatures" class="also-wrap"></div>
+              <div class="modal-edit-field faction-extra-wrap" id="factionExtraWrap" style="display:none;margin-top:.3rem">
+                <div class="tag-input-wrap" id="factionTagWrap" onclick="document.getElementById('factionTagInput').focus()" style="min-height:34px">
+                  <input class="tag-input-field" id="factionTagInput" placeholder="Add a co-starring faction…"
+                    autocomplete="off" onkeydown="factionTagKeydown(event)"/>
+                </div>
+                <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Other armies appearing in the story — flat, not nested.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="timeline-section">
+          <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+            <div class="mfield" style="flex:1;min-width:180px">
+              <span class="mfield-label">Setting</span>
+              <div class="mfield-val meta" id="mSetting" style="color:#90dcf0"></div>
+              <input class="inscribe-input modal-edit-field" id="mSettingEdit" style="display:none"
+                placeholder="Primary — e.g. Armageddon: Hive Tartarus" list="settingSuggest"/>
+              <datalist id="settingSuggest"></datalist>
+              <div class="modal-edit-field" id="settingEditWrap" style="display:none;margin-top:.3rem">
+                <div class="tag-input-wrap" id="settingTagWrap" onclick="document.getElementById('settingTagInput').focus()" style="min-height:34px">
+                  <input class="tag-input-field" id="settingTagInput" placeholder="Also set in…"
+                    autocomplete="off" onkeydown="settingTagKeydown(event)" list="settingSuggest"/>
+                </div>
+                <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Further worlds or locations the story visits.</div>
+              </div>
+            </div>
+            <div class="mfield" style="flex:1;min-width:180px">
+              <span class="mfield-label">Age</span>
+              <div class="mfield-val meta" id="mAge" style="color:#c090f0"></div>
+              <select class="inscribe-select modal-edit-field" id="mAgeEdit" style="display:none">
+                <option value="">— Not set —</option>
+                <option value="Dark Age of Technology">Dark Age of Technology</option>
+                <option value="Age of Strife">Age of Strife</option>
+                <option value="Great Crusade">Great Crusade</option>
+                <option value="Horus Heresy">Horus Heresy</option>
+                <option value="The Scouring">The Scouring</option>
+                <option value="Age of Apostasy">Age of Apostasy</option>
+                <option value="M32-M40">M32–M40</option>
+                <option value="Time of Ending">Time of Ending</option>
+                <option value="Era Indomitus">Era Indomitus</option>
+              </select>
+            </div>
+          </div>
+          <div class="mfield" style="margin-top:.7rem">
+            <span class="mfield-label">Main Characters</span>
+            <div id="mCharacters" class="also-wrap"></div>
+            <div class="modal-edit-field" id="characterEditWrap" style="display:none;margin-top:.3rem">
+              <div class="tag-input-wrap" id="characterTagWrap" onclick="document.getElementById('characterTagInput').focus()" style="min-height:34px">
+                <input class="tag-input-field" id="characterTagInput" placeholder="Add a character, then Enter…"
+                  autocomplete="off" onkeydown="characterTagKeydown(event)" list="characterSuggest"/>
+              </div>
+              <datalist id="characterSuggest"></datalist>
+              <div style="font-size:.7rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">Point-of-view and major characters. Browsable from the Character filter.</div>
+            </div>
+          </div>
+        </div>
+        <div class="timeline-section" id="mTimelineSection">
+          <span class="mfield-label">Timeline</span>
+          <div class="mfield-val meta" id="mTimeline" style="color:#c9b37e;font-family:'Cinzel',serif;letter-spacing:.06em"></div>
+          <div class="modal-edit-field" id="timelineEditRow" style="display:none;align-items:center;gap:.45rem;flex-wrap:wrap;margin-top:.25rem">
+            <input class="inscribe-input" id="mTimelineYear"
+              type="number" min="1" max="999" step="1"
+              style="width:74px;text-align:center"
+              placeholder="Year" oninput="updateTimelinePreview()" title="Year within the millennium (1–999). Leave blank for millennium only."/>
+            <span style="color:var(--text-muted);opacity:.6;font-size:.9rem">.</span>
+            <span style="color:#c9b37e;font-family:'Cinzel',serif;font-size:.85rem">M</span>
+            <input class="inscribe-input" id="mTimelineMill"
+              type="number" min="1" max="99" step="1"
+              style="width:64px;text-align:center"
+              placeholder="31" oninput="updateTimelinePreview()" title="Millennium, e.g. 31 for M31"/>
+            <label style="display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.75rem;color:var(--text-muted);margin-left:.3rem">
+              <input type="checkbox" id="mTimelineCirca" style="cursor:pointer" onchange="updateTimelinePreview()"/>
+              <span>circa</span>
+            </label>
+            <span id="mTimelinePreview" style="font-family:'Cinzel',serif;font-size:.8rem;color:#c9b37e;opacity:.75;margin-left:.35rem"></span>
+          </div>
+          <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.25rem">
+            Imperial dating: 203.M31 is the 203rd year of the 31st millennium. Tick <em>circa</em> when the exact year is uncertain.
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
     <!-- save row (edit mode only) -->
     <div class="modal-save-row" id="modalSaveRow">
       <button class="modal-cancel-btn" onclick="cancelEditMode();smartClose()">Cancel</button>
