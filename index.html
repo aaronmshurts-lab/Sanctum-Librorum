@@ -405,6 +405,12 @@
     #bookModal .dossier-head #mFormatExtra .tbadge::before{content:'\00b7';
       opacity:.55;margin:0 .35rem}
 
+    /* The separator belongs after the whole Appears In list, not between its
+       entries — li:last-child stripped it from exactly where it was wanted. */
+    #panelAI .appears-in-list li{border-bottom:none}
+    #panelAI .appears-in-list{border-bottom:1px solid var(--border);
+      padding-bottom:.5rem;margin-bottom:.2rem}
+
     .ow-sub{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.14em;
       text-transform:uppercase;color:var(--gold);opacity:.85;margin:1rem 0 .35rem}
 
