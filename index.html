@@ -6236,34 +6236,22 @@ const RT_SEP = '; '
 // ignored on import, because Title/Author/Year/Type/Series write through
 // override columns that behave differently for custom tomes.
 const RT_COLS = [
-  ['book_id',          'book_id',      false],
-  ['Title',            'title',        false],
-  ['Author(s)',        'authors',      false],
-  ['Year',             'year',         false],
-  ['Type',             'type',         false],
-  ['Primary Series',   'series',       false],
-  ['Book #',           'series_position', true],
-  ['Extra Series',     'series_list',  true],
-  ['Extra Series #',   'series_positions', true],
-  ['Faction',          'faction',      true],
+  ['book_id',          'book_id',   false],
+  ['Name',             'title',     false],
+  ['Author',           'authors',   true],
+  ['Faction',          'faction',   true],
   ['Also Features',    'faction_list', true],
-  ['Setting',          'setting',      true],
-  ['Also Set In',      'setting_list', true],
-  ['Age',              'age',          true],
-  ['Characters',       'characters',   true],
-  ['Tags',             'tags',         true],
-  ['Extra Types',      'type_list',    true],
-  ['Extra Authors',    'author_list',  true],
-  ['Timeline Year',    'timeline_year', true],
-  ['Timeline Mill',    'timeline_millennium', true],
-  ['Circa',            'timeline_circa', true],
-  ['Owned',            'owned',        true],
-  ['Read',             'read',         true],
-  ['Want',             'wishlisted',   true],
-  ['Bindings',         'bindings',     true]
+  ['Main Characters',  'characters',true],
+  ['Setting',          'setting',   true],
+  ['Timeline',         'timeline',  true],
+  ['Age',              'age',       true],
+  ['Series',           'series',    true],
+  ['Subject',          'topic',     true],
+  ['Tags',             'tags',      true]
 ]
-const RT_GLOBAL_FIELDS = ['series_position','series_list','series_positions','faction','faction_list',
-  'setting','setting_list','age','characters','tags','type_list','author_list',
+const RT_GLOBAL_FIELDS = ['faction','faction_list','characters','setting','setting_list',
+  'age','tags','topic','author_override','author_list','subject_override',
+  'series_position','series_list','series_positions',
   'timeline_year','timeline_millennium','timeline_circa']
 const RT_USER_FIELDS = ['owned','read','wishlisted','bindings']
 
@@ -6294,34 +6282,77 @@ function rtPosSplit(s){
 const rtYN  = b => b ? 'Y' : ''
 const rtBool = s => /^(y|yes|true|1|x)$/i.test(String(s == null ? '' : s).trim())
 
-function rtRowFor(b){
-  const gb = globalBooks[b.id] || {}, ub = userBooks[b.id] || {}
+// "941.M41" / "c.941.M41" / "M41"  <->  year, millennium, circa
+function rtTimeJoin(gb){
+  const mi = gb.timeline_millennium
+  if(mi == null || mi === '') return ''
+  const yr = (gb.timeline_year == null || gb.timeline_year === '') ? '' : String(gb.timeline_year).padStart(3,'0') + '.'
+  return (gb.timeline_circa ? 'c.' : '') + yr + 'M' + mi
+}
+function rtTimeSplit(s){
+  const t = String(s == null ? '' : s).trim()
+  if(!t) return {timeline_year:null, timeline_millennium:null, timeline_circa:false}
+  const circa = /^c\.?\s*/i.test(t)
+  const body  = t.replace(/^c\.?\s*/i,'')
+  const m = body.match(/^(?:(\d{1,3})\s*\.\s*)?M\s*(\d{1,2})$/i)
+  if(!m) return null
+  return {timeline_year: m[1] ? parseInt(m[1],10) : null,
+          timeline_millennium: parseInt(m[2],10), timeline_circa: circa}
+}
+
+// "Space Marine Battles #5; Imperial Guard #9" — first is the primary
+function rtSeriesJoin(b, gb){
+  const out = []
+  if(b.subject && b.subject !== 'Standalone')
+    out.push(b.subject + (gb.series_position != null && gb.series_position !== '' ? ' #' + gb.series_position : ''))
+  let pos = {}
+  try{ const p = JSON.parse(gb.series_positions || '{}'); if(p && typeof p === 'object') pos = p }catch(e){}
+  try{ const ex = JSON.parse(gb.series_list || '[]')
+    if(Array.isArray(ex)) ex.filter(Boolean).forEach(n =>
+      out.push(n + (pos[n] != null && pos[n] !== '' ? ' #' + pos[n] : ''))) }catch(e){}
+  return out.join(RT_SEP)
+}
+function rtSeriesSplit(s){
+  const parts = String(s == null ? '' : s).split(';').map(x => x.trim()).filter(Boolean)
+  const named = parts.map(p => {
+    const m = p.match(/^(.*?)\s*#\s*([0-9]+(?:\.[0-9]+)?)\s*$/)
+    return m ? {name: m[1].trim(), pos: parseFloat(m[2])} : {name: p, pos: null}
+  })
+  const first = named[0] || null
+  const rest  = named.slice(1)
+  const posMap = {}
+  rest.forEach(x => { if(x.pos != null) posMap[x.name] = x.pos })
   return {
-    book_id: b.id,
-    title: b.title,
-    authors: allAuthorsForCard(b),
-    year: b.year,
-    type: b.type,
-    series: b.subject || '',
-    series_position: gb.series_position == null ? '' : gb.series_position,
-    series_list: rtJoin(gb.series_list),
-    series_positions: rtPosJoin(gb.series_positions),
-    faction: factionHierarchy(b.id) || '',
+    subject_override: first ? first.name : 'Standalone',
+    series_position:  first ? first.pos  : null,
+    series_list:      rest.length ? JSON.stringify(rest.map(x => x.name)) : null,
+    series_positions: Object.keys(posMap).length ? JSON.stringify(posMap) : null
+  }
+}
+
+function rtRowFor(b){
+  const gb = globalBooks[b.id] || {}
+  const also = rtJoin(gb.setting_list)
+  return {
+    book_id:    b.id,
+    title:      b.title,
+    // allAuthorsForCard joins with a comma; the sheet separator is a semicolon,
+    // or a two-author book would re-import as one mangled name.
+    authors:    (function(){
+                  let ex = []
+                  try{ const p = JSON.parse(gb.author_list || '[]'); if(Array.isArray(p)) ex = p.filter(Boolean) }catch(e){}
+                  return [b.author, ...ex].filter(Boolean).join(RT_SEP)
+                }()),
+    faction:    factionHierarchy(b.id) || '',
     faction_list: splitFaction(b.id).also.join(RT_SEP),
-    setting: gb.setting || '',
-    setting_list: rtJoin(gb.setting_list),
-    age: gb.age || '',
     characters: rtJoin(gb.characters),
-    tags: gb.tags || '',
-    type_list: rtJoin(gb.type_list),
-    author_list: rtJoin(gb.author_list),
-    timeline_year: gb.timeline_year == null ? '' : gb.timeline_year,
-    timeline_millennium: gb.timeline_millennium == null ? '' : gb.timeline_millennium,
-    timeline_circa: rtYN(gb.timeline_circa),
-    owned: rtYN(ub.owned),
-    read: rtYN(ub.read),
-    wishlisted: rtYN(ub.wishlisted),
-    bindings: (ub.bindings || []).join(RT_SEP)
+    setting:    [gb.setting || '', also].filter(Boolean).join(RT_SEP),
+    timeline:   rtTimeJoin(gb),
+    age:        gb.age || '',
+    series:     rtSeriesJoin(b, gb),
+    topic:      gb.topic || '',
+    // tags are comma-delimited in storage; the sheet uses one separator throughout
+    tags:       (gb.tags || '').split(',').map(s => s.trim()).filter(Boolean).join(RT_SEP)
   }
 }
 
@@ -6330,31 +6361,41 @@ function exportFullData(){
   const aoa = [RT_COLS.map(c => c[0])]
   books.forEach(b => { const r = rtRowFor(b); aoa.push(RT_COLS.map(c => r[c[1]])) })
   const ws = XLSX.utils.aoa_to_sheet(aoa)
-  ws['!cols'] = [{wch:14},{wch:40},{wch:24},{wch:6},{wch:13},{wch:24},{wch:7},{wch:26},{wch:22},
-    {wch:34},{wch:30},{wch:24},{wch:24},{wch:18},{wch:34},{wch:26},{wch:18},{wch:22},
-    {wch:8},{wch:8},{wch:6},{wch:7},{wch:6},{wch:6},{wch:26}]
+  ws['!cols'] = [{wch:14},{wch:42},{wch:28},{wch:34},{wch:28},{wch:38},
+    {wch:28},{wch:12},{wch:18},{wch:34},{wch:24},{wch:34}]
   ws['!freeze'] = {xSplit:1, ySplit:1}
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Tomes')
   const notes = [
-    ['SANCTUM LIBRORUM — FULL DATA ROUND TRIP'],[''],
-    ['Edit the Tomes tab, save, then use "Import Edits" in the app.'],[''],
+    ['SANCTUM LIBRORUM — ROUND TRIP'],[''],
+    ['Edit the Tomes tab, save, then use "Import Edits" in the app.'],
+    ['Every column but book_id and Name writes back to the archive for all users.'],[''],
     ['RULES'],
     ['book_id','Never change or delete this. It is how a row is matched on import.'],
-    ['Multi-value cells','Separate with a semicolon:  Blood Angels; Orks; Astra Militarum'],
-    ['Faction','Written as  Parent: Sub-Faction  — e.g.  Imperial Fists: Black Templars'],
-    ['Extra Series #','Name=Number pairs:  Black Legion=2; Dawn of Fire=4'],
-    ['Y/N columns','Y, Yes, True, 1 or X all mean yes. Anything else means no.'],
+    ['Name','Reference only — edits here are ignored. Rename in the app.'],
+    ['Multi-value cells','Separate with a SEMICOLON, not a comma:  Orks; Astra Militarum'],
+    ['','A comma is left alone, so "Inquisition War, The" stays one value.'],[''],
+    ['COLUMN FORMATS'],
+    ['Author','First name listed is the primary; the rest become additional authors.'],
+    ['Faction','Parent: Sub-Faction  — e.g.  Imperial Fists: Black Templars'],
+    ['Also Features','Co-starring factions, flat:  Orks; Astra Militarum'],
+    ['Main Characters','Grimaldus; Andrej Valatok'],
+    ['Setting','First is the primary setting; the rest are also-set-in.'],
+    ['Timeline','941.M41  ·  M41 for millennium only  ·  c.941.M41 when approximate.'],
+    ['Age','Must match one of the Age values the app offers, or it is ignored.'],
+    ['Series','First is the primary. Add a number with #:  Space Marine Battles #5'],
+    ['','Several series:  Death Korps of Krieg #2; Imperial Guard #9'],
+    ['','Leave blank, or write Standalone, for a book in no series.'],
+    ['Subject','The broad topic, whether or not the book is in a series.'],
+    ['Tags','Searchable keywords:  Space Marines; Armageddon'],[''],
     ['Blank a cell','Clears that field on import. The preview tells you before it happens.'],
-    ['Deleting a row','Nothing happens. Only rows present in the file are considered.'],[''],
-    ['REFERENCE COLUMNS (edits ignored on import)'],
-    ['','Title, Author(s), Year, Type, Primary Series — change these in the app.']
+    ['Deleting a row','Nothing happens. Only rows present in the file are considered.']
   ]
   const ws2 = XLSX.utils.aoa_to_sheet(notes)
   ws2['!cols'] = [{wch:20},{wch:92}]
   XLSX.utils.book_append_sheet(wb, ws2, 'Read Me')
-  XLSX.writeFile(wb, 'sanctum-librorum-full-data.xlsx')
-  showToast('Exported ' + books.length.toLocaleString() + ' tomes with every editable field.')
+  XLSX.writeFile(wb, 'sanctum-librorum-round-trip.xlsx')
+  showToast('Exported ' + books.length.toLocaleString() + ' tomes.')
 }
 
 // ── IMPORT ────────────────────────────────────────────────────────────────
@@ -6406,15 +6447,26 @@ function buildImportPreview(rows){
       diffs.push({field: hdr, from: ov, to: nv})
       if(RT_USER_FIELDS.indexOf(key) !== -1){
         u[key] = (key === 'bindings') ? nv.split(';').map(s=>s.trim()).filter(Boolean) : rtBool(nv)
-      } else if(key === 'series_list' || key === 'setting_list' || key === 'characters'
-             || key === 'type_list'   || key === 'author_list' || key === 'faction_list'){
+      } else if(key === 'characters' || key === 'faction_list'){
         g[key] = rtSplit(nv)
-      } else if(key === 'series_positions'){
-        g[key] = rtPosSplit(nv)
-      } else if(key === 'series_position' || key === 'timeline_year' || key === 'timeline_millennium'){
-        const n = parseFloat(nv); g[key] = isNaN(n) ? null : n
-      } else if(key === 'timeline_circa'){
-        g[key] = rtBool(nv)
+      } else if(key === 'authors'){
+        // first listed is the primary, the rest are extras
+        const a = nv.split(';').map(s => s.trim()).filter(Boolean)
+        g.author_override = a.length ? a[0] : null
+        g.author_list     = a.length > 1 ? JSON.stringify(a.slice(1)) : null
+      } else if(key === 'setting'){
+        const a = nv.split(';').map(s => s.trim()).filter(Boolean)
+        g.setting      = a.length ? a[0] : null
+        g.setting_list = a.length > 1 ? JSON.stringify(a.slice(1)) : null
+      } else if(key === 'timeline'){
+        const t = rtTimeSplit(nv)
+        if(t === null){ diffs.pop(); continue }   // unparseable — leave the book alone
+        Object.assign(g, t)
+      } else if(key === 'series'){
+        Object.assign(g, rtSeriesSplit(nv))
+      } else if(key === 'tags'){
+        // the sheet uses semicolons; storage is comma-delimited
+        g.tags = nv.split(';').map(s => s.trim()).filter(Boolean).join(', ') || null
       } else {
         g[key] = nv || null
       }
@@ -6472,8 +6524,20 @@ async function applyImport(){
   if(!rtPending || !rtPending.length) return
   const btn = document.getElementById('rtApplyBtn')
   if(btn){ btn.disabled = true; btn.textContent = 'Applying…' }
-  const gRows = [], uRows = []
+  const gRows = [], uRows = [], ctRows = []
   for(const c of rtPending){
+    // A custom tome never sees subject_override or author_override:
+    // loadCustomTomes pushes its own subject and author AFTER the overrides
+    // are applied, so those two have to be written to custom_tomes instead.
+    if(c.bookId.startsWith('custom-')){
+      const ct = {}
+      if('subject_override' in c.global) ct.subject = c.global.subject_override || 'Standalone'
+      if('author_override'  in c.global) ct.author  = c.global.author_override  || 'Unknown'
+      if(Object.keys(ct).length){
+        ct.id = c.bookId.slice(7)
+        ctRows.push(ct)
+      }
+    }
     if(Object.keys(c.global).length)
       gRows.push(Object.assign({book_id: c.bookId}, c.global, {updated_at: new Date().toISOString()}))
     if(Object.keys(c.user).length){
@@ -6490,6 +6554,16 @@ async function applyImport(){
     else{
       ok += batch.length
       batch.forEach(r => { globalBooks[r.book_id] = Object.assign({}, globalBooks[r.book_id] || {}, r) })
+    }
+  }
+  for(const r of ctRows){
+    const {id, ...fields} = r
+    const {error} = await supabase.from('custom_tomes').update(fields).eq('id', id)
+    if(error){ console.error('custom_tomes update failed for ' + id + ':', error); failed++ }
+    else{
+      ok++
+      const local = BOOKS.find(x => x.id === 'custom-' + id)
+      if(local) Object.assign(local, fields)
     }
   }
   for(const batch of chunk(uRows, 200)){
