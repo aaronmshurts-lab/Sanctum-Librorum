@@ -334,17 +334,39 @@
     .dossier-head > .mfield:nth-of-type(1){grid-column:1 / -1}
     .dossier-head > div[style*="flex-wrap:wrap"]{display:contents !important}
     .dossier-head > div[style*="flex-wrap:wrap"] > .mfield:last-child{grid-column:1 / -1}
-    .dossier-head .mfield-val.title{font-size:1.32rem;line-height:1.14}
+    .dossier-head .mfield-val.title{font-size:1.72rem;line-height:1.1;
+      color:var(--gold-bright);font-weight:700;letter-spacing:.012em}
     /* The big title and the byline say what they are; the labels are noise. */
     .dossier-head .mfield-label{display:none}
     .modal-panel.editing .dossier-head .mfield-label{display:block}
 
-    .dossier-prose{display:flex;flex-direction:column;min-height:210px}
+    /* Spoilers / Dramatis Personae live at the foot of the column now, so the
+       summary is simply the first thing you read. */
+    .dossier-tail{margin-top:auto;flex-shrink:0;display:flex;flex-direction:column;gap:.1rem}
+    .dossier-tail .tags-footer{padding:.65rem 0 .5rem;border-top:1px solid var(--border)}
+    .dossier-tail .content-tabs{border-bottom:none;border-top:1px solid var(--border);
+      padding-top:.45rem;gap:.4rem}
+    .dossier-tail .content-tabs .content-tab{flex:1;justify-content:center;text-align:center;
+      border:1px solid #2a2640;border-radius:2px}
+    .dossier-tail .content-tabs .content-tab.active{border-color:var(--border-gold);
+      background:rgba(232,201,106,.07)}
+
+    .dossier-prose{display:flex;flex-direction:column;min-height:120px}
     .dossier-prose > .mfield{flex:1;min-height:0}
     .modal-panel.editing .rte-editor,
     .modal-panel.editing .rte-wrap-spoiler .rte-editor{min-height:132px}
 
     /* Classification: two columns, so six fields cost the height of three */
+    /* Values read as data, not as asides: upright, near-white, a little
+       heavier. The per-field inline colours (blue Setting, purple Age) are
+       inline styles, so overriding them needs !important. */
+    .dossier-grid .mfield-val,
+    .dossier-grid .mfield-val.meta{font-style:normal !important;
+      color:#ebe5da !important;font-size:.95rem;font-weight:500;line-height:1.38}
+    .dossier-grid .mfield-label{color:var(--gold);opacity:.85}
+    .dossier-grid .also-wrap .tag-pill,
+    .dossier-grid .tag-pill{font-style:normal;color:#ebe5da}
+
     .dossier-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
       gap:.7rem 1.4rem;border-top:1px solid var(--border);padding-top:.75rem;
       padding-bottom:.2rem;flex-shrink:0}
@@ -354,7 +376,8 @@
     /* Flatten every wrapper so the pairing is designed, not incidental:
        Series | Faction, Setting | Age, Characters | Timeline. */
     .dossier-grid > div[style*="flex-wrap:wrap"],
-    .dossier-grid > .timeline-section{display:contents !important}
+    .dossier-grid > .timeline-section:not(#mTimelineSection){display:contents !important}
+    .dossier-grid > #mTimelineSection{display:flex;flex-direction:column;gap:.25rem}
     .dossier-grid > div[style*="flex-wrap:wrap"] > .mfield,
     .dossier-grid > .timeline-section > .mfield{min-width:0}
 
@@ -6443,12 +6466,6 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
             </div>
           </div>
           <!-- Summary / Spoiler tab strip -->
-          <div class="content-tabs" id="contentTabs">
-            <button class="content-tab active" id="tabSummary" onclick="switchContentTab('summary')">&#128214; Summary</button>
-            <button class="content-tab spoiler-tab" id="tabSpoiler" onclick="switchContentTab('spoiler')">&#9888; Spoilers</button>
-            <button class="content-tab" id="tabDP" onclick="switchContentTab('dp')">&#9876; Dramatis Personae</button>
-            <button class="content-tab" id="tabAI" style="display:none" onclick="switchContentTab('ai')">&#9654; Appears In</button>
-          </div>
 
           <!-- Summary panel -->
           <div class="content-panel active" id="panelSummary">
@@ -6676,6 +6693,22 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
           </div>
         </div>
         </div>
+          <div class="dossier-tail">
+      <div class="tags-footer" id="tagsFooter">
+        <span class="tags-label">&#127991; Tags</span>
+        <div class="tags-view" id="mTagsView"><em style="opacity:.4">No tags</em></div>
+        <div class="tags-edit" id="mTagsEditWrap">
+          <input class="tags-input" id="mTagsEdit" placeholder="adepta sororitas, faith, saint, celestine…"/>
+          <div class="tags-hint">Comma-separated · searchable across all books</div>
+        </div>
+      </div>
+            <div class="content-tabs" id="contentTabs">
+              <button class="content-tab active" id="tabSummary" onclick="switchContentTab('summary')">&#128214; Summary</button>
+              <button class="content-tab spoiler-tab" id="tabSpoiler" onclick="switchContentTab('spoiler')">&#9888; Spoilers</button>
+              <button class="content-tab" id="tabDP" onclick="switchContentTab('dp')">&#9876; Dramatis Personae</button>
+              <button class="content-tab" id="tabAI" style="display:none" onclick="switchContentTab('ai')">&#9654; Appears In</button>
+            </div>
+          </div>
       </div>
     </div>
     <!-- save row (edit mode only) -->
@@ -6684,14 +6717,6 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
       <button class="modal-save-btn" id="modalSaveBtn" onclick="saveModalEdits()">Save Changes</button>
     </div>
     <!-- tags footer — always visible -->
-    <div class="tags-footer" id="tagsFooter">
-      <span class="tags-label">&#127991; Tags</span>
-      <div class="tags-view" id="mTagsView"><em style="opacity:.4">No tags</em></div>
-      <div class="tags-edit" id="mTagsEditWrap">
-        <input class="tags-input" id="mTagsEdit" placeholder="adepta sororitas, faith, saint, celestine…"/>
-        <div class="tags-hint">Comma-separated · searchable across all books</div>
-      </div>
-    </div>
   </div>
 </div>
 
