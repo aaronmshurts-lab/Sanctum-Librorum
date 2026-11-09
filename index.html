@@ -3068,9 +3068,14 @@ function openModal(bookId){
   if(yearEdit)    yearEdit.value    = b.year    || ''
   if(typeEdit)    typeEdit.value    = b.type    || 'Novel'
   if(subjectEdit) subjectEdit.value = b.subject || ''
-  const factionEdit = document.getElementById('mFactionEdit')
-  // Show the composed "Parent: Sub-Faction" form so a save migrates legacy rows
-  if(factionEdit) factionEdit.value = factionHierarchy(bookId) || ''
+  // Faction is stored as one "Parent: Sub" string but edited as two fields.
+  // splitFaction() also normalises legacy rows, so a save migrates them.
+  const factionEdit    = document.getElementById('mFactionEdit')
+  const subfactionEdit = document.getElementById('mSubfactionEdit')
+  const fSplit = splitFaction(bookId)
+  if(factionEdit)    factionEdit.value    = fSplit.parent || ''
+  if(subfactionEdit) subfactionEdit.value = fSplit.sub    || ''
+  loadFactionSuggest()
   // ── Setting & Age ──
   const gbSA = globalBooks[bookId] || {}
   const setView = document.getElementById('mSetting')
@@ -3355,8 +3360,19 @@ async function saveModalEdits(){
 
 
   // Faction (independent from series) and Tags
-  const factionEl  = document.getElementById('mFactionEdit')
-  const newFaction = factionEl ? factionEl.value.trim() : (gb.faction || '')
+  // Two inputs recombine into the stored "Parent: Sub" form. A stray colon the
+  // user typed into either box is dropped so we never produce "A: B: C".
+  const factionEl    = document.getElementById('mFactionEdit')
+  const subfactionEl = document.getElementById('mSubfactionEdit')
+  const deColon = v => v.split(':')[0].trim()
+  let newFaction
+  if(factionEl){
+    const fParent = deColon(factionEl.value)
+    const fSub    = subfactionEl ? deColon(subfactionEl.value) : ''
+    newFaction = (fParent && fSub) ? (fParent + ': ' + fSub) : (fParent || fSub)
+  } else {
+    newFaction = gb.faction || ''
+  }
   const newSeriesList = serializeExtraSeries()
   const tagsEl  = document.getElementById('mTagsEdit')
   const newTags = tagsEl ? tagsEl.value.trim() : (gb.tags || '')
@@ -5769,6 +5785,21 @@ function loadFactionList(bookId){
   refreshFactionDisplay(bookId)
 }
 
+// Parent-faction suggestions: the canonical list plus any parent already in use.
+function loadFactionSuggest(){
+  const dl = document.getElementById('factionSuggest')
+  if(!dl) return
+  const s = new Set(MAJOR_FACTIONS)
+  for(const id in globalBooks){
+    const raw = (globalBooks[id].faction || '').trim()
+    if(!raw) continue
+    const i = raw.indexOf(':')
+    const parent = (i === -1 ? raw : raw.slice(0, i)).trim()
+    if(parent) s.add(parent)
+  }
+  dl.innerHTML = [...s].sort().map(f => '<option value="' + esc(f) + '"></option>').join('')
+}
+
 
 // Compose full author string (primary + extras) for card display
 function allAuthorsForCard(b){
@@ -6832,9 +6863,14 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
           <div class="mfield">
             <span class="mfield-label">Faction</span>
             <div class="mfield-val meta" id="mSubject"></div>
-            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="Parent: Sub-Faction — e.g. Imperial Fists: Black Templars"/>
+            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="Faction — e.g. Imperial Fists" list="factionSuggest"/>
+            <datalist id="factionSuggest"></datalist>
+            <div class="modal-edit-field" style="display:none;margin-top:.45rem">
+              <span class="mfield-label">Subfaction</span>
+            </div>
+            <input class="inscribe-input modal-edit-field" id="mSubfactionEdit" style="display:none" placeholder="Successor Chapter, Order or regiment — e.g. Black Templars"/>
             <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">
-              Formal name first, then a colon and the successor Chapter, Order or regiment.
+              Leave Subfaction blank for a parent-only faction.
             </div>
           </div>
             <div class="mfield" style="flex:1;min-width:180px">
