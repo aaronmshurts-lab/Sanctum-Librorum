@@ -3471,6 +3471,12 @@ async function saveModalEdits(){
   const mSubjectEl = document.getElementById('mSubject')
   if(mSubjectEl) mSubjectEl.textContent = gData.faction || '—'
 
+  // Subject lives in books_global, not in the metaPayload override block below,
+  // so its read-only refresh has to happen HERE. Nested under that block it only
+  // fired when Title/Author/Year/Type/Series also changed.
+  const mTopicEl3 = document.getElementById('mTopic')
+  if(mTopicEl3) mTopicEl3.textContent = (gData.topic || '').trim() || '—'
+
   // Refresh extra type badges from updated cache
   renderExtraTypeBadges(modalBookId)
   renderTypeCheckboxes()
@@ -3592,8 +3598,6 @@ async function saveModalEdits(){
       document.getElementById('mYear').textContent   = bk.year
       const mSeriesEl = document.getElementById('mSeries')
       if(mSeriesEl) mSeriesEl.textContent = bk.subject || 'Standalone'
-      const mTopicEl2 = document.getElementById('mTopic')
-      if(mTopicEl2) mTopicEl2.textContent = ((globalBooks[bk.id]||{}).topic || '').trim() || '\u2014'
       document.getElementById('mFormat').innerHTML =
         '<span class="tbadge t-'+bk.type.replace(' ','')+'">' + TYPE_LABEL(bk.type) + '</span>'
     }
