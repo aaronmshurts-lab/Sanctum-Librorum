@@ -65,18 +65,21 @@
     .app{display:none}.app.visible{display:block}
 
     /* ── HEADER ── */
+    /* The whole masthead — header, stats, controls, Showing… — pins together.
+       Opaque so the grid cannot show through as it scrolls underneath. */
+    .sticky-top{position:sticky;top:0;z-index:100;background:var(--bg);
+      box-shadow:0 4px 22px rgba(0,0,0,.55)}
     header{background:var(--surface);border-bottom:1px solid var(--border-gold);padding:0 2rem;
-      display:flex;align-items:center;justify-content:space-between;height:58px;
-      position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,.45)}
+      display:flex;align-items:center;justify-content:space-between;height:58px}
     .h-brand{display:flex;align-items:center;gap:.65rem}
     .h-aquila{color:var(--gold-bright);font-size:1.2rem;filter:drop-shadow(0 0 6px rgba(232,201,106,.5))}
     .h-title{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;letter-spacing:.18em;
       color:var(--gold-bright);text-transform:uppercase;text-shadow:0 0 18px rgba(232,201,106,.35)}
     .h-sub{font-family:'EB Garamond',serif;font-size:.8rem;color:#b0a898;font-style:italic;margin-left:.25rem}
     .h-right{display:flex;align-items:center;gap:1.25rem}
-    .h-email{font-size:.8rem;color:var(--text-muted);font-style:italic;max-width:180px;
+    .h-email{font-size:.8rem;color:#aba3b2;font-style:italic;max-width:180px;
       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .btn-logout{padding:.35rem .85rem;background:none;border:1px solid var(--border);color:var(--text-muted);
+    .btn-logout{padding:.35rem .85rem;background:none;border:1px solid var(--border);color:#aba3b2;
       font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;
       cursor:pointer;transition:border-color .2s,color .2s;border-radius:var(--radius)}
     .btn-logout:hover{border-color:rgba(232,201,106,.5);color:var(--gold)}
@@ -91,8 +94,7 @@
     .sdiv{width:1px;height:24px;background:var(--border);flex-shrink:0}
 
     /* ── CONTROLS ── */
-    .ctrl-wrap{background:rgba(7,7,13,.78);border-bottom:1px solid var(--border);
-      position:sticky;top:58px;z-index:90;backdrop-filter:blur(10px)}
+    .ctrl-wrap{background:rgba(7,7,13,.78);border-bottom:1px solid var(--border)}
     .ctrl-row{padding:.65rem 2rem;display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;
       border-bottom:1px solid rgba(30,28,46,.5)}
     .ctrl-row:last-child{border-bottom:none}
@@ -129,7 +131,15 @@
     .subj-sel option{background:#0d0d18;font-family:sans-serif;text-transform:none;font-size:.88rem}
 
     /* ── RESULT INFO ── */
-    .rinfo{padding:.32rem 2rem;font-size:.86rem;color:var(--text-muted);font-style:italic;
+    /* Lives in the pinned bar, so it is always in the eye path — no overlay
+       floating across the covers, and nothing new to position. */
+    .scroll-hint{display:none;margin-left:.9rem;font-family:'Cinzel',serif;
+      font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;font-style:normal;
+      color:var(--gold);opacity:.9;animation:hintPulse 2.1s ease-in-out infinite}
+    .scroll-hint.on{display:inline}
+    @keyframes hintPulse{0%,100%{opacity:.45}50%{opacity:1}}
+    @media(prefers-reduced-motion:reduce){.scroll-hint{animation:none;opacity:.9}}
+    .rinfo{padding:.32rem 2rem;font-size:.86rem;color:#aba3b2;font-style:italic;background:var(--surface);
       background:var(--bg);border-bottom:1px solid var(--border)}
 
     /* ── GRID & CARDS ── */
@@ -649,7 +659,7 @@
     .aos-toggle input:checked + .aos-track .aos-knob{transform:translateX(15px);background:var(--gold-bright)}
     .aos-toggle input:focus-visible + .aos-track{outline:2px solid var(--gold-bright);outline-offset:2px}
     .aos-label{font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.1em;
-      text-transform:uppercase;color:var(--text-muted)}
+      text-transform:uppercase;color:#aba3b2}
     .aos-toggle input:checked ~ .aos-label{color:var(--gold-bright)}
 
     .timeline-section{margin-top:.7rem}
@@ -828,10 +838,15 @@
       outline:none;color:var(--text);font-family:'EB Garamond',serif;
       font-size:.92rem;padding:.15rem .2rem}
     .tag-input-field::placeholder{color:#9a94a2}
-    .tag-autocomplete{position:absolute;z-index:300;background:var(--surface);
-      border:1px solid var(--border-gold);width:100%;max-height:165px;
+    /* Fixed, not absolute. The Other Works panel scrolls, and an absolutely
+       positioned dropdown is clipped by ANY ancestor with overflow — which is
+       what cut the first result in half. .modal-overlay carries backdrop-filter
+       so it is the containing block for fixed children, and being inset:0 its
+       box equals the viewport, so getBoundingClientRect coords land correctly.
+       Width/top/left are set by positionAcList(). */
+    .tag-autocomplete{position:fixed;z-index:600;background:var(--surface);
+      border:1px solid var(--border-gold);max-height:165px;
       overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
-    #contentTabs.ac-pushed{margin-top:172px;transition:margin-top .12s ease}
     .tag-ac-item{padding:.3rem .7rem;cursor:pointer;font-size:.82rem;
       color:#cec8be;border-bottom:1px solid var(--border);display:flex;
       flex-direction:column;gap:0;transition:background .1s;line-height:1.25}
@@ -1063,6 +1078,11 @@
 <!-- ══ APP ═══════════════════════════════════════════════════ -->
 <div class="app" id="app">
 
+  <!-- Everything down to and including the Showing… line pins as one unit.
+       Stacking each band separately needs hand-tuned top offsets that break
+       the moment a control row wraps; one sticky parent needs no offset math. -->
+  <div class="sticky-top">
+
   <header>
     <div class="h-brand" style="position:relative">
       <button class="h-logo-btn" id="logoMenuBtn" aria-haspopup="true" aria-expanded="false"
@@ -1136,11 +1156,6 @@
           <option value="az">Sort A to Z</option>
           <option value="za">Sort Z to A</option>
         </select>
-        <label class="aos-toggle ctrl-aos" title="Show Age of Sigmar and Warhammer Fantasy entries. Mixed anthologies stay visible either way.">
-          <input type="checkbox" id="aosToggle" onchange="setAosVisible(this.checked)"/>
-          <span class="aos-track"><span class="aos-knob"></span></span>
-          <span class="aos-label">Age of Sigmar</span>
-        </label>
       </div>
     </div>
     <div class="ctrl-row">
@@ -1160,10 +1175,17 @@
           <option value="all"></option>
         </select>
       </div>
+      <label class="aos-toggle ctrl-aos" title="Show Age of Sigmar and Warhammer Fantasy entries. Mixed anthologies stay visible either way.">
+        <input type="checkbox" id="aosToggle" onchange="setAosVisible(this.checked)"/>
+        <span class="aos-track"><span class="aos-knob"></span></span>
+        <span class="aos-label">Age of Sigmar</span>
+      </label>
     </div>
   </div>
 
-  <div class="rinfo" id="rinfo"></div>
+  <div class="rinfo" id="rinfo"><span id="rinfoText"></span><span class="scroll-hint" id="scrollHint">&#8675; more below</span></div>
+  </div><!-- /.sticky-top -->
+
   <div class="grid" id="grid">
     <div class="loading"><div class="spinner"></div><p>Loading your archive&hellip;</p></div>
   </div>
@@ -2523,10 +2545,14 @@ function groupKeyFor(bk){
 function renderGrid(){
   const grid=document.getElementById('grid')
   const books=getFiltered()
-  document.getElementById('rinfo').textContent=
+  // Write to the inner span — rinfo also holds the scroll hint, and setting
+  // textContent on the parent would delete it.
+  const rinfoText = document.getElementById('rinfoText') || document.getElementById('rinfo')
+  rinfoText.textContent=
     books.length===BOOKS.length
       ?`Showing all ${BOOKS.length.toLocaleString()} entries in the archive`
       :`Showing ${books.length.toLocaleString()} of ${BOOKS.length.toLocaleString()} entries`
+  setTimeout(updateScrollHint, 0)
 
   if(!books.length){
     grid.innerHTML='<div class="no-res"><p>No tomes match your current filter, Inquisitor.</p></div>'
@@ -4541,14 +4567,51 @@ function tagAutocomplete(query){
   ).join('')
   ac.style.display = ''
   setAcPush(true)
-  const r = ac.getBoundingClientRect()
 }
 
-// Push the tabs/summary area down while the autocomplete dropdown is open
+// The dropdown is position:fixed now, so nothing clips it — but it also no
+// longer flows beneath the input, so it has to be anchored to the input's rect.
+// (This used to push #contentTabs down by a fixed 172px margin to "make room".
+// That never fixed the clipping; it only moved whatever sat below.)
 function setAcPush(on){
-  const tabs = document.getElementById('contentTabs')
-  if(tabs) tabs.classList.toggle('ac-pushed', !!on)
+  const ac = document.getElementById('containedAcList')
+  if(!ac) return
+  if(!on){ ac.style.display = 'none'; return }
+  positionAcList()
 }
+
+function positionAcList(){
+  const ac   = document.getElementById('containedAcList')
+  const wrap = document.getElementById('containedTagWrap')
+  if(!ac || !wrap || ac.style.display === 'none') return
+  const r = wrap.getBoundingClientRect()
+  ac.style.width = r.width + 'px'
+  ac.style.left  = r.left + 'px'
+  // Flip above the input when there isn't room below it.
+  const need  = Math.min(ac.scrollHeight || 165, 165)
+  const below = window.innerHeight - r.bottom
+  ac.style.top = (below < need + 8 && r.top > need + 8)
+    ? (r.top - need - 2) + 'px'
+    : (r.bottom + 2) + 'px'
+}
+
+// The Other Works panel scrolls underneath the dropdown — keep them together.
+// Capture phase so inner scrollers fire it too, not just the window.
+window.addEventListener('scroll', positionAcList, true)
+window.addEventListener('resize', positionAcList)
+
+// "⇣ more below" in the pinned Showing… bar. Shown only while there is
+// actually something past the fold, and dropped once you reach the bottom —
+// answers "did my search return more than this?" without any overlay chrome.
+function updateScrollHint(){
+  const hint = document.getElementById('scrollHint')
+  if(!hint) return
+  const doc = document.documentElement
+  const remaining = doc.scrollHeight - (window.scrollY + window.innerHeight)
+  hint.classList.toggle('on', remaining > 40)
+}
+window.addEventListener('scroll', updateScrollHint, {passive:true})
+window.addEventListener('resize', updateScrollHint)
 
 function tagKeydown(e){
   const ac = document.getElementById('containedAcList')
