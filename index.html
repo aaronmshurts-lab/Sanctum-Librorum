@@ -855,6 +855,12 @@
     .tag-ac-title{font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold-bright)}
     .tag-ac-meta{font-size:.75rem;color:var(--text-muted);font-style:italic}
     .tag-ac-empty{padding:.6rem .75rem;color:var(--text-muted);font-style:italic;font-size:.85rem}
+    /* Inscribe Tome duplicate warning */
+    .it-dupe{margin-top:.35rem;font-size:.8rem;color:#e0b070;line-height:1.4}
+    .it-dupe-open{background:none;border:1px solid var(--border-gold);color:var(--gold-bright);
+      font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;
+      padding:.2rem .55rem;border-radius:2px;cursor:pointer;transition:background .18s}
+    .it-dupe-open:hover{background:var(--gold-glow)}
     .contained-cascade-note{font-size:.75rem;color:var(--owned);font-family:'Cinzel',serif;
       letter-spacing:.06em;margin-top:.35rem;display:none}
     .contained-cascade-note.visible{display:block}
@@ -3348,6 +3354,10 @@ function cancelEditMode(){
 
 async function saveModalEdits(){
   if(!modalBookId) return
+  // Sweep up anything typed but not yet turned into a pill. Clicking Save
+  // Changes without pressing Enter used to discard it silently, because the
+  // serializers read the arrays and never look at the input boxes.
+  commitPendingTags()
   if(!isAdmin()){ await submitForReview(); return }
 
   const btn = document.getElementById('modalSaveRow').querySelector('.modal-save-btn')
@@ -4164,6 +4174,124 @@ function copyTome(){
 }
 Object.assign(window, {copyTome})
 
+// ── Inscribe Tome · author suggestions ────────────────────────────────────
+// Matched on WORD prefix, not string prefix: "G" offers Gav Thorpe, Graham
+// McNeill and Guy Haley; "Ga" narrows to Gav Thorpe; "Gar" offers nothing.
+// Word prefix also means a surname works — "McN" finds Graham McNeill.
+let itAcHits = []
+let itAcFocusIdx = -1
+
+function allKnownAuthors(){
+  const s = new Set()
+  for(const b of BOOKS){
+    if(b.author && b.author !== 'Unknown') s.add(String(b.author).trim())
+    const al = (globalBooks[b.id] || {}).author_list || ''
+    try{
+      const p = JSON.parse(al)
+      if(Array.isArray(p)) p.forEach(a => { if(a) s.add(String(a).trim()) })
+    }catch(e){}
+  }
+  return [...s].filter(Boolean).sort((a,b) => a.localeCompare(b))
+}
+
+function itAuthorInput(){
+  const inp = document.getElementById('itAuthor')
+  const ac  = document.getElementById('itAuthorAc')
+  if(!inp || !ac) return
+  const q = inp.value.trim().toLowerCase()
+  itAcFocusIdx = -1
+  if(!q){ ac.style.display = 'none'; itAcHits = []; return }
+  itAcHits = allKnownAuthors().filter(name => {
+    const low = name.toLowerCase()
+    return low.startsWith(q) || low.split(/[\s,.'’-]+/).some(w => w.startsWith(q))
+  // 6, not more: the list box caps at 165px and rows are ~25px, so a 7th entry
+  // would sit below a scroll line and look like it wasn't offered. Typing one
+  // more letter is the natural way to narrow, which is the whole interaction.
+  }).slice(0, 6)
+  if(!itAcHits.length){ ac.style.display = 'none'; return }
+  // Index-based onclick — author names carry apostrophes, and quoting a name
+  // into an inline handler is how you get a broken O'Brien.
+  ac.innerHTML = itAcHits.map((n, i) =>
+    '<div class="tag-ac-item" data-i="' + i + '" onmousedown="event.preventDefault()" ' +
+    'onclick="itAuthorPick(' + i + ')"><span class="tag-ac-title">' + esc(n) + '</span></div>'
+  ).join('')
+  ac.style.display = ''
+  positionItAuthorAc()
+}
+
+function itAuthorPick(i){
+  const inp = document.getElementById('itAuthor')
+  if(itAcHits[i] != null && inp) inp.value = itAcHits[i]
+  const ac = document.getElementById('itAuthorAc')
+  if(ac) ac.style.display = 'none'
+  itAcFocusIdx = -1
+  if(inp) inp.focus()
+}
+
+function itAuthorKeydown(e){
+  const ac = document.getElementById('itAuthorAc')
+  if(!ac || ac.style.display === 'none') return
+  const items = ac.querySelectorAll('.tag-ac-item')
+  if(!items.length) return
+  if(e.key === 'ArrowDown'){
+    e.preventDefault()
+    itAcFocusIdx = Math.min(itAcFocusIdx + 1, items.length - 1)
+    items.forEach((el, i) => el.classList.toggle('focused', i === itAcFocusIdx))
+  } else if(e.key === 'ArrowUp'){
+    e.preventDefault()
+    itAcFocusIdx = Math.max(itAcFocusIdx - 1, 0)
+    items.forEach((el, i) => el.classList.toggle('focused', i === itAcFocusIdx))
+  } else if(e.key === 'Enter' && itAcFocusIdx >= 0){
+    e.preventDefault(); itAuthorPick(itAcFocusIdx)
+  } else if(e.key === 'Escape'){
+    ac.style.display = 'none'; itAcFocusIdx = -1
+  }
+}
+
+// .tag-autocomplete is position:fixed. #inscribeModal is a .modal-overlay —
+// fixed, inset:0, backdrop-filter — so it is the containing block and its box
+// equals the viewport, which makes these rect coords land correctly.
+function positionItAuthorAc(){
+  const inp = document.getElementById('itAuthor')
+  const ac  = document.getElementById('itAuthorAc')
+  if(!inp || !ac || ac.style.display === 'none') return
+  const r = inp.getBoundingClientRect()
+  ac.style.width = r.width + 'px'
+  ac.style.left  = r.left + 'px'
+  ac.style.top   = (r.bottom + 2) + 'px'
+}
+window.addEventListener('scroll', positionItAuthorAc, true)
+window.addEventListener('resize', positionItAuthorAc)
+
+// ── Inscribe Tome · duplicate guard ───────────────────────────────────────
+// With 1,800+ entries you are likelier to be about to re-create a tome than to
+// want a new one, so an exact title match offers the existing record instead.
+function itTitleInput(){
+  const note = document.getElementById('itDupeNote')
+  const el   = document.getElementById('itTitle')
+  if(!note || !el) return
+  const q = el.value.trim().toLowerCase()
+  if(q.length < 3){ note.style.display = 'none'; return }
+  const norm = t => String(t || '').trim().toLowerCase().replace(/^the\s+/, '')
+  const hit = BOOKS.find(b => norm(b.title) === norm(q))
+  if(!hit){ note.style.display = 'none'; return }
+  const who = [hit.author && hit.author !== 'Unknown' ? hit.author : null, hit.year]
+                .filter(Boolean).join(', ')
+  note.innerHTML = '&#9888; <b>' + esc(hit.title) + '</b> is already catalogued'
+    + (who ? ' (' + esc(who) + ')' : '') + ' &mdash; '
+    + '<button type="button" class="it-dupe-open" onclick="openExistingTome(\''
+    + String(hit.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">Open it instead</button>'
+  note.style.display = ''
+}
+
+function openExistingTome(id){
+  closeInscribeModal()
+  openModal(id)
+}
+
+Object.assign(window, {itAuthorInput, itAuthorKeydown, itAuthorPick,
+                       itTitleInput, openExistingTome})
+
 function openInscribeModal(){
   // Reset form
   copyPendingMeta = null
@@ -4179,6 +4307,9 @@ function openInscribeModal(){
   itSubjectEl.value = 'Standalone'
   document.getElementById('itNotes').value   = ''
   document.getElementById('inscribeMsg').style.display = 'none'
+  const dupe = document.getElementById('itDupeNote');  if(dupe) dupe.style.display = 'none'
+  const itAc = document.getElementById('itAuthorAc');  if(itAc) itAc.style.display = 'none'
+  itAcHits = []; itAcFocusIdx = -1
   const img = document.getElementById('inscribeCoverImg')
   img.src = ''; img.classList.remove('loaded')
   inscribePendingCover = null
@@ -5541,16 +5672,73 @@ let extraAuthorList = []
 
 Object.assign(window, {authorTagKeydown, removeAuthorTag})
 
+// ── Uniform entry commit for every multi-value field ──────────────────────
+// One rule: Enter commits, nothing else. Comma and semicolon stay typable
+// INSIDE a value, which matters — "Fate's Masters, Destiny's Servants" and
+// "Vulkan, Lord of Drakes" would otherwise be split into bogus halves.
+// Whatever is still sitting in the box is committed on blur and again just
+// before save, so a half-typed entry is never silently dropped.
+const TAG_INPUT_IDS = ['authorTagInput','factionTagInput','settingTagInput',
+                       'characterTagInput','seriesExtraInput','containedTagInput']
+
+function commitPendingTags(){ TAG_INPUT_IDS.forEach(commitPendingTag) }
+
+function commitPendingTag(id){
+  const inp = document.getElementById(id)
+  if(!inp) return
+  const val = inp.value.trim()
+  if(!val) return
+  const has = (arr, v) => arr.some(x => String(x).toLowerCase() === v.toLowerCase())
+  switch(id){
+    case 'authorTagInput':
+      if(!has(extraAuthorList, val)){ extraAuthorList.push(val); renderAuthorTags() }
+      inp.value = ''; break
+    case 'factionTagInput':
+      if(!has(extraFactionList, val)){ extraFactionList.push(val); renderFactionTags() }
+      inp.value = ''; break
+    case 'settingTagInput':
+      if(!has(settingList, val)){ settingList.push(val); renderSettingTags() }
+      inp.value = ''; break
+    case 'characterTagInput':
+      if(!has(characterList, val)){ characterList.push(val); renderCharacterTags() }
+      inp.value = ''; break
+    case 'seriesExtraInput':
+      addExtraSeries(); break
+    case 'containedTagInput': {
+      // One unambiguous catalogue match wins. Otherwise keep it as free text,
+      // which renders as a visibly "⚠ unlinked" pill — wrong-but-obvious beats
+      // silently vanishing, and beats guessing at a link that may not be right.
+      const items = document.querySelectorAll('#containedAcList .tag-ac-item')
+      if(items.length === 1){ selectTag(items[0].dataset.id, items[0].dataset.title); return }
+      if(!containedTags.some(t => t.title.toLowerCase() === val.toLowerCase())){
+        containedTags.push({id:'_txt_' + val, title: val}); renderTagPills()
+      }
+      inp.value = ''
+      const ac = document.getElementById('containedAcList')
+      if(ac) ac.style.display = 'none'
+      setAcPush(false)
+      break
+    }
+  }
+}
+
+// Commit on blur. For the Contained Works dropdown, a mousedown on a result
+// would blur the input FIRST and commit free text before the click landed —
+// so the list swallows mousedown and focus never leaves.
+TAG_INPUT_IDS.forEach(id => {
+  const el = document.getElementById(id)
+  if(el) el.addEventListener('blur', () => commitPendingTag(id))
+})
+{
+  const acl = document.getElementById('containedAcList')
+  if(acl) acl.addEventListener('mousedown', e => e.preventDefault())
+}
+
 function authorTagKeydown(e){
   const inp = document.getElementById('authorTagInput')
-  if(e.key === 'Enter' || e.key === ','){
-    e.preventDefault()
-    const val = inp.value.trim().replace(/,$/, '')
-    if(val && !extraAuthorList.includes(val)){
-      extraAuthorList.push(val)
-      renderAuthorTags()
-    }
-    inp.value = ''
+  if(e.key === 'Enter'){ e.preventDefault(); commitPendingTag('authorTagInput') }
+  else if(e.key === 'Backspace' && !inp.value && extraAuthorList.length){
+    extraAuthorList.pop(); renderAuthorTags()
   }
 }
 
@@ -5814,14 +6002,9 @@ Object.assign(window, {factionTagKeydown, removeFactionTag})
 
 function factionTagKeydown(e){
   const inp = document.getElementById('factionTagInput')
-  if(e.key === 'Enter' || e.key === ','){
-    e.preventDefault()
-    const val = inp.value.trim().replace(/,$/, '')
-    if(val && !extraFactionList.includes(val)){
-      extraFactionList.push(val)
-      renderFactionTags()
-    }
-    inp.value = ''
+  if(e.key === 'Enter'){ e.preventDefault(); commitPendingTag('factionTagInput') }
+  else if(e.key === 'Backspace' && !inp.value && extraFactionList.length){
+    extraFactionList.pop(); renderFactionTags()
   }
 }
 
@@ -5882,10 +6065,12 @@ function allAuthorsForCard(b){
 // Legacy form:  faction = "Imperial Fists"
 //               faction_list = ["Black Templars","Adepta Sororitas"]   (mixed)
 //
-// splitFaction() reads BOTH. On a legacy row it promotes the first entry that
-// is not a major faction in its own right into the sub-faction slot and treats
-// the rest as co-starring factions. Saving a book writes the clean form, so the
-// data corrects itself through normal editing — no bulk rewrite needed.
+// splitFaction() does NOT guess at legacy rows. It used to promote the first
+// non-major faction_list entry into the sub-faction slot, which was fine while
+// there was no Subfaction field — but once Edit mode gained one, an empty
+// Subfaction became a deliberate statement and the guess silently ate an Also
+// Features entry. A legacy row now shows parent-only with everything else under
+// Also Features; opening and saving it writes the clean "Parent: Sub" form.
 const MAJOR_FACTIONS = new Set(["Adepta Sororitas","Adeptus Arbites","Adeptus Astartes","Adeptus Custodes","Adeptus Mechanicus","Adeptus Ministorum","Aeldari","Alpha Legion","Astra Militarum","Blackshields","Blood Angels","Collegia Titanica","Dark Angels","Death Guard","Deathwatch","Drukhari","Emperor's Children","Genestealer Cults","Grey Knights","Imperial Fists","Imperial Knights","Imperial Navy","Imperium of Man","Inquisition","Iron Hands","Iron Warriors","Knights Errant","Mechanicum","Necrons","Night Lords","Officio Assassinorum","Orks","Perpetuals","Raven Guard","Red Corsairs","Rogue Traders","Salamanders","Shattered Legions","Sisters of Silence","Sons of Horus","Space Wolves","T'au Empire","Thousand Sons","Tyranids","Ultramarines","White Scars","Word Bearers","World Eaters","Men of Iron","Chaos","Heretic Astartes","Officio Prefectus","Navis Nobilite","Dark Mechanicum","Chaos Daemons","League of Votann","Luna Wolves","Black Legion"])
 
 function splitFaction(bookId){
@@ -5978,13 +6163,8 @@ function renderCharacterTags(){
 
 function characterTagKeydown(e){
   const input = e.target
-  if(e.key === 'Enter' || e.key === ','){
-    e.preventDefault()
-    const val = input.value.trim().replace(/,$/,'')
-    if(val && !characterList.some(c => c.toLowerCase() === val.toLowerCase())){
-      characterList.push(val); renderCharacterTags()
-    }
-    input.value = ''
+  if(e.key === 'Enter'){
+    e.preventDefault(); commitPendingTag('characterTagInput')
   } else if(e.key === 'Backspace' && !input.value && characterList.length){
     characterList.pop(); renderCharacterTags()
   }
@@ -6068,13 +6248,8 @@ function renderSettingTags(){
 
 function settingTagKeydown(e){
   const input = e.target
-  if(e.key === 'Enter' || e.key === ';'){
-    e.preventDefault()
-    const val = input.value.trim().replace(/;$/,'')
-    if(val && !settingList.some(s => s.toLowerCase() === val.toLowerCase())){
-      settingList.push(val); renderSettingTags()
-    }
-    input.value = ''
+  if(e.key === 'Enter'){
+    e.preventDefault(); commitPendingTag('settingTagInput')
   } else if(e.key === 'Backspace' && !input.value && settingList.length){
     settingList.pop(); renderSettingTags()
   }
@@ -7135,11 +7310,15 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
         <div style="flex:1;min-width:0">
           <div class="inscribe-field">
             <label class="inscribe-label">Title *</label>
-            <input class="inscribe-input" id="itTitle" placeholder="e.g. The Renegade's Oath" />
+            <input class="inscribe-input" id="itTitle" placeholder="e.g. The Renegade's Oath"
+                   autocomplete="off" oninput="itTitleInput()" />
+            <div class="it-dupe" id="itDupeNote" style="display:none"></div>
           </div>
-          <div class="inscribe-field">
+          <div class="inscribe-field" style="position:relative">
             <label class="inscribe-label">Author</label>
-            <input class="inscribe-input" id="itAuthor" placeholder="e.g. Dan Abnett" />
+            <input class="inscribe-input" id="itAuthor" placeholder="e.g. Dan Abnett"
+                   autocomplete="off" oninput="itAuthorInput()" onkeydown="itAuthorKeydown(event)" />
+            <div class="tag-autocomplete" id="itAuthorAc" style="display:none"></div>
           </div>
           <div class="inscribe-row">
             <div class="inscribe-field">
