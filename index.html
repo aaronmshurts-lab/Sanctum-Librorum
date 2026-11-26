@@ -5897,15 +5897,15 @@ function splitFaction(bookId){
     const i = raw.indexOf(':')
     return {parent: raw.slice(0,i).trim(), sub: raw.slice(i+1).trim(), also: extras.map(String)}
   }
-  let sub = ''
-  const also = []
-  for(const e of extras){
-    const name = String(e).trim()
-    if(!name) continue
-    if(!sub && !MAJOR_FACTIONS.has(name)) sub = name
-    else also.push(name)
-  }
-  return {parent: raw, sub: sub, also: also}
+  // No colon means no subfaction. Full stop.
+  //
+  // This used to promote the first faction_list entry that wasn't in
+  // MAJOR_FACTIONS into `sub` — a migration guess from back when there was no
+  // Subfaction field and a sub could only have been dumped into Also Features.
+  // Now that Edit mode has an explicit Subfaction box, leaving it empty is a
+  // deliberate statement, and the guess was silently eating an Also Features
+  // entry and re-displaying it as "Faction: AlsoFeatures".
+  return {parent: raw, sub: '', also: extras.map(e => String(e).trim()).filter(Boolean)}
 }
 
 // Gold display line: "Parent: Sub-Faction"
