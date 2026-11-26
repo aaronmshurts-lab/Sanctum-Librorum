@@ -946,16 +946,23 @@
       padding:.4rem .5rem;display:flex;flex-wrap:wrap;align-items:center;gap:.25rem;
       min-height:48px;cursor:text;transition:border-color .2s}
     .lineage-wrap:focus-within{border-color:var(--gold)}
-    .lin-pill{display:inline-flex;align-items:center;gap:.3rem;font-family:'Cinzel',serif;
+    /* Chevron and pill travel together as one item, so a wrap never strands a
+       chevron at the end of a line. */
+    .lin-item{display:inline-flex;align-items:center;gap:.25rem;max-width:100%;min-width:0}
+    .lin-pill{display:inline-flex;align-items:flex-start;gap:.3rem;font-family:'Cinzel',serif;
       font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;padding:.22rem .5rem;
       border:1px solid rgba(232,201,106,.32);color:#d9c489;background:rgba(232,201,106,.06);
-      border-radius:2px;white-space:nowrap}
+      border-radius:2px;max-width:100%;min-width:0}
+    /* A tier can be long — "2,588th Imperial Navy Fighter Wing" — so it wraps
+       inside its own pill rather than overflowing the cell and carrying the
+       remove button off the edge with it. */
+    .lin-pill > span{min-width:0;overflow-wrap:anywhere;line-height:1.35}
     .lin-pill.leaf{border-color:rgba(232,201,106,.55);color:var(--gold-bright);
       background:rgba(232,201,106,.15)}
     .lin-pill button{background:none;border:none;color:inherit;opacity:.55;cursor:pointer;
-      font-size:.75rem;line-height:1;padding:0}
+      font-size:.75rem;line-height:1.35;padding:0;flex-shrink:0}
     .lin-pill button:hover{opacity:1}
-    .lin-sep{color:#4e4a5e;font-size:.8rem;padding:0 .05rem}
+    .lin-sep{color:#4e4a5e;font-size:.8rem;flex-shrink:0}
     /* Inscribe Tome duplicate warning */
     .it-dupe{margin-top:.35rem;font-size:.8rem;color:#e0b070;line-height:1.4}
     .it-dupe-open{background:none;border:1px solid var(--border-gold);color:var(--gold-bright);
@@ -6305,18 +6312,16 @@ function renderLineage(){
   const wrap = document.getElementById('lineageWrap')
   const inp  = document.getElementById('lineageInput')
   if(!wrap || !inp) return
-  wrap.querySelectorAll('.lin-pill,.lin-sep').forEach(e => e.remove())
+  wrap.querySelectorAll('.lin-item').forEach(e => e.remove())
   lineageTiers.forEach((t, i) => {
-    if(i){
-      const sep = document.createElement('span')
-      sep.className = 'lin-sep'; sep.textContent = '\u203a'
-      wrap.insertBefore(sep, inp)
-    }
-    const pill = document.createElement('span')
-    pill.className = 'lin-pill' + (i === lineageTiers.length - 1 && i > 0 ? ' leaf' : '')
-    pill.innerHTML = '<span>' + esc(t) + '</span>'
-      + '<button onclick="removeLineageTier(' + i + ');event.stopPropagation()" title="Remove tier">&#10005;</button>'
-    wrap.insertBefore(pill, inp)
+    const item = document.createElement('span')
+    item.className = 'lin-item'
+    const leaf = (i === lineageTiers.length - 1 && i > 0) ? ' leaf' : ''
+    item.innerHTML =
+      (i ? '<span class="lin-sep">\u203a</span>' : '')
+      + '<span class="lin-pill' + leaf + '" title="' + esc(t) + '"><span>' + esc(t) + '</span>'
+      + '<button onclick="removeLineageTier(' + i + ');event.stopPropagation()" title="Remove tier">&#10005;</button></span>'
+    wrap.insertBefore(item, inp)
   })
   inp.placeholder = lineageTiers.length
     ? 'Add a narrower tier\u2026'
