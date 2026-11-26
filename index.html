@@ -650,7 +650,45 @@
     .hier-tab:hover{color:var(--gold-bright);border-color:var(--border-gold)}
     .hier-tab.active{color:var(--gold-bright);border-color:var(--border-gold);
       background:rgba(232,201,106,.1)}
-    .hier-body{flex:1;min-height:0;overflow-y:auto;padding:1rem 1.4rem 1.6rem}
+    .hier-search{padding:.6rem 1.4rem .7rem;border-bottom:1px solid var(--border);
+      flex-shrink:0;position:relative;display:flex;align-items:center}
+    .hier-search input{width:100%;padding:.5rem 2rem .5rem .8rem;background:var(--bg);
+      border:1px solid #3a3650;border-radius:2px;color:var(--text);outline:none;
+      font-family:'EB Garamond',serif;font-size:.92rem;transition:border-color .2s}
+    .hier-search input:focus{border-color:var(--gold)}
+    .hier-search button{position:absolute;right:1.7rem;background:none;border:none;
+      color:var(--text-muted);cursor:pointer;font-size:.85rem;display:none}
+    .hier-search button.on{display:block}
+    .hier-split{flex:1;min-height:0;display:flex}
+    .hier-rail{width:258px;flex-shrink:0;border-right:1px solid var(--border);
+      overflow-y:auto;padding:.5rem 0;background:rgba(0,0,0,.22)}
+    .hier-rl{display:flex;align-items:center;gap:.5rem;padding:.55rem 1rem;cursor:pointer;
+      border-left:2px solid transparent;transition:background .15s}
+    .hier-rl:hover{background:rgba(232,201,106,.05)}
+    .hier-rl span:first-child{flex:1;font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.07em;
+      text-transform:uppercase;color:var(--text-muted);line-height:1.35}
+    .hier-rl span:last-child{font-size:.68rem;color:#4e4a5e;font-family:'Cinzel',serif}
+    .hier-rl.on{border-left-color:var(--gold);background:rgba(232,201,106,.08)}
+    .hier-rl.on span:first-child{color:var(--gold-bright)}
+    .hier-rl.on span:last-child{color:var(--gold)}
+    .hier-detail{flex:1;min-width:0;overflow-y:auto;padding:1.1rem 1.4rem 1.6rem}
+    .hier-results{flex:1;min-height:0;overflow-y:auto;padding:1rem 1.4rem 1.6rem;display:none}
+    /* a lookup hit: the row that matched, then its lineage */
+    .hier-hit{padding:.6rem 0 .7rem;border-bottom:1px solid rgba(30,28,46,.75)}
+    .hier-hit-t{font-size:.9rem;color:var(--text);font-weight:600}
+    .hier-hit-p{margin-top:.3rem;font-size:.74rem;line-height:1.9}
+    .hier-crumb{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.08em;
+      text-transform:uppercase;padding:.16rem .45rem;border-radius:2px;margin-right:.2rem;
+      border:1px solid var(--border);color:var(--text-muted);background:none;cursor:pointer}
+    .hier-crumb:hover{border-color:var(--border-gold);color:var(--gold-bright)}
+    /* gold ring = already a valid Faction value; plain = not in the vocabulary yet */
+    .hier-crumb.known{border-color:rgba(232,201,106,.45);color:var(--gold)}
+    /* the matched entity itself, at the end of its own lineage */
+    .hier-crumb.self{font-weight:700;background:rgba(232,201,106,.07)}
+    .hier-crumb.self.known{background:rgba(232,201,106,.16);color:var(--gold-bright)}
+    .hier-sep{color:#4e4a5e;padding:0 .1rem}
+    .hier-empty{color:var(--text-muted);font-style:italic;padding:1.4rem .2rem}
+    .hier-count{font-size:.74rem;color:var(--text-muted);font-style:italic;margin-bottom:.7rem}
     .hier-sec{font-family:'Cinzel',serif;font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;
       color:var(--gold-bright);margin:1.5rem 0 .55rem;padding-bottom:.35rem;
       border-bottom:1px solid rgba(232,201,106,.28)}
@@ -902,6 +940,22 @@
     .tag-ac-title{font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold-bright)}
     .tag-ac-meta{font-size:.75rem;color:var(--text-muted);font-style:italic}
     .tag-ac-empty{padding:.6rem .75rem;color:var(--text-muted);font-style:italic;font-size:.85rem}
+    /* Lineage: the same pill chrome as Also Features, but ORDERED — the chevrons
+       say the sequence is the data, which is the whole point of Option 2. */
+    .lineage-wrap{border:1px solid #3a3650;border-radius:var(--radius);background:var(--bg);
+      padding:.4rem .5rem;display:flex;flex-wrap:wrap;align-items:center;gap:.25rem;
+      min-height:48px;cursor:text;transition:border-color .2s}
+    .lineage-wrap:focus-within{border-color:var(--gold)}
+    .lin-pill{display:inline-flex;align-items:center;gap:.3rem;font-family:'Cinzel',serif;
+      font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;padding:.22rem .5rem;
+      border:1px solid rgba(232,201,106,.32);color:#d9c489;background:rgba(232,201,106,.06);
+      border-radius:2px;white-space:nowrap}
+    .lin-pill.leaf{border-color:rgba(232,201,106,.55);color:var(--gold-bright);
+      background:rgba(232,201,106,.15)}
+    .lin-pill button{background:none;border:none;color:inherit;opacity:.55;cursor:pointer;
+      font-size:.75rem;line-height:1;padding:0}
+    .lin-pill button:hover{opacity:1}
+    .lin-sep{color:#4e4a5e;font-size:.8rem;padding:0 .05rem}
     /* Inscribe Tome duplicate warning */
     .it-dupe{margin-top:.35rem;font-size:.8rem;color:#e0b070;line-height:1.4}
     .it-dupe-open{background:none;border:1px solid var(--border-gold);color:var(--gold-bright);
@@ -2855,7 +2909,7 @@ function renderCard(b){
       + esc(stamp || 'Undated') + '</span>'
   }
   // Gold top line & italic sub-line swap based on the active Browse By dimension
-  const factionDisp = factionHierarchy(b.id)
+  const factionDisp = factionCardLine(b.id)
   let topLine, subLine
   if(activeBrowseBy === 'series'){
     // Series takes the gold; faction hierarchy drops to the italic line
@@ -3154,13 +3208,9 @@ function openModal(bookId){
   if(yearEdit)    yearEdit.value    = b.year    || ''
   if(typeEdit)    typeEdit.value    = b.type    || 'Novel'
   if(subjectEdit) subjectEdit.value = b.subject || ''
-  // Faction is stored as one "Parent: Sub" string but edited as two fields.
-  // splitFaction() also normalises legacy rows, so a save migrates them.
-  const factionEdit    = document.getElementById('mFactionEdit')
-  const subfactionEdit = document.getElementById('mSubfactionEdit')
-  const fSplit = splitFaction(bookId)
-  if(factionEdit)    factionEdit.value    = fSplit.parent || ''
-  if(subfactionEdit) subfactionEdit.value = fSplit.sub    || ''
+  // Faction is one colon-delimited lineage, edited as an ordered pill chain.
+  lineageTiers = splitFaction(bookId).tiers.slice()
+  renderLineage()
   loadFactionSuggest()
   // ── Setting & Age ──
   const gbSA = globalBooks[bookId] || {}
@@ -3452,17 +3502,11 @@ async function saveModalEdits(){
   // Faction (independent from series) and Tags
   // Two inputs recombine into the stored "Parent: Sub" form. A stray colon the
   // user typed into either box is dropped so we never produce "A: B: C".
-  const factionEl    = document.getElementById('mFactionEdit')
-  const subfactionEl = document.getElementById('mSubfactionEdit')
-  const deColon = v => v.split(':')[0].trim()
-  let newFaction
-  if(factionEl){
-    const fParent = deColon(factionEl.value)
-    const fSub    = subfactionEl ? deColon(subfactionEl.value) : ''
-    newFaction = (fParent && fSub) ? (fParent + ': ' + fSub) : (fParent || fSub)
-  } else {
-    newFaction = gb.faction || ''
-  }
+  // Sweep up a tier typed but not committed, then join broadest-first.
+  commitPendingTag('lineageInput')
+  const newFaction = document.getElementById('lineageWrap')
+    ? lineageTiers.join(': ')
+    : (gb.faction || '')
   const newSeriesList = serializeExtraSeries()
   const tagsEl  = document.getElementById('mTagsEdit')
   const newTags = tagsEl ? tagsEl.value.trim() : (gb.tags || '')
@@ -4350,29 +4394,143 @@ Object.assign(window, {itAuthorInput, itAuthorKeydown, itAuthorPick,
 // Transcribed from the four lineage diagrams. Level -1 is a section heading;
 // 0/1/2 are nesting depth, carried over from the indentation of the source.
 const HIERARCHIES = {"imperium":{"n":"The Imperium of Mankind","t":"THE GOD-EMPEROR OF MANKIND (The Golden Throne)","r":[[0,"IMPERIAL REGENT & LORD COMMANDER (Primarch Roboute Guilliman)"],[1,"SENATORUM IMPERIALIS (The High Lords of Terra - The High Twelve)"],[-1,"I. THE ADEPTUS TERRA — \"The Priesthood of Earth\""],[0,"Adeptus Administratum (Central Bureaucracy & Tithes)"],[1,"Departmento Munitorum (Military Logistics & Supply)"],[2,"Astra Militarum (Imperial Guard)"],[2,"Militarum Tempestus (Ordo Tempestus / Scions)"],[2,"Officio Prefectus (The Commissariat)"],[2,"Officio Tactica (Strategic Planning & Command)"],[2,"Schola Progenium (Orphanages & Officer Training — shared with Ministorum)"],[1,"Imperial Fleet (Void Operations)"],[2,"Navis Imperialis (Imperial Navy & Aeronautica Imperialis)"],[2,"Merchant Fleet (Chartist Captains)"],[2,"Civil Fleet (Private & Planetary Vessels)"],[1,"Officio Assassinorum (Clandestine Eliminations)"],[2,"Assassin Temples (Vindicare, Callidus, Eversor, Culexus, Vanus, Venenum)"],[1,"Estate Imperium (Records & Planetary Law)"],[1,"Departmento Exacta (Tithe Assessment & Collection)"],[1,"Astra Cartographica (Star Mapping & Rogue Trader Oversight)"],[1,"Logos Historica Verita (Guilliman's Historical Truth-Seekers)"],[1,"Civic Officios (Officio Medicae, Officio Agricultae, Officio Logisticarum)"],[0,"Adeptus Astra Telepathica (Psyker Management & Astropaths)"],[1,"Scholastica Psykana (Psyker Training & Sanctioning)"],[1,"League of Black Ships (Psyker Tithe Collection)"],[1,"Sisters of Silence (The Silent Sisterhood / Null-Maidens)"],[0,"Adeptus Astronomica (Astronomican Beacon Maintenance)"],[1,"The Hollow Mountain Choir (Psyker Battery)"],[0,"Adeptus Arbites (Galactic Law Enforcement)"],[1,"Precinct Fortresses, Judges & Enforcers"],[0,"Adeptus Custodes (The Emperor's Personal Bodyguard)"],[1,"Shield Hosts & Eyes of the Emperor"],[0,"Adeptus Astartes (Space Marines — Formally listed, functionally autonomous)"],[1,"~1,000 Independent Chapters"],[-1,"II. AUTONOMOUS IMPERIAL PILLARS — Parallel Authorities"],[0,"Adeptus Ministorum / Ecclesiarchy (The State Church)"],[1,"The Holy Synod (Cardinals & Arch-Cardinals)"],[1,"Adepta Sororitas (Sisters of Battle — Military & Support Arm)"],[2,"Orders Militant (Our Martyred Lady, Bloody Rose, Valorous Heart, etc.)"],[2,"Non-Militant Orders (Hospitaller, Dialogous, Famulous, Pronatus)"],[1,"Missionarius Galaxia (Frontier Missionaries)"],[1,"Frateris Militia (Zealot Irregulars)"],[0,"Adeptus Mechanicus (The Cult of the Machine — Treaty of Mars)"],[1,"Cult Mechanicus (Tech-Priesthood & Forge World Rulers)"],[1,"Legiones Skitarii (Cybernetic Standing Armies)"],[1,"Collegia Titanica (Titan Legions)"],[1,"Legio Cybernetica (Battle-Automata / Robots)"],[1,"Ordo Reductor (Siege & Heavy Ordnance Specialists)"],[1,"Auxilia Myrmidon (Battle-Savants)"],[1,"Questor Mechanicus (Allied Imperial Knight Houses)"],[0,"The Holy Orders of the Emperor's Inquisition (Secret Police)"],[1,"Ordo Malleus (Daemonhunters — Chamber Militant: Grey Knights)"],[1,"Ordo Hereticus (Witch Hunters — Chamber Militant: Adepta Sororitas)"],[1,"Ordo Xenos (Alien Hunters — Chamber Militant: Deathwatch)"],[1,"Ordos Minoris (Ordo Sicarius, Ordo Chronos, Ordo Scriptorum, etc.)"],[0,"Navis Nobilite (The Navigator Houses)"],[1,"Guilds & Great Houses (Paternoval Envoy)"]]},"astartes":{"n":"Adeptus Astartes","t":"THE EMPEROR OF MANKIND (Gene-Sire)","r":[[-1,"LOYALIST PRIMARCHS & FIRST FOUNDING LEGIONS"],[0,"I. Lion El'Jonson  →  DARK ANGELS (The Unforgiven)"],[1,"Second Founding: Angels of Absolution, Angels of Redemption, Angels of Vengeance"],[1,"Later Foundings: Consecrators, Disciples of Caliban, Guardians of the Covenant"],[1,"Ultima Founding: Blades of Vengeance, Bringers of Judgement"],[0,"V. Jaghatai Khan  →  WHITE SCARS"],[1,"Second Founding: Marauders, Rampagers, Destroyers, Storm Lords"],[1,"Later Foundings: Solar Hawks, Mantis Warriors, Dark Hunters"],[1,"Ultima Founding: Wolfspear (Note: Space Wolves), Storm Reapers, Sons of Jaghatai"],[0,"VI. Leman Russ  →  SPACE WOLVES (Vlka Fenryka)"],[1,"Second Founding: Wolf Brothers (Disbanded due to genetic instability)"],[1,"Later Foundings: None (Gene-seed flaw prevented successors for 10,000 years)"],[1,"Ultima Founding: Wolfspear, Icefangs, Mooneaters"],[0,"VII. Rogal Dorn  →  IMPERIAL FISTS"],[1,"Second Founding: Black Templars, Crimson Fists, Soul Drinkers (Disputed/Excommunicated), Excoriators, Fists Exemplar"],[1,"Later Foundings: Executioners, Hammers of Dorn, Celestial Lions, Subjugators"],[1,"Ultima Founding: Sons of the Phoenix"],[0,"IX. Sanguinius  →  BLOOD ANGELS"],[1,"Second Founding: Flesh Tearers, Blood Drinkers, Angels Encarmine, Angels Sanguine, Angels Vermillion"],[1,"Later Foundings: Lamenters (21st Cursed Founding), Carmine Blades, Knights of Blood (Excommunicated)"],[1,"Ultima Founding: Atlantian Spears, Charnel Guard"],[0,"X. Ferrus Manus  →  IRON HANDS"],[1,"Second Founding: Red Talons, Brazen Claws"],[1,"Later Foundings: Sons of Medusa, Iron Lords, Steel Confessors"],[1,"Ultima Founding: Knights of Byzantium"],[0,"XIII. Roboute Guilliman  →  ULTRAMARINES (Accounts for over half of all Chapters)"],[1,"Second Founding: Novamarines, Genesis Chapter, Mortifactors, Praetors of Orpheus, Silver Skulls, White Consuls, Black Consuls, Eagle Warriors, Libators, Patriarchs of Ulixis, Inceptors, Aurora Chapter"],[1,"Later Foundings: Scythes of the Emperor, Howling Griffons, Silver Templars, Sons of Orar, Doom Eagles, Emperor's Spears, Tome Keepers"],[1,"Ultima Founding: Fulminators, Castellans of the Rift, Void Tridents"],[0,"XVIII. Vulkan  →  SALAMANDERS"],[1,"Second Founding: None (Legion was too depleted at Isstvan V to split)"],[1,"Later Foundings: Black Dragons (21st Cursed Founding), Storm Giants (Suspected)"],[1,"Ultima Founding: Covenant of Fire, Black Vipers, Dragonspears, Dark Krakens"],[0,"XIX. Corvus Corax  →  RAVEN GUARD"],[1,"Second Founding: Raptors, Revilers, Black Guard"],[1,"Later Foundings: Knights of the Raven, Flame Eagles, Death Spectres"],[1,"Ultima Founding: Rift Stalkers, Necropolis Hawks"],[-1,"UNCLASSIFIED / NON-CODEX FOUNDING"],[0,"The Emperor's Own Gene-Seed  →  GREY KNIGHTS (Chapter 666 — Created secretly during the Heresy; Chamber Militant of the Ordo Malleus)"],[-1,"UNKNOWN FOUNDING & CHIMERIC CHAPTERS (Lost records, redacted origins, or mixed gene-seed)"],[0,"Blood Ravens (Suspected Thousand Sons or Word Bearers origin)"],[0,"Carcharodons / Space Sharks (Suspected Raven Guard with Night Lords/World Eaters traits)"],[0,"Minotaurs (Chimeric gene-seed; suspected Iron Warriors origin)"],[0,"Exorcists (Suspected Imperial Fists or Grey Knights gene-seed)"],[0,"Legion of the Damned (Spectral remnants of the lost Fire Hawks Chapter)"],[0,"Red Scorpions (Fanatical gene-purity; true Primarch redacted)"],[0,"Silver Skulls (Officially Ultramarines, heavily rumored to be loyalist Iron Warriors)"],[-1,"EXPUNGED LEGIONS (Records purged prior to the Horus Heresy)"],[0,"II.  →  [REDACTED — \"The Forgotten\"]  →  II LEGION (Survivors absorbed into Ultramarines/Imperial Fists)"],[0,"XI.  →  [REDACTED — \"The Purged\"]  →  XI LEGION (Survivors absorbed into Ultramarines/Imperial Fists)"],[-1,"TRAITOR PRIMARCHS & FIRST FOUNDING LEGIONS (Fled into the Eye of Terror; split into Warbands)"],[0,"III. Fulgrim  →  EMPEROR'S CHILDREN (Fallen to Slaanesh; Warbands: Flawless Host, Phoenix Conclave)"],[0,"IV. Perturabo  →  IRON WARRIORS (Chaos Undivided; Grand Companies)"],[0,"VIII. Konrad Curze  →  NIGHT LORDS (Chaos Undivided; Warbands: The Bleak Brotherhood, Kyroptera)"],[0,"XII. Angron  →  WORLD EATERS (Fallen to Khorne; Warbands: Gladiator Cadre 331, Bloodstalkers)"],[0,"XIV. Mortarion  →  DEATH GUARD (Fallen to Nurgle; Plague Companies: The Pallid Hand, The Weeping Legion)"],[0,"XV. Magnus the Red  →  THOUSAND SONS (Fallen to Tzeentch; Cults & Thrallbands: Hermetic Blades)"],[0,"XVI. Horus Lupercal  →  LUNA WOLVES / SONS OF HORUS  →  THE BLACK LEGION (Reformed by Abaddon the Despoiler)"],[0,"XVII. Lorgar Aurelian  →  WORD BEARERS (Chaos Undivided; Hosts)"],[0,"XX. Alpharius Omegon  →  ALPHA LEGION (Operates in fractured cells across the galaxy)"]]},"chaos":{"n":"Forces of Chaos","t":"THE IMMATERIUM / THE WARP (The Realm of Chaos)","r":[[-1,"I. THE FOUR RUINOUS POWERS & THEIR DAEMONIC LEGIONS"],[0,"KHORNE — The Blood God, Lord of Skulls (Rage, War, Murder, Martial Honor)"],[1,"Realm: The Brass Citadel"],[1,"Greater Daemons: Bloodthirsters (e.g., Skarbrand, Ka'Bandha, An'ggrath)"],[1,"Lesser Daemons: Bloodletters, Flesh Hounds, Juggernauts, Bloodcrushers"],[1,"Aligned Mortal Forces: World Eaters (XII Legion), Blood Pact (Traitor Guard)"],[0,"TZEENTCH — The Changer of Ways (Sorcery, Fate, Mutation, Ambition, Deceit)"],[1,"Realm: The Crystal Labyrinth"],[1,"Greater Daemons: Lords of Change (e.g., Kairos Fateweaver, Aetaos'rau'keres)"],[1,"Lesser Daemons: Pink & Blue Horrors, Flamers, Screamers, Discs of Tzeentch"],[1,"Aligned Mortal Forces: Thousand Sons (XV Legion), The Scourged (Renegade Chapter)"],[0,"NURGLE — The Plague Father (Disease, Decay, Despair, Rebirth, Entropy)"],[1,"Realm: The Garden of Nurgle"],[1,"Greater Daemons: Great Unclean Ones (e.g., Ku'gath Plaguefather, Rotigus)"],[1,"Lesser Daemons: Plaguebearers, Nurglings, Beasts of Nurgle, Plague Drones"],[1,"Aligned Mortal Forces: Death Guard (XIV Legion), The Purge, Gellerpox Infected"],[0,"SLAANESH — The Dark Prince (Excess, Pleasure, Pain, Perfection, Obsession)"],[1,"Realm: The Palace of Slaanesh (Six Circles of Seduction)"],[1,"Greater Daemons: Keepers of Secrets (e.g., N'Kari, Shalaxi Helbane)"],[1,"Lesser Daemons: Daemonettes, Fiends, Seekers of Slaanesh"],[1,"Aligned Mortal Forces: Emperor's Children (III Legion), The Flawless Host"],[0,"UNALIGNED WARP ENTITIES & MINOR POWERS"],[1,"Vashtorr the Arkifane (Demigod of Invention, Malevolent Artifice, and Soul Forges)"],[1,"Be'lakor (The First Daemon Prince — Blessed by all four Gods, loyal to none)"],[1,"Daemons of Ruinstorm / Furies (Unaligned Warp predators)"],[1,"Malice / Malal (Minor renegade god of anarchy and self-destruction — Sons of Malice)"],[-1,"II. HERETIC ASTARTES (CHAOS SPACE MARINES)"],[0,"Chaos Undivided Legions (Worship the Pantheon as a whole or use Chaos as a tool)"],[1,"The Black Legion (Led by Abaddon the Despoiler — Largest unified Chaos force)"],[1,"Iron Warriors (IV Legion — Perturabo; Siege masters & Daemon Engine smiths)"],[1,"Night Lords (VIII Legion — Konrad Curze [Deceased]; Terror raiders & pirates)"],[1,"Word Bearers (XVII Legion — Lorgar Aurelian; Fanatical Dark Apostles & cult-builders)"],[1,"Alpha Legion (XX Legion — Alpharius Omegon; Fractured espionage cells)"],[0,"Cult Legions (Devoted exclusively to a single Chaos God)"],[1,"World Eaters (Khorne — Angron; Berzerker warbands)"],[1,"Thousand Sons (Tzeentch — Magnus the Red; Sorcerer cabals & Rubricae automatons)"],[1,"Death Guard (Nurgle — Mortarion; Seven Plague Companies)"],[1,"Emperor's Children (Slaanesh — Fulgrim; Noise Marines & hedonistic warbands)"],[0,"Renegade Chapters (Post-Heresy Chapters that turned traitor)"],[1,"Red Corsairs (Led by Huron Blackheart — Second largest Chaos warband after Black Legion)"],[1,"Crimson Slaughter (Cursed by Khorne with endless haunting voices)"],[1,"The Fallen (Rogue Dark Angels scattered across time and space)"],[1,"Astral Claws, Brazen Beasts, Corpus Brethren, Knights of Blood"],[-1,"III. THE DARK MECHANICUM (THE NEW MECHANICUM)"],[0,"Hereteks & Magi (Tech-Priests who rejected the Omnissiah's bans on AI & Warp-tech)"],[1,"Hell Forges (Daemon-worlds producing corrupted weaponry & ships)"],[1,"Warpsmiths (Marine-Heretek hybrids who bind Daemons into warmachines)"],[0,"Daemon Engines (Possessed Mechanical Constructs)"],[1,"Maulerfiends, Forgefiends, Heldrakes, Defilers, Venomcrawlers, Lord of Skulls"],[0,"Corrupted Titans & Knights"],[1,"Traitor Titan Legions (Legio Mortis, Legio Vulpa, Legio Tempestor)"],[1,"Chaos Knights (Iconoclast & Infernal Households — e.g., House Herpetrax, House Lucaris)"],[-1,"IV. THE LOST AND THE DAMNED (MORTAL & MUTANT FOLLOWERS)"],[0,"Traitor Guard & Renegade Militias"],[1,"The Blood Pact (Disciplined, Khorne-worshipping elite mortal army)"],[1,"Sons of Sek (Elite mortal force modeled after the Blood Pact)"],[1,"Vraksian Renegade Militia (Infamous siege rebels)"],[1,"Moebian Sixth (Infamous Nurgle-corrupted regiment from Hive Tertium)"],[0,"Chaos Cults (Secretive planetary insurrection cells)"],[1,"Led by Demagogues, Dark Communes, and Rogue Psykers"],[0,"Mutants & Abhumans"],[1,"Beastmen (Fellgor Ravagers — Goat-headed abhumans scorned by the Imperium)"],[1,"Accursed Cultists (Mutants & Torments warped by raw Chaos energy)"],[1,"Chaos Spawn (Mindless, flesh-warped victims of too many \"gifts\" from the Gods)"]]},"xenos":{"n":"Xenos","t":"XENOS OF THE 41ST MILLENNIUM (Major & Minor Alien Factions)","r":[[-1,"I. THE AELDARI (Eldar) — \"The Children of the Stars\""],[0,"Asuryani (Craftworld Aeldari — Guided by the Path System)"],[1,"Major Craftworlds: Ulthwé, Biel-Tan, Saim-Hann, Iyanden, Alaitoc"],[1,"Aspect Warrior Shrines (Khaine's Aspects: Dire Avengers, Howling Banshees, Striking Scorpions, Fire Dragons, Dark Reapers, Swooping Hawks, Warp Spiders, Shining Spears, Crimson Hunters)"],[0,"Drukhari (Dark Eldar — Piratical Raiders of Commorragh)"],[1,"Kabals (Noble Warrior Cartels — e.g., Kabal of the Black Heart, Flayed Skull)"],[1,"Wych Cults (Gladiatorial Arena Fighters — e.g., Cult of Strife, Cursed Blade)"],[1,"Haemonculus Covens (Flesh-Sculpting Mad Scientists — e.g., Prophets of Flesh)"],[0,"Harlequins (The Laughing God's Troupes — Guardians of the Black Library)"],[1,"Masques (e.g., Midnight Sorrow, Veiled Path, Frozen Stars, Soaring Spite)"],[0,"Ynnari (The Reborn — Death-Cult Coalition Seeking to Awaken Ynnead)"],[1,"Fractured alliance drawing members from Craftworlds, Drukhari, and Harlequins"],[0,"Exodites (Dragon Knights — Primitive Maiden World Settlers)"],[-1,"II. THE NECRONS — \"The Undying Dynasties\""],[0,"Ruling Dynasties (Led by Phaeron Monarchs & Overlords)"],[1,"Major Dynasties: Szarekhan (The Silent King's Dynasty), Sautekh (Imotekh the Stormlord), Nihilakh (Trazyn the Infinite), Mephrit, Novokh, Nephrekh"],[0,"Cryptek Conclaves (Technomancers & Reality-Benders)"],[1,"Disciplines: Chronomancers, Psychomancers, Technomancers, Plasmancers"],[0,"Triarch Praetorians (Enforcers of Ancient Necrontyr Law)"],[0,"The Afflicted (Broken Minds & Corrupted Ensembles)"],[1,"Destroyer Cults (Nihilistic Murder-Machines — Skorpekh, Lokhust, Ophydian, Hexmark)"],[1,"Flayer Virus Infected (Flayed Ones — Driven mad by Llandu'gor's curse)"],[-1,"III. THE ORKS — \"The Greenskin Tide\""],[0,"Major Ork Klans (Cultural & Tactical Archetypes)"],[1,"Goffs (Brutal melee brawlers)"],[1,"Evil Sunz (Speed Freeks & vehicle obsessed)"],[1,"Bad Moons (Wealthiest teef-growers & heavy shoota users)"],[1,"Deathskulls (Superstitious looters & scavengers)"],[1,"Blood Axes (Cunning tacticians who mimic Imperial strategy)"],[1,"Snakebites (Traditionalists favoring squigs, boars, and primitive ways)"],[0,"Oddboyz (Genetically Encoded Specialists)"],[1,"Mekboyz (Engineers), Painboyz (Surgeons), Weirdboyz (Psykers), Runtherdz (Gretchin handlers)"],[0,"Gretchin & Snotlings (Sub-species laborers, cannon fodder, and fungus tenders)"],[-1,"IV. THE TYRANIDS — \"The Great Devourer\""],[0,"The Hive Mind (Singular Galactic Gestalt Consciousness)"],[0,"Major Hive Fleets (Extraterrestrial Tendrils Invading the Galaxy)"],[1,"Hive Fleet Behemoth (First Tyrannic War — Brutal frontal assault)"],[1,"Hive Fleet Kraken (Second Tyrannic War — Flanking & splinter swarms)"],[1,"Hive Fleet Leviathan (Third & Fourth Tyrannic Wars — Largest double-pronged invasion)"],[1,"Hive Fleet Kronos (Specialized anti-Chaos/Daemon-hunting fleet)"],[1,"Hive Fleet Gorgon (Rapidly mutating toxin specialists)"],[1,"Hive Fleet Tiamet (Building a mysterious continent-sized psychic superstructure)"],[0,"Genestealer Cults (Infiltration Sub-Branch — Hybrid Vanguards on Imperial Worlds)"],[1,"Major Cults: Cult of the Four-Armed Emperor, Pauper Princes, Bladed Cog, Twisted Helix, Rusted Claw"],[-1,"V. THE T'AU EMPIRE — \"The Greater Good\""],[0,"The Five Castes (Strict Biological & Social Division)"],[1,"Ethereal Caste (Aun — Supreme spiritual and political rulers)"],[1,"Fire Caste (Shas — Soldiers, Battlesuit pilots, and military commanders)"],[1,"Earth Caste (Fio — Engineers, scientists, builders, and farmers)"],[1,"Water Caste (Por — Diplomats, merchants, bureaucrats, and propagandists)"],[1,"Air Caste (Kor — Starship pilots, messengers, and void fleet crews)"],[0,"Major Septs (Core Star Systems & Cultural Sub-Factions)"],[1,"T'au, Vior'la, Sa'cea, Dal'yth, Bork'an, Kel'shan, plus the rogue Farsight Enclaves"],[0,"Client & Auxiliary Races (Allied Xenos Absorbed into the Empire)"],[1,"Kroot (Mercenary avian-reptilian trackers & DNA-absorbing carnivores)"],[1,"Vespid Stingwings (Insectoid airborne shock troops)"],[1,"Demiurg (Void-faring miners allied with the Leagues of Votann)"],[1,"Nicassar (Psychic nomadic void-bears)"],[1,"Gue'vesa (Human defectors from the Imperium)"],[-1,"VI. LEAGUES OF VOTANN — \"The Kin\" (Abhuman/Xenos-Classified Clones)"],[0,"Ancestor Cores (The Votann — Ancient, slowing super-AIs guiding Kin society)"],[0,"Major Leagues (Corporate-Guild Star Nations)"],[1,"Greater Thurian League, Trans-Hyperian Alliance, Ymyr Conglomerate, Urani-Surtr Regulates, Kronus Hegemony"],[0,"Kin Sub-Types (Cloned Genetic Profiles / Cloneskeins)"],[1,"The Kin (Human-descended sturdy clones — formerly called \"Squats\")"],[1,"Ironkin (True sentient robots treated as full equals in Kin society)"],[-1,"VII. MINOR & INDEPENDENT XENOS SPECIES"],[0,"Hrud (Nocturnal, entropy-emitting scavengers that age nearby matter)"],[0,"Jokaero (Orangutan-like savants who instinctively build miniaturized super-weapons)"],[0,"Slaugth (Maggot-men horror-constructs operating in the dark fringes)"],[0,"Rak'Gol (Eight-limbed, radiation-addicted cybernetic raiders)"],[0,"Sslyth (Four-armed serpentine mercenaries employed by Drukhari Archons)"],[0,"Loxatl (Amphibious quadruped mercenaries often hired by Chaos forces)"],[0,"Q'orl (Insectoid Swarmhood controlling a massive empire near Terra)"],[0,"Enslavers (Psychic Warp-predators that possess unprotected psykers)"],[0,"Old Ones (Extinct god-like creators of the Aeldari, Krork/Orks, and the Webway)"]]}}
-let hierCurrent = null
+let hierCurrent = null, hierSec = 0
 
-function openHierarchy(key){
+// Flatten every chart once into lookup rows carrying their full lineage, so a
+// search can answer "where does this belong?" — the question the panel exists
+// for. Browsing is the secondary job; looking a name up is the primary one.
+const HIER_INDEX = (function(){
+  const out = []
+  for(const key in HIERARCHIES){
+    const h = HIERARCHIES[key]
+    let section = '', stack = []
+    h.r.forEach(([lvl, txt]) => {
+      if(lvl === -1){ section = txt; stack = []; return }
+      stack = stack.slice(0, lvl)
+      const path = [h.n, section].concat(stack.map(x => x))
+      out.push({key, section, text: txt, path: path.filter(Boolean)})
+      stack[lvl] = hierName(txt)
+    })
+  }
+  return out
+}())
+
+// "Adeptus Administratum (Central Bureaucracy & Tithes)" -> "Adeptus Administratum"
+function hierName(t){
+  return String(t).replace(/\s*→.*$/, '')
+                  .replace(/^(?:[IVXL]+\.|[A-Za-z' ]{3,24}:)\s*/, '')
+                  .replace(/\s*[\(\[].*$/, '').trim().replace(/[.;,]+$/, '')
+}
+
+function hierSections(key){
+  const out = []
+  let cur = null
+  HIERARCHIES[key].r.forEach(([lvl, txt]) => {
+    if(lvl === -1){ cur = {head: txt, rows: []}; out.push(cur) }
+    else { if(!cur){ cur = {head: 'APEX AUTHORITY', rows: []}; out.push(cur) } ; cur.rows.push([lvl, txt]) }
+  })
+  return out
+}
+
+function hierRowHtml(lvl, txt){
+  let body = esc(txt)
+    .replace(/^([^:<]{2,42}):/, '<b>$1:</b>')
+    .replace(/→/g, '<span class="hier-arrow">→</span>')
+  return '<div class="hier-row hier-l' + Math.min(lvl, 2) + '">' + body + '</div>'
+}
+
+function openHierarchy(key, sec){
   if(!HIERARCHIES[key]) return
   hierCurrent = key
+  hierSec = sec || 0
   const h = HIERARCHIES[key]
   document.getElementById('hierTitle').textContent = h.n
   document.getElementById('hierApex').textContent  = h.t
   document.getElementById('hierTabs').innerHTML = Object.keys(HIERARCHIES).map(k =>
     '<button class="hier-tab' + (k === key ? ' active' : '') + '" onclick="openHierarchy(\'' + k + '\')">'
     + esc(HIERARCHIES[k].n) + '</button>').join('')
-  document.getElementById('hierBody').innerHTML = h.r.map(([lvl, txt]) => {
-    if(lvl === -1) return '<div class="hier-sec">' + esc(txt) + '</div>'
-    // bold the "Label:" lead-in and gild the → that links primarch to Legion
-    let body = esc(txt)
-      .replace(/^([^:<]{2,42}):/, '<b>$1:</b>')
-      .replace(/\u2192/g, '<span class="hier-arrow">\u2192</span>')
-    return '<div class="hier-row hier-l' + Math.min(lvl, 2) + '">' + body + '</div>'
-  }).join('')
-  document.getElementById('hierBody').scrollTop = 0
+  renderHierBranch()
+  const q = document.getElementById('hierQ')
+  if(q && q.value.trim()) hierSearch(q.value)
   document.getElementById('hierModal').style.display = 'flex'
   document.body.style.overflow = 'hidden'
 }
+
+function renderHierBranch(){
+  const secs = hierSections(hierCurrent)
+  if(hierSec >= secs.length) hierSec = 0
+  document.getElementById('hierRail').innerHTML = secs.map((s, i) =>
+    '<div class="hier-rl' + (i === hierSec ? ' on' : '') + '" onclick="pickHierSection(' + i + ')">'
+    + '<span>' + esc(s.head.split('—')[0].trim()) + '</span>'
+    + '<span>' + s.rows.length + '</span></div>').join('')
+  const s = secs[hierSec] || {head:'', rows:[]}
+  document.getElementById('hierDetail').innerHTML =
+    '<div class="hier-sec" style="margin-top:0">' + esc(s.head) + '</div>'
+    + s.rows.map(([l, t]) => hierRowHtml(l, t)).join('')
+  document.getElementById('hierDetail').scrollTop = 0
+}
+function pickHierSection(i){ hierSec = i; renderHierBranch() }
+
+// Lookup: match anywhere in the row, answer with the lineage. A crumb ringed in
+// gold is already a value the Faction field accepts; a plain one is not, which
+// is the gap worth seeing while filing.
+function hierSearch(raw){
+  const q = (raw || '').trim().toLowerCase()
+  const split = document.getElementById('hierSplit')
+  const res   = document.getElementById('hierResults')
+  const clr   = document.getElementById('hierQClear')
+  if(clr) clr.classList.toggle('on', !!q)
+  if(q.length < 2){
+    split.style.display = 'flex'; res.style.display = 'none'; return
+  }
+  split.style.display = 'none'; res.style.display = 'block'
+  const hits = HIER_INDEX.filter(r =>
+    r.text.toLowerCase().includes(q) || r.path.join(' ').toLowerCase().includes(q)).slice(0, 60)
+  if(!hits.length){
+    res.innerHTML = '<div class="hier-empty">Nothing in the four hierarchies answers to &ldquo;'
+      + esc(raw) + '&rdquo;.</div>'
+    return
+  }
+  res.innerHTML = '<div class="hier-count">' + hits.length
+    + (hits.length === 60 ? '+ ' : ' ') + 'result' + (hits.length === 1 ? '' : 's')
+    + ' &mdash; a gold crumb is already a Faction value you can type; a plain one is not.</div>'
+    + hits.map(r => {
+      // Many rows are comma lists ("Second Founding: Black Templars, Crimson
+      // Fists, ..."). Searching one of them should name THAT one, not the whole
+      // string, so pick out the item the query actually hit.
+      let self = hierName(r.text)
+      if(self.indexOf(',') !== -1){
+        const parts = self.split(',').map(x => x.trim()).filter(Boolean)
+        const hitPart = parts.find(x => x.toLowerCase().includes(q))
+        self = hitPart || parts[0]
+      }
+      const crumbs = r.path.concat([self]).map((p, i, all) => {
+        const last = i === all.length - 1
+        const nm = hierName(p)
+        const known = MAJOR_FACTIONS.has(nm)
+        return '<button class="hier-crumb' + (known ? ' known' : '') + (last ? ' self' : '') + '"'
+          + ' title="' + (known ? 'A Faction value you can type today' : 'Not in the faction vocabulary yet')
+          + '" onclick="hierUseCrumb(' + JSON.stringify(nm).replace(/"/g, '&quot;') + ')">'
+          + esc(nm) + '</button>'
+      }).join('<span class="hier-sep">&rsaquo;</span>')
+      return '<div class="hier-hit"><div class="hier-hit-t">' + esc(r.text) + '</div>'
+           + '<div class="hier-hit-p">' + crumbs + '</div></div>'
+    }).join('')
+}
+function hierClearSearch(){
+  const q = document.getElementById('hierQ')
+  if(q) q.value = ''
+  hierSearch('')
+  if(q) q.focus()
+}
+// Clicking a crumb searches the catalogue for it, so you can see what is
+// already filed that way before committing to a spelling.
+function hierUseCrumb(name){
+  closeHierarchy()
+  const si = document.getElementById('srchInput')
+  if(si){ si.value = name; doSearch(name) }
+}
+
 function closeHierarchy(){
   document.getElementById('hierModal').style.display = 'none'
   document.body.style.overflow = ''
@@ -4383,7 +4541,8 @@ document.addEventListener('keydown', e => {
   if(e.key === 'Escape' && hierCurrent) closeHierarchy()
 })
 
-Object.assign(window, {openHierarchy, closeHierarchy, closeHierarchyBg})
+Object.assign(window, {openHierarchy, closeHierarchy, closeHierarchyBg,
+                       hierSearch, hierClearSearch, hierUseCrumb, pickHierSection})
 
 
 function openInscribeModal(){
@@ -5773,7 +5932,7 @@ Object.assign(window, {authorTagKeydown, removeAuthorTag})
 // Whatever is still sitting in the box is committed on blur and again just
 // before save, so a half-typed entry is never silently dropped.
 const TAG_INPUT_IDS = ['authorTagInput','factionTagInput','settingTagInput',
-                       'characterTagInput','seriesExtraInput','containedTagInput']
+                       'characterTagInput','seriesExtraInput','containedTagInput','lineageInput']
 
 function commitPendingTags(){ TAG_INPUT_IDS.forEach(commitPendingTag) }
 
@@ -5798,6 +5957,12 @@ function commitPendingTag(id){
       inp.value = ''; break
     case 'seriesExtraInput':
       addExtraSeries(); break
+    case 'lineageInput':
+      // A colon typed into one tier would corrupt the join, so split on it.
+      val.split(':').map(x => x.trim()).filter(Boolean).forEach(x => {
+        if(!has(lineageTiers, x)) lineageTiers.push(x)
+      })
+      renderLineage(); inp.value = ''; break
     case 'containedTagInput': {
       // One unambiguous catalogue match wins. Otherwise keep it as free text,
       // which renders as a visibly "⚠ unlinked" pill — wrong-but-obvious beats
@@ -6130,6 +6295,49 @@ function loadFactionList(bookId){
 }
 
 // Parent-faction suggestions: the canonical list plus any parent already in use.
+// ── Faction lineage (Option 2) ────────────────────────────────────────────
+// One ordered list, broadest tier first, stored as a colon-delimited string.
+// Depth is whatever the subject needs: Dark Angels is 2 tiers because it is
+// First Founding; Black Templars is 3 because it descends from Imperial Fists.
+let lineageTiers = []
+
+function renderLineage(){
+  const wrap = document.getElementById('lineageWrap')
+  const inp  = document.getElementById('lineageInput')
+  if(!wrap || !inp) return
+  wrap.querySelectorAll('.lin-pill,.lin-sep').forEach(e => e.remove())
+  lineageTiers.forEach((t, i) => {
+    if(i){
+      const sep = document.createElement('span')
+      sep.className = 'lin-sep'; sep.textContent = '\u203a'
+      wrap.insertBefore(sep, inp)
+    }
+    const pill = document.createElement('span')
+    pill.className = 'lin-pill' + (i === lineageTiers.length - 1 && i > 0 ? ' leaf' : '')
+    pill.innerHTML = '<span>' + esc(t) + '</span>'
+      + '<button onclick="removeLineageTier(' + i + ');event.stopPropagation()" title="Remove tier">&#10005;</button>'
+    wrap.insertBefore(pill, inp)
+  })
+  inp.placeholder = lineageTiers.length
+    ? 'Add a narrower tier\u2026'
+    : 'Broadest first, then Enter \u2014 Adeptus Astartes, Imperial Fists, Black Templars'
+}
+
+function removeLineageTier(i){
+  lineageTiers.splice(i, 1)
+  renderLineage()
+}
+
+function lineageKeydown(e){
+  const inp = document.getElementById('lineageInput')
+  if(e.key === 'Enter'){ e.preventDefault(); commitPendingTag('lineageInput') }
+  else if(e.key === 'Backspace' && !inp.value && lineageTiers.length){
+    lineageTiers.pop(); renderLineage()
+  }
+}
+
+Object.assign(window, {removeLineageTier, lineageKeydown})
+
 function loadFactionSuggest(){
   const dl = document.getElementById('factionSuggest')
   if(!dl) return
@@ -6137,9 +6345,7 @@ function loadFactionSuggest(){
   for(const id in globalBooks){
     const raw = (globalBooks[id].faction || '').trim()
     if(!raw) continue
-    const i = raw.indexOf(':')
-    const parent = (i === -1 ? raw : raw.slice(0, i)).trim()
-    if(parent) s.add(parent)
+    raw.split(':').map(t => t.trim()).forEach(t => { if(t) s.add(t) })
   }
   dl.innerHTML = [...s].sort().map(f => '<option value="' + esc(f) + '"></option>').join('')
 }
@@ -6172,34 +6378,41 @@ function splitFaction(bookId){
   const raw = (gb.faction || '').trim()
   let extras = []
   try{ const p = JSON.parse(gb.faction_list || '[]'); if(Array.isArray(p)) extras = p.filter(Boolean) }catch(e){}
-  if(raw.indexOf(':') !== -1){
-    const i = raw.indexOf(':')
-    return {parent: raw.slice(0,i).trim(), sub: raw.slice(i+1).trim(), also: extras.map(String)}
-  }
-  // No colon means no subfaction. Full stop.
+  // A lineage of any depth: "Adeptus Astartes: Imperial Fists: Black Templars".
+  // parent/sub are kept as aliases of the first tier and the rest, so every
+  // existing caller keeps working and a 1- or 2-tier row behaves exactly as
+  // it did before.
   //
-  // This used to promote the first faction_list entry that wasn't in
-  // MAJOR_FACTIONS into `sub` — a migration guess from back when there was no
-  // Subfaction field and a sub could only have been dumped into Also Features.
-  // Now that Edit mode has an explicit Subfaction box, leaving it empty is a
-  // deliberate statement, and the guess was silently eating an Also Features
-  // entry and re-displaying it as "Faction: AlsoFeatures".
-  return {parent: raw, sub: '', also: extras.map(e => String(e).trim()).filter(Boolean)}
+  // No colon means no subfaction. Full stop. This never guesses at a legacy
+  // row: it used to promote the first non-major faction_list entry into the
+  // sub slot, which silently ate an Also Features entry.
+  const tiers = raw ? raw.split(':').map(t => t.trim()).filter(Boolean) : []
+  return {
+    tiers:  tiers,
+    parent: tiers[0] || '',
+    sub:    tiers.slice(1).join(': '),
+    also:   extras.map(e => String(e).trim()).filter(Boolean)
+  }
 }
 
 // Gold display line: "Parent: Sub-Faction"
 function factionHierarchy(bookId){
-  const f = splitFaction(bookId)
-  if(!f.parent) return ''
-  return f.sub ? (f.parent + ': ' + f.sub) : f.parent
+  return splitFaction(bookId).tiers.join(': ')
+}
+
+// Cards get root + leaf only. At thumbnail width the broad bucket and the
+// specific chapter are what you need; the middle tier is the least useful of
+// the three. Identical output to factionHierarchy() for 1 or 2 tiers, so every
+// book already in the archive looks exactly as it does today.
+function factionCardLine(bookId){
+  const t = splitFaction(bookId).tiers
+  return t.length > 2 ? (t[0] + ': ' + t[t.length - 1]) : t.join(': ')
 }
 
 // Every faction a book touches — used by filters and search
 function allFactionsFor(bookId){
   const f = splitFaction(bookId)
-  const out = []
-  if(f.parent) out.push(f.parent)
-  if(f.sub) out.push(f.sub)
+  const out = f.tiers.slice()
   f.also.forEach(a => { if(a) out.push(a) })
   return out
 }
@@ -7199,14 +7412,13 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
           <div class="mfield">
             <span class="mfield-label">Faction</span>
             <div class="mfield-val meta" id="mSubject"></div>
-            <input class="inscribe-input modal-edit-field" id="mFactionEdit" style="display:none" placeholder="Faction — e.g. Imperial Fists" list="factionSuggest"/>
-            <datalist id="factionSuggest"></datalist>
-            <div class="modal-edit-field" style="display:none;margin-top:.45rem">
-              <span class="mfield-label">Subfaction</span>
+            <div class="modal-edit-field lineage-wrap" id="lineageWrap" style="display:none" onclick="document.getElementById('lineageInput').focus()">
+              <input class="tag-input-field" id="lineageInput" placeholder="Broadest first, then Enter &mdash; Adeptus Astartes, Imperial Fists, Black Templars"
+                     autocomplete="off" onkeydown="lineageKeydown(event)" list="factionSuggest"/>
             </div>
-            <input class="inscribe-input modal-edit-field" id="mSubfactionEdit" style="display:none" placeholder="Successor Chapter, Order or regiment — e.g. Black Templars"/>
+            <datalist id="factionSuggest"></datalist>
             <div class="modal-edit-field" style="display:none;font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:.2rem">
-              Leave Subfaction blank for a parent-only faction.
+              Broadest tier first. One tier is fine; add a successor Chapter, Order or regiment only where there is one.
             </div>
           </div>
             <div class="mfield" style="flex:1;min-width:180px">
@@ -7380,7 +7592,16 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
       </div>
     </div>
     <div class="hier-tabs" id="hierTabs"></div>
-    <div class="hier-body" id="hierBody"></div>
+    <div class="hier-search">
+      <input id="hierQ" type="text" autocomplete="off" oninput="hierSearch(this.value)"
+             placeholder="Look up any branch across all four &mdash; e.g. Aeronautica, Ordo Malleus, Cadian"/>
+      <button id="hierQClear" onclick="hierClearSearch()" title="Clear">&#10005;</button>
+    </div>
+    <div class="hier-split" id="hierSplit">
+      <div class="hier-rail" id="hierRail"></div>
+      <div class="hier-detail" id="hierDetail"></div>
+    </div>
+    <div class="hier-results" id="hierResults" style="display:none"></div>
     <div class="hier-note">A structural overview, not a tithe-exact census &mdash; the Imperium does not know its own shape either.</div>
   </div>
 </div>
