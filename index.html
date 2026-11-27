@@ -360,15 +360,17 @@
     .dossier-head .mfield-label{display:none}
     .modal-panel.editing .dossier-head .mfield-label{display:block}
 
-    /* Spoilers / Dramatis Personae live at the foot of the column now, so the
-       summary is simply the first thing you read. */
-    .dossier-tail{margin-top:auto;flex-shrink:0;display:flex;flex-direction:column;gap:.1rem}
-    .dossier-tail .content-tabs{border-bottom:none;border-top:1px solid var(--border);
-      padding-top:.45rem;gap:.4rem}
-    .dossier-tail .content-tabs .content-tab{flex:1;justify-content:center;text-align:center;
-      border:1px solid #2a2640;border-radius:2px}
-    .dossier-tail .content-tabs .content-tab.active{border-color:var(--border-gold);
-      background:rgba(232,201,106,.07)}
+    /* The four panels are picked from the rail, not from a strip at the foot of
+       a column you had to scroll to reach. 2x2 so all four stay above the fold
+       whatever the book's summary length. */
+    .modal-rail .content-tabs{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;
+      border-bottom:none;border-top:1px solid var(--border);padding-top:.55rem;
+      margin-top:.35rem;flex-shrink:0}
+    .modal-rail .content-tabs .content-tab{display:flex;align-items:center;justify-content:center;
+      text-align:center;border:1px solid #2a2640;border-radius:2px;min-height:40px;
+      padding:.35rem .25rem;line-height:1.25;white-space:normal;overflow-wrap:anywhere}
+    .modal-rail .content-tabs .content-tab.active{border-color:var(--border-gold);
+      background:rgba(232,201,106,.09);color:var(--gold-bright)}
 
     /* Off the Summary tab, the data block steps aside and the panel takes
        the whole column. */
@@ -7301,6 +7303,12 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
         <span class="rating-count" id="avgRatingCount"></span>
       </div>
     </div>
+            <div class="content-tabs" id="contentTabs">
+              <button class="content-tab active" id="tabSummary" onclick="switchContentTab('summary')">&#128214; Summary</button>
+              <button class="content-tab spoiler-tab" id="tabSpoiler" onclick="switchContentTab('spoiler')">&#9888; Spoilers</button>
+              <button class="content-tab" id="tabDP" onclick="switchContentTab('dp')">&#9876; Personae</button>
+              <button class="content-tab" id="tabAI" onclick="switchContentTab('ai')">&#9654; Other Works</button>
+            </div>
       </div>
 
       <!-- MAIN: the work itself -->
@@ -7613,14 +7621,6 @@ Object.assign(window, {exportFullData, openImportPicker, handleImportFile, close
         </div>
       </div>
         </div>
-          <div class="dossier-tail">
-            <div class="content-tabs" id="contentTabs">
-              <button class="content-tab active" id="tabSummary" onclick="switchContentTab('summary')">&#128214; Summary</button>
-              <button class="content-tab spoiler-tab" id="tabSpoiler" onclick="switchContentTab('spoiler')">&#9888; Spoilers</button>
-              <button class="content-tab" id="tabDP" onclick="switchContentTab('dp')">&#9876; Personae</button>
-              <button class="content-tab" id="tabAI" onclick="switchContentTab('ai')">&#9654; Other Works</button>
-            </div>
-          </div>
       </div>
     </div>
     <!-- save row (edit mode only) -->
